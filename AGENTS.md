@@ -21,20 +21,69 @@ call, it is wrong. This is the app's core promise and the reason it exists.
 
 ## Setup
 
+Requirements: Node 22+, JDK 17 or 21, Android Studio with SDK Platform 35+, macOS or Linux.
+
+### Environment (macOS)
+
+None of this is set by default. Put it in `~/.zshrc` — every "it works on my machine" failure in
+this project so far has been one of these three lines missing.
+
+```bash
+# Android Studio's bundled JBR is a perfectly good JDK. No separate install needed.
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+```
+
+Verify before blaming the code:
+
+```bash
+java -version        # 17 or 21
+adb devices          # your device, "device" not "unauthorized" or "offline"
+npx expo-doctor
+```
+
+### Daily loop
+
 ```bash
 npm install
-npx expo run:android          # builds + installs on connected device/emulator
+npx expo start --dev-client   # this is the normal one — JS/TS changes hot reload
 npm run lint
 npm run typecheck
 npm test
 npm run db:generate           # drizzle-kit: generate migration after schema change
 ```
 
-Requirements: Node 22+, JDK 17 or 21, Android Studio with SDK Platform 35+, macOS or Linux.
+`npx expo run:android` is **only** for native changes: adding or removing a native dependency,
+editing `app.json`, or changing a config plugin. It is a ten-minute build. Reaching for it after a
+TypeScript edit is the most common way to waste an afternoon here.
 
-Android Studio's bundled JBR is a fine JDK — you do not need a separate install. Point at it with
-`export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`. Phase 0 was
-built and verified on JBR 21 and Node 24.
+### Installing on a device
+
+`adb install` is enough on most phones and on the emulator. On **MIUI / HyperOS (Xiaomi, Redmi,
+POCO)** it fails with `INSTALL_FAILED_USER_RESTRICTED` — MIUI blocks installs over USB regardless
+of what the developer options say. Push the APK and install it from the device instead:
+
+```bash
+adb push android/app/build/outputs/apk/debug/app-debug.apk /sdcard/Download/
+# then open Files → Download → app-debug.apk on the phone and confirm
+```
+
+Turning on "Install via USB" in MIUI developer options needs a signed-in Xiaomi account and often
+still fails; the push route is faster and always works.
+
+### Emulator
+
+The Pixel AVD wants ~5 GB of RAM. If the host is short, it dies with SIGABRT mid-session, usually
+in the graphics stack. Headless survives that and screenshots still work:
+
+```bash
+emulator -avd Pixel_7 -no-snapshot -no-boot-anim -no-window -gpu swiftshader_indirect -memory 2048
+adb exec-out screencap -p > shot.png
+```
+
+**Anything about audio must be verified on a physical device.** Emulator audio output tells you
+nothing true about 24/96 playback, gapless, or the foreground service surviving a screen-off.
 
 `minSdkVersion` is **26**, set through `expo-build-properties` in `app.json`. Raising it to 31
 was considered and rejected: it costs roughly a fifth of Android devices while deleting almost no
@@ -108,6 +157,29 @@ These are not preferences. Violating them is a bug.
 - Contrast is a hard constraint, not a preference: ≥ 4.5:1 for body text in both themes, asserted
   in `tokens.test.ts`. On a filled indigo surface use `text-on-accent` and never white — white on
   the dark-theme indigo is 2.98:1 and fails.
+
+---
+
+## States
+
+**Every screen and every component is designed with its empty, loading and error states from the
+start.** Not in a polish phase, not "when we have real data" — in the same commit as the happy
+path. A screen submitted with only its populated state is incomplete, the same way a component
+without a type is incomplete.
+
+Concretely, before a screen is done, answer all three:
+
+- **Empty** — there is no data yet. Use `<EmptyState />`. An empty screen is an invitation, not a
+  failure: say what is missing and put the action right there.
+- **Loading** — data is coming. Skeletons that match the shape of the real content, never a
+  centred spinner on a blank screen, never a layout that jumps when data lands.
+- **Error** — something failed. Say what failed in one plain sentence and offer the retry. Never
+  a raw error string, never a dead end.
+
+Tone across all three: sentence case, no apologies, no mascots, no emoji. Light wit is allowed if
+it sounds like the rest of the app; nothing that sounds like a different product wrote it.
+
+This applies to the phases ahead. UI and UX are part of the first pass, not a later cleanup.
 
 ---
 
