@@ -1,0 +1,11 @@
+# Binding documents — formatted by hand, not by a tool.
+AGENTS.md
+docs/
+
+# Generated or vendored.
+android/
+ios/
+.expo/
+dist/
+node_modules/
+assets/
