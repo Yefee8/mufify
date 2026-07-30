@@ -4,7 +4,7 @@ import { getLocales } from 'expo-localization';
 // same names as top-level exports and warns; that is a false positive here.
 /* eslint-disable import/no-named-as-default-member */
 import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
+import { initReactI18next, useTranslation } from 'react-i18next';
 
 import {
   getLanguagePreference,
@@ -59,3 +59,15 @@ export function changeLanguage(preference: LanguagePreference): void {
 }
 
 export { i18n };
+
+/**
+ * Resolve a key that holds an array of interchangeable strings — the empty
+ * state messages. Returns `[]` rather than throwing if the key is wrong, so a
+ * bad key degrades to a bare icon instead of a crash.
+ */
+export function useMessages(key: string): string[] {
+  const { t } = useTranslation();
+  const value = t(key, { returnObjects: true });
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string => typeof entry === 'string');
+}

@@ -11,8 +11,8 @@ export interface SettingGroupProps {
 export function SettingGroup({ title, children }: SettingGroupProps) {
   return (
     <View className="gap-3">
-      <Text className="font-body-semibold text-sm text-muted">{title}</Text>
-      <View className="gap-4 rounded-md border border-subtle bg-surface-elevated p-4">
+      <Text className="px-1 font-body-semibold text-sm text-muted">{title}</Text>
+      <View className="gap-6 rounded-md border border-subtle bg-surface-elevated p-5">
         {children}
       </View>
     </View>

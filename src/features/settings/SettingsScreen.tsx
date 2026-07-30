@@ -1,10 +1,12 @@
+import { Languages, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView } from 'react-native';
 
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
 import { SettingGroup } from '@/components/ui/SettingGroup';
+import { SettingRow } from '@/components/ui/SettingRow';
 import { changeLanguage } from '@/i18n';
 import {
   getLanguagePreference,
@@ -15,20 +17,27 @@ import {
 } from '@/services/settings';
 import { useTheme } from '@/theme/useTheme';
 
+const THEME_ICONS: Record<ThemePreference, LucideIcon> = {
+  system: Monitor,
+  light: Sun,
+  dark: Moon,
+};
+
 export function SettingsScreen() {
   const { t } = useTranslation();
   const { preference: theme, setPreference: setTheme } = useTheme();
   const [language, setLanguage] = useState<LanguagePreference>(getLanguagePreference);
 
   const themeOptions: SegmentedControlOption<ThemePreference>[] = THEME_PREFERENCES.map(
-    (value) => ({ value, label: t(`settings.appearance.${value}`) }),
+    (value) => ({
+      value,
+      label: t(`settings.appearance.${value}`),
+      icon: THEME_ICONS[value],
+    }),
   );
 
   const languageOptions: SegmentedControlOption<LanguagePreference>[] = LANGUAGE_PREFERENCES.map(
-    (value) => ({
-      value,
-      label: t(`settings.language.${value}`),
-    }),
+    (value) => ({ value, label: t(`settings.language.${value}`) }),
   );
 
   function onLanguageChange(next: LanguagePreference) {
@@ -38,31 +47,35 @@ export function SettingsScreen() {
 
   return (
     <Screen title={t('settings.title')}>
-      <ScrollView contentContainerClassName="gap-6 px-6 pb-16">
+      <ScrollView contentContainerClassName="gap-8 px-6 pb-16">
         <SettingGroup title={t('settings.appearance.title')}>
-          <View className="gap-3">
-            <Text className="font-body text-base text-primary">
-              {t('settings.appearance.theme')}
-            </Text>
+          <SettingRow
+            icon={THEME_ICONS[theme]}
+            label={t('settings.appearance.theme')}
+            value={t(`settings.appearance.${theme}`)}
+          >
             <SegmentedControl
               options={themeOptions}
               value={theme}
               onChange={setTheme}
               accessibilityLabel={t('settings.appearance.theme')}
             />
-          </View>
+          </SettingRow>
         </SettingGroup>
 
         <SettingGroup title={t('settings.language.title')}>
-          <View className="gap-3">
-            <Text className="font-body text-base text-primary">{t('settings.language.label')}</Text>
+          <SettingRow
+            icon={Languages}
+            label={t('settings.language.label')}
+            value={t(`settings.language.${language}`)}
+          >
             <SegmentedControl
               options={languageOptions}
               value={language}
               onChange={onLanguageChange}
               accessibilityLabel={t('settings.language.label')}
             />
-          </View>
+          </SettingRow>
         </SettingGroup>
       </ScrollView>
     </Screen>

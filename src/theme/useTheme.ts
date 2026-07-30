@@ -45,3 +45,13 @@ export function useTheme(): UseThemeResult {
 
   return { preference, resolved, colors: COLORS[resolved], setPreference };
 }
+
+/**
+ * Just the active theme's token values, for components that need a colour as
+ * a prop rather than a class — Lucide icons and Reanimated styles, mostly.
+ */
+export function useThemeColors(): (typeof COLORS)[ThemeName] {
+  const { colorScheme: active } = useColorScheme();
+  const resolved: ThemeName = (active ?? colorScheme.get()) === 'light' ? 'light' : 'dark';
+  return COLORS[resolved];
+}

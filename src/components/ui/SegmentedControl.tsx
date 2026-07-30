@@ -1,9 +1,13 @@
+import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
+
+import { useThemeColors } from '@/theme/useTheme';
 
 export interface SegmentedControlOption<T extends string> {
   value: T;
   /** Already translated. */
   label: string;
+  icon?: LucideIcon;
 }
 
 export interface SegmentedControlProps<T extends string> {
@@ -24,6 +28,8 @@ export function SegmentedControl<T extends string>({
   onChange,
   accessibilityLabel,
 }: SegmentedControlProps<T>) {
+  const colors = useThemeColors();
+
   return (
     <View
       accessibilityRole="radiogroup"
@@ -32,6 +38,7 @@ export function SegmentedControl<T extends string>({
     >
       {options.map((option) => {
         const selected = option.value === value;
+        const Icon = option.icon;
         return (
           <Pressable
             key={option.value}
@@ -41,10 +48,13 @@ export function SegmentedControl<T extends string>({
             accessibilityLabel={option.label}
             className={
               selected
-                ? 'min-h-11 flex-1 items-center justify-center rounded-sm bg-accent px-3'
-                : 'min-h-11 flex-1 items-center justify-center rounded-sm border border-subtle px-3'
+                ? 'min-h-11 flex-1 flex-row items-center justify-center gap-2 rounded-sm bg-accent px-3'
+                : 'min-h-11 flex-1 flex-row items-center justify-center gap-2 rounded-sm border border-subtle px-3'
             }
           >
+            {Icon ? (
+              <Icon color={selected ? colors.onSignal : colors.legend} size={16} strokeWidth={2} />
+            ) : null}
             <Text
               className={
                 selected

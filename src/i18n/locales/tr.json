@@ -7,16 +7,31 @@
   },
   "library": {
     "title": "Kitaplık",
-    "empty": "Müzik bulunamadı. Taranacak bir klasör seç.",
+    "empty": [
+      "Henüz müzik yok. Taranacak bir klasör seç.",
+      "Burası şimdilik boş. Bir klasör göster, gerisi kendiliğinden gelir.",
+      "Kitaplığın tek bir klasör uzağında.",
+      "Müziğin nerede duruyorsa, oraya bak diyelim."
+    ],
     "emptyAction": "Klasör seç"
   },
   "playlists": {
     "title": "Çalma listeleri",
-    "empty": "Henüz çalma listen yok. Herhangi bir parçadan oluşturabilirsin."
+    "empty": [
+      "Henüz listen yok. Herhangi bir parçadan başlat.",
+      "Burası boş. Bir parçaya uzun bas, listeye at.",
+      "Her liste tek bir parçayla başlar.",
+      "Daha liste yok. İlkini sen kur."
+    ]
   },
   "stats": {
     "title": "İstatistik",
-    "empty": "Gösterecek bir şey yok. Biraz dinle, sonra tekrar bak."
+    "empty": [
+      "Gösterecek bir şey yok. Biraz dinle, sonra uğra.",
+      "İstatistik için önce dinlemek gerek.",
+      "Henüz geçmiş yok. Dinledikçe burası dolar.",
+      "Birkaç albüm sonra tekrar bak."
+    ]
   },
   "settings": {
     "title": "Ayarlar",

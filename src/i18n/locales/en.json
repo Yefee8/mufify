@@ -7,16 +7,31 @@
   },
   "library": {
     "title": "Library",
-    "empty": "No music found. Choose a folder to scan.",
+    "empty": [
+      "No music found. Choose a folder to scan.",
+      "Nothing here yet. Point it at a folder and it fills up.",
+      "Your library is one folder away.",
+      "Empty for now. Tell it where the music lives."
+    ],
     "emptyAction": "Choose folder"
   },
   "playlists": {
     "title": "Playlists",
-    "empty": "No playlists yet. Create one from any track."
+    "empty": [
+      "No playlists yet. Start one from any track.",
+      "Nothing here. Long-press a track to begin.",
+      "Every playlist starts with one track.",
+      "No lists yet. Build the first one."
+    ]
   },
   "stats": {
     "title": "Stats",
-    "empty": "Nothing to show yet. Play something and come back."
+    "empty": [
+      "Nothing to show yet. Play something and come back.",
+      "Stats need listening first.",
+      "No history yet. This fills in as you play.",
+      "Come back after a few records."
+    ]
   },
   "settings": {
     "title": "Settings",
