@@ -1,0 +1,38 @@
+{
+  "tabs": {
+    "library": "Kitaplık",
+    "playlists": "Listeler",
+    "stats": "İstatistik",
+    "settings": "Ayarlar"
+  },
+  "library": {
+    "title": "Kitaplık",
+    "empty": "Müzik bulunamadı. Taranacak bir klasör seç.",
+    "emptyAction": "Klasör seç"
+  },
+  "playlists": {
+    "title": "Çalma listeleri",
+    "empty": "Henüz çalma listen yok. Herhangi bir parçadan oluşturabilirsin."
+  },
+  "stats": {
+    "title": "İstatistik",
+    "empty": "Gösterecek bir şey yok. Biraz dinle, sonra tekrar bak."
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "appearance": {
+      "title": "Görünüm",
+      "theme": "Tema",
+      "system": "Sistem",
+      "light": "Açık",
+      "dark": "Koyu"
+    },
+    "language": {
+      "title": "Dil",
+      "label": "Uygulama dili",
+      "system": "Sistem",
+      "en": "English",
+      "tr": "Türkçe"
+    }
+  }
+}

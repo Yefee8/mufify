@@ -1,0 +1,38 @@
+{
+  "tabs": {
+    "library": "Library",
+    "playlists": "Playlists",
+    "stats": "Stats",
+    "settings": "Settings"
+  },
+  "library": {
+    "title": "Library",
+    "empty": "No music found. Choose a folder to scan.",
+    "emptyAction": "Choose folder"
+  },
+  "playlists": {
+    "title": "Playlists",
+    "empty": "No playlists yet. Create one from any track."
+  },
+  "stats": {
+    "title": "Stats",
+    "empty": "Nothing to show yet. Play something and come back."
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": {
+      "title": "Appearance",
+      "theme": "Theme",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "language": {
+      "title": "Language",
+      "label": "App language",
+      "system": "System",
+      "en": "English",
+      "tr": "Türkçe"
+    }
+  }
+}
