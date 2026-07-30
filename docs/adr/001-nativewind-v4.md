@@ -27,8 +27,21 @@ All styling stays behind semantic class names (`bg-surface`, `text-muted`), and 
 definitions live in two files. When v5 goes stable the migration is confined to `global.css` and
 `tailwind.config.js` — no component should need to change.
 
-One thing is not yet proven: NativeWind's animation utilities run through Reanimated, and
-`react-native-css-interop@0.2.6` declares `react-native-reanimated >=3.6.2`, a range written
-before Reanimated 4's rewrite. Phase 0b tests this deliberately with a `transition-colors` on the
-theme switch. If it fails, the fallback is a rule — all motion is written directly in Reanimated,
-no NativeWind animation classes — and that goes into `AGENTS.md`.
+NativeWind's animation utilities run through Reanimated, and
+`react-native-css-interop@0.2.6` declares `react-native-reanimated >=3.6.2` — a range written
+before Reanimated 4's rewrite, so semver agreement proved nothing. Phase 0b tested it directly:
+a `transition-colors duration-1000` on the screen surface, then a burst of screenshots across a
+theme switch, sampling the background pixel each frame:
+
+```
+#0A0C11 → #0A0C11 → #C1C0BE → #EEECE9 → #F6F4F1
+```
+
+Two interpolated intermediates, so the transition genuinely animates on Reanimated 4.5.1.
+**NativeWind animation utilities are available and may be used.** The contingency rule — all
+motion written directly in Reanimated — is not needed.
+
+The probe was then removed rather than kept. Animating only the screen background on a theme
+switch leaves text and panels snapping while the backdrop fades, which reads worse than an
+instant change. Theme switching stays instant; the animation utilities earn their place on state
+transitions (selection, playing row) from Phase 4 on.
