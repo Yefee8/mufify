@@ -61,12 +61,19 @@ module.exports = {
       accent: 'rgb(var(--color-signal) / <alpha-value>)',
     },
     extend: {
+      // React Native picks a font by full family name, so each weight is its
+      // own class. Keep this list in step with src/theme/fonts.ts.
       fontFamily: {
-        // Loaded in Phase 0b. Display = screen titles and the now-playing
-        // track; body = everything else; mono = all technical data.
+        // Display — screen titles, now-playing track.
         display: ['Archivo_600SemiBold'],
+        'display-bold': ['Archivo_700Bold'],
+        // Body — lists and everything else.
         body: ['Inter_400Regular'],
+        'body-medium': ['Inter_500Medium'],
+        'body-semibold': ['Inter_600SemiBold'],
+        // Mono — every technical value. Tabular figures.
         mono: ['JetBrainsMono_400Regular'],
+        'mono-medium': ['JetBrainsMono_500Medium'],
       },
     },
   },
