@@ -13,7 +13,9 @@
       "Kitaplığın tek bir klasör uzağında.",
       "Müziğin nerede duruyorsa, oraya bak diyelim."
     ],
-    "emptyAction": "Klasör seç"
+    "emptyAction": "Klasör seç",
+    "trackCount_one": "{{count}} parça",
+    "trackCount_other": "{{count}} parça"
   },
   "playlists": {
     "title": "Çalma listeleri",
