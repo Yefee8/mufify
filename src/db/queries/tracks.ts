@@ -1,0 +1,111 @@
+import { and, asc, count, eq, like, or, sql } from 'drizzle-orm';
+import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+
+import { db } from '../client';
+import { albums, artists, tracks, type NewTrack } from '../schema';
+
+/** A track with its artist and album names resolved, ready for a list row. */
+export interface TrackListItem {
+  id: number;
+  title: string;
+  artistName: string | null;
+  albumName: string | null;
+  durationMs: number;
+  artworkPath: string | null;
+}
+
+const listSelection = {
+  id: tracks.id,
+  title: tracks.title,
+  artistName: artists.name,
+  albumName: albums.name,
+  durationMs: tracks.durationMs,
+  artworkPath: tracks.artworkPath,
+};
+
+/** Present tracks, alphabetical, case-insensitive. */
+export function listTracks(limit = 100, offset = 0) {
+  return db
+    .select(listSelection)
+    .from(tracks)
+    .leftJoin(artists, eq(tracks.artistId, artists.id))
+    .leftJoin(albums, eq(tracks.albumId, albums.id))
+    .where(eq(tracks.isMissing, 0))
+    .orderBy(asc(sql`${tracks.title} COLLATE NOCASE`))
+    .limit(limit)
+    .offset(offset);
+}
+
+/** Title, artist or album — the search box matches all three. */
+export function searchTracks(term: string, limit = 100) {
+  const pattern = `%${term}%`;
+  return db
+    .select(listSelection)
+    .from(tracks)
+    .leftJoin(artists, eq(tracks.artistId, artists.id))
+    .leftJoin(albums, eq(tracks.albumId, albums.id))
+    .where(
+      and(
+        eq(tracks.isMissing, 0),
+        or(like(tracks.title, pattern), like(artists.name, pattern), like(albums.name, pattern)),
+      ),
+    )
+    .orderBy(asc(sql`${tracks.title} COLLATE NOCASE`))
+    .limit(limit);
+}
+
+export async function getTrackById(id: number) {
+  const [row] = await db.select().from(tracks).where(eq(tracks.id, id)).limit(1);
+  return row ?? null;
+}
+
+export async function countTracks(): Promise<number> {
+  const [row] = await db.select({ value: count() }).from(tracks).where(eq(tracks.isMissing, 0));
+  return row?.value ?? 0;
+}
+
+/**
+ * Live present-track count, re-running whenever the table changes.
+ *
+ * The `useLiveQuery` subscription lives here rather than in a feature hook so
+ * that Drizzle stays behind the src/db boundary — enforced by ESLint.
+ */
+export function useTrackCount(): number {
+  const query = db.select({ value: count() }).from(tracks).where(eq(tracks.isMissing, 0));
+  const { data } = useLiveQuery(query);
+  return data[0]?.value ?? 0;
+}
+
+/**
+ * Insert or update by `fileUri`, which is the stable identity of a track — a
+ * rescan must not create a second row for a file it has already seen.
+ */
+export async function upsertTracks(rows: NewTrack[]): Promise<void> {
+  if (rows.length === 0) return;
+
+  await db
+    .insert(tracks)
+    .values(rows)
+    .onConflictDoUpdate({
+      target: tracks.fileUri,
+      set: {
+        title: sql`excluded.title`,
+        durationMs: sql`excluded.duration_ms`,
+        dateModified: sql`excluded.date_modified`,
+        fileSize: sql`excluded.file_size`,
+        isMissing: sql`0`,
+      },
+    });
+}
+
+/**
+ * A file that has gone is marked, never deleted, so playlist entries and play
+ * history survive an unmounted SD card.
+ */
+export async function markMissing(trackIds: number[]): Promise<void> {
+  if (trackIds.length === 0) return;
+  await db
+    .update(tracks)
+    .set({ isMissing: 1 })
+    .where(sql`${tracks.id} IN ${trackIds}`);
+}
