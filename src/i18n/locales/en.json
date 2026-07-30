@@ -13,9 +13,21 @@
       "Your library is one folder away.",
       "Empty for now. Tell it where the music lives."
     ],
-    "emptyAction": "Choose folder",
+    "emptyAction": "Add music",
+    "addMusic": "Add music",
+    "rescan": "Rescan",
     "trackCount_one": "{{count}} track",
-    "trackCount_other": "{{count}} tracks"
+    "trackCount_other": "{{count}} tracks",
+    "scanning": {
+      "enumerating": "Finding files…",
+      "enriching": "Reading tags…",
+      "cancel": "Stop"
+    },
+    "scanError": {
+      "permission": "Mufify needs permission to read audio on this device.",
+      "generic": "The scan stopped before it finished.",
+      "retry": "Try again"
+    }
   },
   "playlists": {
     "title": "Playlists",

@@ -13,9 +13,21 @@
       "Kitaplığın tek bir klasör uzağında.",
       "Müziğin nerede duruyorsa, oraya bak diyelim."
     ],
-    "emptyAction": "Klasör seç",
+    "emptyAction": "Müzik ekle",
+    "addMusic": "Müzik ekle",
+    "rescan": "Yeniden tara",
     "trackCount_one": "{{count}} parça",
-    "trackCount_other": "{{count}} parça"
+    "trackCount_other": "{{count}} parça",
+    "scanning": {
+      "enumerating": "Dosyalar bulunuyor…",
+      "enriching": "Etiketler okunuyor…",
+      "cancel": "Durdur"
+    },
+    "scanError": {
+      "permission": "Mufify'ın bu cihazdaki sesleri okuması için izin gerekiyor.",
+      "generic": "Tarama bitmeden durdu.",
+      "retry": "Tekrar dene"
+    }
   },
   "playlists": {
     "title": "Çalma listeleri",

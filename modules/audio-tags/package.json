@@ -1,0 +1,7 @@
+{
+  "name": "audio-tags",
+  "version": "0.1.0",
+  "description": "MediaStore enumeration, tag reading and artwork extraction for Mufify.",
+  "main": "index.ts",
+  "private": true
+}

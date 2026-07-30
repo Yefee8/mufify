@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="dev.mufify.audiotags.SpecMathTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-07-30T23:34:08.258Z" hostname="Yavuz-MacBook-Air.local" time="0.018">
+  <properties/>
+  <testcase name="treats a disc with no track as track-unknown" classname="dev.mufify.audiotags.SpecMathTest" time="0.012"/>
+  <testcase name="prefers a sane reported bitrate" classname="dev.mufify.audiotags.SpecMathTest" time="0.0"/>
+  <testcase name="never returns a sample size below one" classname="dev.mufify.audiotags.SpecMathTest" time="0.0"/>
+  <testcase name="computes the average when nothing is reported" classname="dev.mufify.audiotags.SpecMathTest" time="0.0"/>
+  <testcase name="reads a bare track number as having no disc" classname="dev.mufify.audiotags.SpecMathTest" time="0.0"/>
+  <testcase name="treats missing or nonsense track numbers as unknown" classname="dev.mufify.audiotags.SpecMathTest" time="0.001"/>
+  <testcase name="halves until the longest edge is within the target" classname="dev.mufify.audiotags.SpecMathTest" time="0.0"/>
+  <testcase name="separates lossless from lossy" classname="dev.mufify.audiotags.SpecMathTest" time="0.004"/>
+  <testcase name="unpacks the disc-times-1000 encoding" classname="dev.mufify.audiotags.SpecMathTest" time="0.0"/>
+  <testcase name="measures the longest edge on a non-square picture" classname="dev.mufify.audiotags.SpecMathTest" time="0.0"/>
+  <testcase name="falls back when the reported value is absurd" classname="dev.mufify.audiotags.SpecMathTest" time="0.0"/>
+  <testcase name="gives up rather than dividing by zero" classname="dev.mufify.audiotags.SpecMathTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
