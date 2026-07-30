@@ -1,6 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 
-import { classifyListen } from '@/services/stats/playCounting';
+import { classifyListen, type ListenOutcome } from '@/services/stats/playCounting';
 import { periodKeys, type WeekStart } from '@/services/stats/periodKeys';
 
 import { db } from '../client';
@@ -31,7 +31,7 @@ export interface RecordListenInput {
 export async function recordListen(
   input: RecordListenInput,
   weekStart: WeekStart,
-): Promise<{ event: PlayEvent | null; outcome: ReturnType<typeof classifyListen> }> {
+): Promise<{ event: PlayEvent | null; outcome: ListenOutcome }> {
   const outcome = classifyListen(input.msPlayed, input.durationMs);
   const keys = periodKeys(input.startedAt, weekStart);
 
@@ -42,6 +42,7 @@ export async function recordListen(
       startedAtUtc: input.startedAt.getTime(),
       msPlayed: input.msPlayed,
       completed: input.completed ? 1 : 0,
+      outcome,
       sourceType: input.sourceType,
       sourceId: input.sourceId ?? null,
       shuffleAlgorithm: input.shuffleAlgorithm ?? null,
@@ -55,6 +56,8 @@ export async function recordListen(
     .insert(trackStats)
     .values({
       trackId: input.trackId,
+      // A partial moves neither counter but still contributes its
+      // milliseconds, so total listening time stays honest.
       playCount: outcome === 'play' ? 1 : 0,
       skipCount: outcome === 'skip' ? 1 : 0,
       msPlayedTotal: input.msPlayed,

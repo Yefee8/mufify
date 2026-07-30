@@ -133,6 +133,15 @@ export const playEvents = sqliteTable(
     msPlayed: integer('ms_played').notNull(),
     completed: integer('completed').notNull().default(0),
 
+    /**
+     * 'play' | 'skip' | 'partial', decided once by `classifyListen` and
+     * stored rather than re-derived. A rollup rebuild must agree with the
+     * counters that were written at the time, and the rule's thresholds are
+     * duration-dependent — recomputing later would silently reclassify
+     * history if the rule ever moved.
+     */
+    outcome: text('outcome').notNull().default('partial'),
+
     /** 'library' | 'album' | 'artist' | 'playlist' | 'queue'. */
     sourceType: text('source_type').notNull(),
     sourceId: integer('source_id'),
@@ -150,6 +159,7 @@ export const playEvents = sqliteTable(
     index('play_events_track_idx').on(table.trackId),
     index('play_events_week_idx').on(table.weekKey),
     index('play_events_month_idx').on(table.monthKey),
+    index('play_events_outcome_idx').on(table.outcome),
   ],
 );
 

@@ -131,6 +131,23 @@ describe('migrations', () => {
     expect(() => insert.run('file:///a.flac')).toThrow();
   });
 
+  it('records the listen outcome on the event itself', () => {
+    // Stored rather than re-derived: the thresholds are duration-dependent,
+    // so recomputing later would silently reclassify existing history.
+    const db = freshDatabase();
+    const columns = db.prepare('PRAGMA table_info(play_events)').all() as {
+      name: string;
+      notnull: number;
+      dflt_value: string | null;
+    }[];
+    const outcome = columns.find((column) => column.name === 'outcome');
+
+    expect(outcome).toBeDefined();
+    expect(outcome?.notnull).toBe(1);
+    // A default is what makes the ALTER TABLE safe on a populated database.
+    expect(outcome?.dflt_value).toContain('partial');
+  });
+
   it('enforces the rollup uniqueness the upsert relies on', () => {
     const db = freshDatabase();
     const insert = db.prepare(
@@ -146,7 +163,7 @@ describe('migrations', () => {
       "INSERT INTO tracks (id, file_uri, title, duration_ms, date_added, date_modified) VALUES (1, 'file:///a.flac', 'T', 1000, 0, 0)",
     );
     db.exec(
-      "INSERT INTO play_events (track_id, started_at_utc, ms_played, source_type, week_key, month_key, year_key) VALUES (1, 0, 500, 'library', '2026-W31', '2026-07', '2026')",
+      "INSERT INTO play_events (track_id, started_at_utc, ms_played, outcome, source_type, week_key, month_key, year_key) VALUES (1, 0, 500, 'partial', 'library', '2026-W31', '2026-07', '2026')",
     );
     db.exec('DELETE FROM tracks WHERE id = 1');
 

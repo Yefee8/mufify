@@ -5,7 +5,21 @@
  * the recorder about what a play is.
  */
 
+/**
+ * Three outcomes, not two.
+ *
+ * - `play`  — it counted. Increments `play_count`.
+ * - `skip`  — abandoned early. Increments `skip_count`.
+ * - `partial` — it happened and counts as neither. Still contributes
+ *   `ms_played`, so listening time stays honest even when the listen was not
+ *   decisive either way.
+ */
 export type ListenOutcome = 'play' | 'skip' | 'partial';
+
+export const LISTEN_OUTCOMES = ['play', 'skip', 'partial'] as const;
+
+/** The duration where the two thresholds meet: 2.5 minutes. */
+export const THRESHOLD_CROSSOVER_MS = 150_000;
 
 /** A play needs 30 seconds, or half the track if the track is shorter. */
 export function playThresholdMs(durationMs: number): number {
@@ -20,22 +34,23 @@ export function skipThresholdMs(durationMs: number): number {
 /**
  * Classify one listen.
  *
- * > **The two thresholds overlap, and this needs a decision.** For anything
- * > longer than 2.5 minutes, `duration * 0.2` is past the 30-second play mark,
- * > so a 4-minute track listened to for 40 seconds satisfies *both* rules —
- * > it is over the 30s play threshold and under the 48s skip threshold. Most
- * > songs are longer than 2.5 minutes, so this is the common case, not an edge
- * > case.
- * >
- * > Until that is settled, **play wins**: the positive event is checked first,
- * > and the overlap region counts as a play and not a skip. That keeps play
- * > counts honest and under-reports skips. The alternative reading — that a
- * > skip means "did not finish", so the skip test should win — would make a
- * > 40-second listen to a 4-minute track a skip *and* not a play, which is
- * > defensible but changes every rollup.
- * >
- * > Changing this is one branch here plus its tests. Changing it after Phase 7
- * > ships means rebuilding every rollup.
+ * The two thresholds cross at 2.5 minutes, and they behave differently either
+ * side of it. Both regions resolve to a defined outcome — nothing falls
+ * through:
+ *
+ * **Longer than 2.5 minutes — the thresholds overlap.** `duration * 0.2` is
+ * past the 30-second play mark, so a 4-minute track heard for 40 seconds is
+ * over the play threshold *and* under the skip threshold. Evaluation is
+ * ordered and **play is checked first**, so the overlap counts as a play.
+ *
+ * **Shorter than 2.5 minutes — the thresholds leave a gap.** The skip mark is
+ * below the play mark, so a 20-second track heard for 5 seconds is under the
+ * play threshold and over the skip threshold. That is `partial`: it is
+ * recorded, its milliseconds count towards listening time, and it moves
+ * neither counter.
+ *
+ * Settled in `docs/adr/005-play-skip-partial.md`. Not reopening this in
+ * Phase 7 — by then every rollup depends on it.
  */
 export function classifyListen(msPlayed: number, durationMs: number): ListenOutcome {
   if (durationMs <= 0 || msPlayed <= 0) return 'partial';
@@ -46,7 +61,18 @@ export function classifyListen(msPlayed: number, durationMs: number): ListenOutc
   return 'partial';
 }
 
-/** True when the thresholds overlap for this duration — see `classifyListen`. */
-export function hasAmbiguousThresholds(durationMs: number): boolean {
+/**
+ * True when the play threshold sits below the skip threshold, so some listens
+ * satisfy both rules and the ordering decides. Tracks over 2.5 minutes.
+ */
+export function hasOverlappingThresholds(durationMs: number): boolean {
   return skipThresholdMs(durationMs) > playThresholdMs(durationMs);
+}
+
+/**
+ * True when the two thresholds leave a band that is neither, which is where
+ * `partial` earns its place. Tracks under 2.5 minutes.
+ */
+export function hasThresholdGap(durationMs: number): boolean {
+  return durationMs > 0 && skipThresholdMs(durationMs) < playThresholdMs(durationMs);
 }
