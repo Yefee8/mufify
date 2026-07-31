@@ -14,4 +14,10 @@ export const SETTINGS_KEYS = {
   language: 'settings.language',
   weekStart: 'settings.weekStart',
   shuffleAlgorithm: 'settings.shuffleAlgorithm',
+  librarySort: 'settings.librarySort',
+  haptics: 'settings.haptics',
+  resumeOnLaunch: 'settings.resumeOnLaunch',
+  ignoreShortFiles: 'settings.ignoreShortFiles',
+  /** The queue and position, so playback can resume where it stopped. */
+  lastSession: 'settings.lastSession',
 } as const;

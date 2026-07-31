@@ -1,5 +1,7 @@
+import { albumShuffle } from './album';
 import { balancedShuffle } from './balanced';
 import { discoveryShuffle } from './discovery';
+import { favoritesShuffle } from './favorites';
 import { pureShuffle } from './pure';
 import { SHUFFLE_ALGORITHMS, type Rng, type ShuffleAlgorithm, type ShuffleTrack } from './types';
 
@@ -20,6 +22,8 @@ const REGISTRY: Record<
   pure: pureShuffle,
   balanced: balancedShuffle,
   discovery: discoveryShuffle,
+  favorites: favoritesShuffle,
+  album: albumShuffle,
 };
 
 /** `Math.random`, named so the default is visible at the call site. */

@@ -108,9 +108,13 @@
       "pure": "Pure",
       "balanced": "Balanced",
       "discovery": "Discovery",
+      "favorites": "Favourites",
+      "album": "By album",
       "pureHint": "Truly random. Clusters, because randomness does.",
       "balancedHint": "Spreads each artist across the queue.",
-      "discoveryHint": "Favours tracks you have played least."
+      "discoveryHint": "Favours tracks you have played least.",
+      "favoritesHint": "Favours what you play most, and what you have hearted.",
+      "albumHint": "Shuffles the albums, never the album. Each one plays in order."
     }
   },
   "player": {
@@ -123,6 +127,8 @@
     "previous": "Previous track",
     "seek": "Seek",
     "unknownArtist": "Unknown artist",
+    "favorite": "Add to favourites",
+    "unfavorite": "Remove from favourites",
     "empty": "Nothing playing. Pick a track from the library.",
     "error": "This track would not play.",
     "repeat": {

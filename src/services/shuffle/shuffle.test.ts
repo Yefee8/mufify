@@ -7,14 +7,29 @@ import {
 } from './index';
 
 /**
- * A small deterministic generator. Not cryptographic and not trying to be —
- * it exists so a failing property test fails the same way twice.
+ * A deterministic generator whose *seeds* are independent of each other.
+ *
+ * This started as a linear congruential generator and that was a real bug in
+ * the tests. An LCG advances by a fixed step, so seeds 1, 2, 3… produce first
+ * draws that differ by a constant: across 400 sequential seeds the first value
+ * spanned about 15% of [0, 1) and never once exceeded 0.94. Every property
+ * test that seeds in a loop was therefore sampling a narrow band, and an
+ * outcome needing `rng() > 0.977` — a low-weight track winning a weighted draw
+ * — looked impossible when it was merely unreachable by the harness.
+ *
+ * splitmix32 hashes the seed rather than stepping from it, so each seed starts
+ * an unrelated stream. Measured on the case that exposed this: 10 hits in 400
+ * against an expected 9.
  */
 function seededRng(seed: number): Rng {
   let state = seed >>> 0;
   return () => {
-    state = (state * 1_664_525 + 1_013_904_223) >>> 0;
-    return state / 0x1_0000_0000;
+    state = (state + 0x9e37_79b9) >>> 0;
+    let z = state;
+    z = Math.imul(z ^ (z >>> 16), 0x21f0_aaad);
+    z = Math.imul(z ^ (z >>> 15), 0x735a_2d97);
+    z = (z ^ (z >>> 15)) >>> 0;
+    return z / 0x1_0000_0000;
   };
 }
 
@@ -202,5 +217,130 @@ describe('isShuffleAlgorithm', () => {
   it('rejects anything else, so a stale stored value cannot crash a launch', () => {
     expect(isShuffleAlgorithm('smart')).toBe(false);
     expect(isShuffleAlgorithm('')).toBe(false);
+  });
+});
+
+describe('favorites shuffle', () => {
+  it('is the mirror of discovery: well-played tracks come earlier', () => {
+    const tracks = makeTracks([
+      { artist: 'Loved', count: 10, playCount: 50 },
+      { artist: 'Ignored', count: 10, playCount: 0 },
+    ]);
+
+    let lovedTotal = 0;
+    let ignoredTotal = 0;
+    for (let seed = 1; seed <= 200; seed += 1) {
+      shuffleTracks(tracks, 'favorites', seededRng(seed)).forEach((track, position) => {
+        if (track.artistName === 'Loved') lovedTotal += position;
+        else ignoredTotal += position;
+      });
+    }
+
+    expect(lovedTotal).toBeLessThan(ignoredTotal);
+  });
+
+  it('boosts a favourite above its play count alone', () => {
+    const plain: ShuffleTrack[] = Array.from({ length: 10 }, (_, index) => ({
+      id: index + 1,
+      artistName: 'A',
+      playCount: 1,
+    }));
+    const withFavourite: ShuffleTrack[] = plain.map((track) =>
+      track.id === 1 ? { ...track, isFavorite: true } : track,
+    );
+
+    let plainPosition = 0;
+    let favouritePosition = 0;
+    for (let seed = 1; seed <= 200; seed += 1) {
+      plainPosition += shuffleTracks(plain, 'favorites', seededRng(seed)).findIndex(
+        (t) => t.id === 1,
+      );
+      favouritePosition += shuffleTracks(withFavourite, 'favorites', seededRng(seed)).findIndex(
+        (t) => t.id === 1,
+      );
+    }
+
+    expect(favouritePosition).toBeLessThan(plainPosition);
+  });
+
+  it('can still reach a never-played track', () => {
+    // A shuffle that can never reach half the library is a filter wearing a
+    // shuffle's name, so unplayed tracks keep a weight floor rather than zero.
+    //
+    // Stated as reachability, not likelihood, and measured at odds where
+    // "never observed" would actually mean something: two tracks at 20 plays
+    // against one at zero is roughly 1-in-20 to lead, so across 400 seeds a
+    // floor of zero would show up as a hard absence rather than as noise.
+    const tracks = makeTracks([
+      { artist: 'Loved', count: 2, playCount: 20 },
+      { artist: 'New', count: 1, playCount: 0 },
+    ]);
+
+    const led = Array.from({ length: 400 }, (_, seed) =>
+      shuffleTracks(tracks, 'favorites', seededRng(seed + 1))[0]?.artistName,
+    ).filter((artist) => artist === 'New').length;
+
+    expect(led).toBeGreaterThan(0);
+  });
+});
+
+describe('album shuffle', () => {
+  function albumTracks() {
+    const tracks: ShuffleTrack[] = [];
+    let id = 1;
+    for (const album of ['Kind of Blue', 'OK Computer', 'Fourth Symphony']) {
+      for (let index = 0; index < 4; index += 1) {
+        tracks.push({ id: id++, artistName: album, playCount: 0, albumName: album });
+      }
+    }
+    return tracks;
+  }
+
+  it('never splits an album', () => {
+    // A symphony shuffled track-by-track is noise. Every album must appear as
+    // one unbroken run.
+    for (let seed = 1; seed <= 100; seed += 1) {
+      const result = shuffleTracks(albumTracks(), 'album', seededRng(seed));
+      const runs = result.map((track) => track.albumName).filter((name, index, all) => all[index - 1] !== name);
+      expect(runs).toHaveLength(new Set(runs).size);
+    }
+  });
+
+  it('preserves the order inside each album', () => {
+    for (let seed = 1; seed <= 50; seed += 1) {
+      const result = shuffleTracks(albumTracks(), 'album', seededRng(seed));
+      const okComputer = result.filter((t) => t.albumName === 'OK Computer').map((t) => t.id);
+      expect(okComputer).toEqual([...okComputer].sort((a, b) => a - b));
+    }
+  });
+
+  it('does reorder the albums themselves', () => {
+    const orders = new Set(
+      Array.from({ length: 50 }, (_, seed) =>
+        shuffleTracks(albumTracks(), 'album', seededRng(seed + 1))
+          .map((t) => t.albumName)
+          .join('|'),
+      ),
+    );
+    expect(orders.size).toBeGreaterThan(1);
+  });
+
+  it('keeps loose files loose rather than welding them into one record', () => {
+    // Three untagged singles are three groups, not one imaginary album.
+    const singles: ShuffleTrack[] = [1, 2, 3].map((id) => ({
+      id,
+      artistName: null,
+      playCount: 0,
+      albumName: null,
+    }));
+
+    const orders = new Set(
+      Array.from({ length: 50 }, (_, seed) =>
+        shuffleTracks(singles, 'album', seededRng(seed + 1))
+          .map((t) => t.id)
+          .join('|'),
+      ),
+    );
+    expect(orders.size).toBeGreaterThan(1);
   });
 });

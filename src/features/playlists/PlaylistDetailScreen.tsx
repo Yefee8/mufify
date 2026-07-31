@@ -173,5 +173,6 @@ function toPlayableEntry(entry: PlaylistEntry) {
     durationMs: entry.durationMs,
     artworkPath: entry.artworkPath,
     playCount: entry.playCount,
+    isFavorite: entry.isFavorite,
   };
 }

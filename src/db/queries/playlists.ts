@@ -2,7 +2,7 @@ import { and, asc, eq, gt, max, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 
 import { db } from '../client';
-import { albums, artists, playlistTracks, playlists, tracks } from '../schema';
+import { albums, artists, playlistTracks, playlists, trackStats, tracks } from '../schema';
 
 /**
  * Playlists and their contents.
@@ -31,6 +31,7 @@ export interface PlaylistEntry {
   durationMs: number;
   artworkPath: string | null;
   playCount: number;
+  isFavorite: boolean;
 }
 
 /** Live list of playlists, newest first, with their sizes. */
@@ -64,12 +65,20 @@ export function usePlaylistEntries(playlistId: number): PlaylistEntry[] {
       albumName: albums.name,
       durationMs: tracks.durationMs,
       artworkPath: tracks.artworkPath,
-      playCount: sql<number>`0`,
+      /*
+       * Real counts, not the zero this used to select. Shuffling a playlist
+       * runs the same algorithms as shuffling the library, and `discovery` and
+       * `favorites` both weight on these — fed constants they degrade silently
+       * into `pure`, which looks like the setting being ignored.
+       */
+      playCount: sql<number>`coalesce(${trackStats.playCount}, 0)`,
+      isFavorite: sql`coalesce(${trackStats.isFavorite}, 0)`.mapWith(Boolean),
     })
     .from(playlistTracks)
     .innerJoin(tracks, eq(tracks.id, playlistTracks.trackId))
     .leftJoin(artists, eq(artists.id, tracks.artistId))
     .leftJoin(albums, eq(albums.id, tracks.albumId))
+    .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
     .where(and(eq(playlistTracks.playlistId, playlistId), eq(tracks.isMissing, 0)))
     .orderBy(asc(playlistTracks.position));
 

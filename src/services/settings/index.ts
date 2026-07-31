@@ -6,11 +6,17 @@ export {
   type LanguagePreference,
 } from './language';
 export {
+  getHapticsEnabled,
+  getIgnoreShortFiles,
   getLanguagePreference,
+  getResumeOnLaunch,
   getShuffleAlgorithm,
   getThemePreference,
   getWeekStart,
+  setHapticsEnabled,
+  setIgnoreShortFiles,
   setLanguagePreference,
+  setResumeOnLaunch,
   setShuffleAlgorithm,
   setThemePreference,
   setWeekStart,

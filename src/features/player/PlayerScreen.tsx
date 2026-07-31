@@ -25,6 +25,7 @@ import type { RepeatMode } from '@/services/audio/types';
 import { formatDuration } from '@/services/format/duration';
 import { useThemeColors } from '@/theme/useTheme';
 
+import { FavoriteButton } from './components/FavoriteButton';
 import { Scrubber } from './components/Scrubber';
 import { SpecStrip } from './components/SpecStrip';
 import { usePlayback, usePlaybackControls } from './hooks/usePlayback';
@@ -97,9 +98,12 @@ export function PlayerScreen() {
           <Text numberOfLines={2} className="font-display text-3xl text-primary">
             {track.title}
           </Text>
-          <Text numberOfLines={1} className="font-body text-base text-muted">
-            {track.artistName ?? t('player.unknownArtist')}
-          </Text>
+          <View className="flex-row items-center justify-between">
+            <Text numberOfLines={1} className="flex-1 font-body text-base text-muted">
+              {track.artistName ?? t('player.unknownArtist')}
+            </Text>
+            <FavoriteButton trackId={track.id} />
+          </View>
           <SpecStrip trackId={track.id} />
         </View>
 

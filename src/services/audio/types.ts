@@ -25,6 +25,8 @@ export interface PlayableTrack {
    * put a database round trip between the button and the music.
    */
   playCount: number;
+  /** Favourited. Carried for the same reason as `playCount`. */
+  isFavorite: boolean;
 }
 
 /**

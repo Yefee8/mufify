@@ -108,9 +108,13 @@
       "pure": "Saf",
       "balanced": "Dengeli",
       "discovery": "Keşif",
+      "favorites": "Favoriler",
+      "album": "Albüme göre",
       "pureHint": "Gerçekten rastgele. Kümelenir, çünkü rastgelelik böyledir.",
       "balancedHint": "Her sanatçıyı kuyruğa yayar.",
-      "discoveryHint": "En az çaldığın parçaları öne alır."
+      "discoveryHint": "En az çaldığın parçaları öne alır.",
+      "favoritesHint": "En çok çaldıklarını ve favorilediklerini öne alır.",
+      "albumHint": "Albümleri karıştırır, albümün içini değil. Her biri sırasıyla çalar."
     }
   },
   "player": {
@@ -123,6 +127,8 @@
     "previous": "Önceki parça",
     "seek": "İleri sar",
     "unknownArtist": "Bilinmeyen sanatçı",
+    "favorite": "Favorilere ekle",
+    "unfavorite": "Favorilerden çıkar",
     "empty": "Çalan bir şey yok. Kitaplıktan bir parça seç.",
     "error": "Bu parça çalınamadı.",
     "repeat": {

@@ -15,11 +15,15 @@ export interface ShuffleTrack {
   id: number;
   /** Null is its own bucket: unknown artists are not all the same artist. */
   artistName: string | null;
-  /** Lifetime plays, for algorithms that favour the neglected. */
+  /** Lifetime plays, for algorithms that weight by listening history. */
   playCount: number;
+  /** Album name, or null. `album` shuffle groups on it. */
+  albumName?: string | null;
+  /** Marked by the user. `favorites` boosts these above raw play count. */
+  isFavorite?: boolean;
 }
 
-export const SHUFFLE_ALGORITHMS = ['pure', 'balanced', 'discovery'] as const;
+export const SHUFFLE_ALGORITHMS = ['pure', 'balanced', 'discovery', 'favorites', 'album'] as const;
 export type ShuffleAlgorithm = (typeof SHUFFLE_ALGORITHMS)[number];
 
 export const DEFAULT_SHUFFLE: ShuffleAlgorithm = 'balanced';

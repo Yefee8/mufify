@@ -1,13 +1,17 @@
 # Shuffle
 
-Three algorithms, chosen in Settings. The brief is explicit that this is
+Five algorithms, chosen in Settings. The brief is explicit that this is
 "multiple shuffle algorithms, selectable in Settings — not one shuffle with a
 toggle", and that shapes the design: shuffle is a *choice*, so the Now Playing
 indicator says which one is running rather than just that shuffling is on.
 
+They are deliberately not five variations on one idea. `pure` is the baseline,
+`balanced` fixes clustering, and the last three are *moods*: play me what I
+don't know, play me what I love, play me whole records.
+
 ---
 
-## The three
+## The five
 
 ### Pure
 
@@ -48,6 +52,45 @@ and 1 should.
 Every track keeps a non-zero weight. This biases the order; it does not quietly
 shorten the queue. Shuffling your library returns your library.
 
+### Favourites
+
+Discovery's mirror. Weights by `(playCount + 1)`, multiplied by 5 when the track
+is hearted, sampling without replacement.
+
+Discovery divides by plays; this multiplies by them. Writing them as mirror
+images is what makes the pair a mood switch rather than two unrelated features —
+"play me things I've been neglecting" and "play me the good stuff" are the same
+question with the sign flipped.
+
+The `× 5` for an explicit favourite is the one number here that is a judgement
+rather than a derivation. It puts a hearted track that has never been played
+roughly level with one played four times, which is about right: hearting
+something is a stronger statement than having played it twice, and a weaker one
+than having played it fifty times.
+
+Unplayed tracks keep a weight floor of 1 for the same reason discovery keeps one
+— a shuffle that can never reach half the library is a filter wearing a
+shuffle's name. It is tested as reachability rather than as likelihood.
+
+### By album
+
+Shuffles the albums, never the album. Album order is random; the running order
+*inside* each album is left exactly as it arrived.
+
+This is what someone with a classical or progressive library means when they ask
+for shuffle. A symphony shuffled movement-by-movement is noise, and a concept
+record loses the only thing that made it one.
+
+Two honest limitations, both deliberate:
+
+- The queue arrives sorted by title, not by track number, so "the order it was
+  given" is alphabetical rather than the album's real sequence. The algorithm
+  preserves the order it receives rather than inventing one — fixing this
+  belongs to the query that builds the queue, not here.
+- A track with no album tag becomes its own group, keyed on its id. Three
+  untagged singles are three groups, not one imaginary record. Without this,
+  every loose file in the library would weld into a single unbreakable run.
+
 ---
 
 ## Testing properties, not outputs
@@ -70,6 +113,25 @@ What is asserted:
   algorithm exists to answer, stated as a measurement.
 - **Discovery puts neglected tracks earlier on average**, and still includes
   heavily played ones.
+- **Favourites is discovery's mirror** — well-played tracks earlier — and a
+  hearted track beats its own play count. Reachability of an unplayed track is
+  asserted separately, at odds where a hard zero would show as absence rather
+  than as noise.
+- **By album never splits an album** across 100 seeds, preserves intra-album
+  order, still reorders the albums themselves, and keeps untagged singles as
+  separate groups.
+
+### One trap, paid for once
+
+The seeded generator in the tests was a linear congruential generator, and that
+was a bug in the *tests*. An LCG advances by a fixed step, so seeds 1, 2, 3…
+produce first draws differing by a constant: across 400 sequential seeds the
+first value spanned about 15% of `[0, 1)` and never exceeded 0.94. Every property
+test that seeds in a loop was sampling a narrow band, and an outcome needing
+`rng() > 0.977` looked impossible when it was merely unreachable by the harness.
+
+It is splitmix32 now, which hashes the seed rather than stepping from it. On the
+case that exposed this: 10 hits in 400 against an expected 9.
 
 ---
 
@@ -86,9 +148,17 @@ replaced and no audio stops. Pressing shuffle is a statement about what comes
 *next* — reshuffling underneath a playing track and jumping to a different one
 is the behaviour every player gets wrong once.
 
-`playCount` rides along on `PlayableTrack` from the list query, joined from
-`track_stats`. Discovery needs it at shuffle time, and re-querying then would
-put a database round trip between the button and the music.
+`playCount`, `isFavorite` and `albumName` all ride along on `PlayableTrack` from
+the list query, joined from `track_stats`. The weighted algorithms need them at
+shuffle time, and re-querying then would put a database round trip between the
+button and the music.
+
+`is_favorite` gets its writer from the heart on Now Playing. Worth stating
+because it was missing: the column existed from Phase 1 and nothing set it, so
+`favorites` was silently running on play counts alone for as long as that was
+true. An algorithm whose distinguishing input has no writer is not implemented,
+it is stubbed — and it passes its own tests either way, because the tests supply
+the input directly.
 
 The chosen algorithm is read at press time rather than captured when the screen
 mounted, so changing it in Settings takes effect on the next shuffle without

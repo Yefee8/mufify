@@ -24,6 +24,8 @@ export interface TrackListItem {
    * been played, since `track_stats` only gains a row on the first listen.
    */
   playCount: number;
+  /** Marked by the user. The `favorites` shuffle weights on it. */
+  isFavorite: boolean;
 }
 
 const listSelection = {
@@ -35,6 +37,13 @@ const listSelection = {
   durationMs: tracks.durationMs,
   artworkPath: tracks.artworkPath,
   playCount: sql<number>`coalesce(${trackStats.playCount}, 0)`,
+  /*
+   * `mapWith(Boolean)` rather than a bare `sql<boolean>`: SQLite has no boolean
+   * type and hands back 0 or 1, so the annotation alone would be a type that
+   * lies. It survives `if (isFavorite)` and breaks the moment anyone writes
+   * `=== true`, which is the worst kind of wrong — right until it isn't.
+   */
+  isFavorite: sql`coalesce(${trackStats.isFavorite}, 0)`.mapWith(Boolean),
 };
 
 /** Present tracks, alphabetical, case-insensitive. */
@@ -150,6 +159,39 @@ export function useTrackSpec(trackId: number | null) {
 
   const { data } = useLiveQuery(query, [trackId]);
   return data[0] ?? null;
+}
+
+/**
+ * Whether one track is favourited, live.
+ *
+ * Separate from `useTracks` because the player has a track id and no list. It
+ * reads `track_stats`, which is absent until the first listen — no row means
+ * not favourited, which is why the query cannot be an inner join.
+ */
+export function useIsFavorite(trackId: number | null): boolean {
+  const query = db
+    .select({ isFavorite: trackStats.isFavorite })
+    .from(trackStats)
+    .where(eq(trackStats.trackId, trackId ?? -1))
+    .limit(1);
+
+  const { data } = useLiveQuery(query, [trackId]);
+  return data[0]?.isFavorite === 1;
+}
+
+/**
+ * Mark or unmark a favourite.
+ *
+ * Upserts because `track_stats` only gains a row on the first listen, and a
+ * track can be favourited before it has ever been played — which is exactly
+ * what someone does after adding an album they already know.
+ */
+export async function setFavorite(trackId: number, isFavorite: boolean): Promise<void> {
+  const flag = isFavorite ? 1 : 0;
+  await db
+    .insert(trackStats)
+    .values({ trackId, isFavorite: flag })
+    .onConflictDoUpdate({ target: trackStats.trackId, set: { isFavorite: flag } });
 }
 
 /**

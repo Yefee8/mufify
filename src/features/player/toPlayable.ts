@@ -20,5 +20,6 @@ export function toPlayable(track: TrackListItem): PlayableTrack {
     durationMs: track.durationMs,
     artworkPath: track.artworkPath,
     playCount: track.playCount,
+    isFavorite: track.isFavorite,
   };
 }

@@ -67,3 +67,54 @@ export function getShuffleAlgorithm(): ShuffleAlgorithm {
 export function setShuffleAlgorithm(algorithm: ShuffleAlgorithm): void {
   settingsStorage.set(SETTINGS_KEYS.shuffleAlgorithm, algorithm);
 }
+
+/**
+ * A stored switch, defaulting to `fallback` when it has never been set.
+ *
+ * `getBoolean` cannot distinguish "off" from "absent", so an unset switch that
+ * should default on would read as off. The explicit `contains` check is what
+ * makes "on unless turned off" expressible.
+ */
+function readStoredFlag(key: string, fallback: boolean): boolean {
+  return settingsStorage.contains(key) ? (settingsStorage.getBoolean(key) ?? fallback) : fallback;
+}
+
+/** Physical feedback on transport and reorder. On unless turned off. */
+export function getHapticsEnabled(): boolean {
+  return readStoredFlag(SETTINGS_KEYS.haptics, true);
+}
+
+export function setHapticsEnabled(enabled: boolean): void {
+  settingsStorage.set(SETTINGS_KEYS.haptics, enabled);
+}
+
+/**
+ * Restore the queue on a cold start.
+ *
+ * On by default: this app's audience keeps long albums, and losing your place
+ * because Android killed the process is the complaint. It restores paused,
+ * never playing — an app that starts making noise on launch is a worse bug than
+ * the one this fixes.
+ */
+export function getResumeOnLaunch(): boolean {
+  return readStoredFlag(SETTINGS_KEYS.resumeOnLaunch, true);
+}
+
+export function setResumeOnLaunch(enabled: boolean): void {
+  settingsStorage.set(SETTINGS_KEYS.resumeOnLaunch, enabled);
+}
+
+/**
+ * Skip files under 30 seconds when scanning.
+ *
+ * Off by default. Interludes, field recordings and album segues are legitimate
+ * tracks, and silently dropping a fifth of a classical library is worse than
+ * showing a few ringtones.
+ */
+export function getIgnoreShortFiles(): boolean {
+  return readStoredFlag(SETTINGS_KEYS.ignoreShortFiles, false);
+}
+
+export function setIgnoreShortFiles(enabled: boolean): void {
+  settingsStorage.set(SETTINGS_KEYS.ignoreShortFiles, enabled);
+}
