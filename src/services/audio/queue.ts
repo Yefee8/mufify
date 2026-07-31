@@ -58,6 +58,36 @@ export function isPlayable(index: number, length: number): boolean {
 }
 
 /**
+ * Where "play next" puts its tracks.
+ *
+ * Directly after whatever is current, so a sequence of play-next presses builds
+ * the order they were pressed in rather than reversing it. Inserting each one at
+ * `index + 1` would make the last one pressed play first, which is a bug people
+ * describe as "it plays them backwards" — the caller passes the whole batch and
+ * this returns one insertion point for it.
+ *
+ * An empty or unstarted queue inserts at the front: there is no "next" yet, and
+ * appending to nothing then refusing to play it is how the button appears dead.
+ */
+export function playNextIndex(index: number, length: number): number {
+  if (length === 0 || index < 0) return 0;
+  return Math.min(index + 1, length);
+}
+
+/**
+ * Where the index has to move after `count` tracks are inserted at `at`.
+ *
+ * An insert before the current track shifts it along; one after it does not.
+ * Getting this wrong does not throw — the queue simply starts pointing at a
+ * different track than the one making sound, and every subsequent skip is off
+ * by one.
+ */
+export function shiftForInsert(index: number, at: number, count: number): number {
+  if (index < 0) return index;
+  return at <= index ? index + count : index;
+}
+
+/**
  * The next repeat mode when the button is pressed.
  *
  * off → all → one → off. Escalating: no repeat, then repeat the queue, then

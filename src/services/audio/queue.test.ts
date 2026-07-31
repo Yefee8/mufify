@@ -1,4 +1,11 @@
-import { cycleRepeat, isPlayable, nextIndex, previousIndex } from './queue';
+import {
+  cycleRepeat,
+  isPlayable,
+  nextIndex,
+  playNextIndex,
+  previousIndex,
+  shiftForInsert,
+} from './queue';
 import type { RepeatMode } from './types';
 
 function at(index: number, length: number, repeat: RepeatMode = 'off') {
@@ -100,5 +107,65 @@ describe('cycleRepeat', () => {
 
   it('returns to the start after three presses', () => {
     expect(cycleRepeat(cycleRepeat(cycleRepeat('off')))).toBe('off');
+  });
+});
+
+describe('playNextIndex', () => {
+  it('inserts directly after the current track', () => {
+    expect(playNextIndex(0, 5)).toBe(1);
+    expect(playNextIndex(3, 5)).toBe(4);
+  });
+
+  it('inserts at the end when the current track is the last one', () => {
+    expect(playNextIndex(4, 5)).toBe(5);
+  });
+
+  it('inserts at the front of an empty or unstarted queue', () => {
+    // There is no "next" yet. Appending to nothing and then not playing it is
+    // how "play next" appears to do nothing at all.
+    expect(playNextIndex(-1, 0)).toBe(0);
+    expect(playNextIndex(-1, 3)).toBe(0);
+  });
+
+  it('returns one insertion point for a batch, so order is preserved', () => {
+    // The caller splices the whole batch in at this index. Inserting each
+    // track at `index + 1` individually would reverse them, which users report
+    // as "it plays them backwards".
+    const at = playNextIndex(1, 4);
+    const queue = ['a', 'b', 'c', 'd'];
+    const inserted = [...queue.slice(0, at), 'x', 'y', 'z', ...queue.slice(at)];
+    expect(inserted).toEqual(['a', 'b', 'x', 'y', 'z', 'c', 'd']);
+  });
+});
+
+describe('shiftForInsert', () => {
+  it('moves the current index along when tracks land before it', () => {
+    expect(shiftForInsert(3, 1, 2)).toBe(5);
+  });
+
+  it('moves it when tracks land exactly on it', () => {
+    // Inserting *at* the current index pushes the current track later.
+    expect(shiftForInsert(3, 3, 1)).toBe(4);
+  });
+
+  it('leaves it alone when tracks land after it', () => {
+    expect(shiftForInsert(3, 4, 2)).toBe(3);
+  });
+
+  it('leaves an unstarted queue unstarted', () => {
+    expect(shiftForInsert(-1, 0, 3)).toBe(-1);
+  });
+
+  it('keeps the index pointing at the same track', () => {
+    // The property that matters: whatever was current stays current. An
+    // off-by-one here does not throw, it just makes every later skip wrong.
+    const queue = ['a', 'b', 'c', 'd'];
+    const index = 2;
+    const current = queue[index];
+
+    for (const at of [0, 1, 2, 3, 4]) {
+      const inserted = [...queue.slice(0, at), 'x', 'y', ...queue.slice(at)];
+      expect(inserted[shiftForInsert(index, at, 2)]).toBe(current);
+    }
   });
 });

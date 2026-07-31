@@ -9,7 +9,7 @@ import {
 
 import { shuffleTracks, type ShuffleAlgorithm } from '@/services/shuffle';
 
-import { isPlayable, nextIndex, previousIndex } from './queue';
+import { isPlayable, nextIndex, playNextIndex, previousIndex, shiftForInsert } from './queue';
 import {
   IDLE_PLAYBACK,
   type FinishedListen,
@@ -186,6 +186,63 @@ class Engine {
 
   isShuffled(): boolean {
     return this.shuffled;
+  }
+
+  /**
+   * Append to the end of the queue.
+   *
+   * Starts playing when nothing is loaded. "Add to queue" on an idle player has
+   * to do something audible or the gesture looks broken — the user asked for
+   * these tracks, and a silent queue they cannot see is not an answer.
+   *
+   * Tracks already in the queue are added again rather than deduplicated:
+   * queueing the same song twice is a choice someone can make, and silently
+   * dropping the second one is more surprising than honouring it.
+   */
+  async enqueue(tracks: PlayableTrack[]): Promise<void> {
+    if (tracks.length === 0) return;
+
+    const wasEmpty = this.queue.length === 0;
+    this.queue = [...this.queue, ...tracks];
+    this.sourceQueue = [...this.sourceQueue, ...tracks];
+
+    if (wasEmpty) {
+      await this.loadIndex(0, true);
+      return;
+    }
+    this.emitQueue();
+  }
+
+  /**
+   * Insert directly after what is playing.
+   *
+   * The whole batch goes in at one point, in the order given, so pressing play-
+   * next on three tracks queues them in that order rather than reversed.
+   */
+  async playNext(tracks: PlayableTrack[]): Promise<void> {
+    if (tracks.length === 0) return;
+
+    const wasEmpty = this.queue.length === 0;
+    const at = playNextIndex(this.index, this.queue.length);
+
+    this.queue = [...this.queue.slice(0, at), ...tracks, ...this.queue.slice(at)];
+
+    /*
+     * The source queue is the *unshuffled* order, so the shuffled queue's
+     * insertion point means nothing in it. Appending is the honest answer:
+     * "play next" is a statement about the order playing now, and turning
+     * shuffle off afterwards should not claim the user had asked for these
+     * tracks at some particular place in the album order.
+     */
+    this.sourceQueue = [...this.sourceQueue, ...tracks];
+
+    if (wasEmpty) {
+      await this.loadIndex(0, true);
+      return;
+    }
+
+    this.index = shiftForInsert(this.index, at, tracks.length);
+    this.emitQueue();
   }
 
   /**

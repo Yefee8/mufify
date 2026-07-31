@@ -4,24 +4,31 @@ import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, ScrollView, Text } from 'react-native';
 
 import { addTracksToPlaylist, createPlaylist, usePlaylists } from '@/db/queries/playlists';
+import { commitFeedback } from '@/services/haptics';
 import { useThemeColors } from '@/theme/useTheme';
 
 import { NamePlaylistDialog } from './NamePlaylistDialog';
 
 export interface AddToPlaylistSheetProps {
-  /** The track to add, or null when the sheet is closed. */
-  trackId: number | null;
+  /**
+   * The tracks to add. Empty means closed.
+   *
+   * A list rather than one id, because multi-select adds a whole selection at
+   * once and the single-track case is just a list of one. Order is preserved:
+   * they land in the playlist in the order they were picked.
+   */
+  trackIds: readonly number[];
   onClose: () => void;
 }
 
 /**
- * Pick a playlist for a track, or make one.
+ * Pick a playlist for some tracks, or make one.
  *
- * Creating from here adds the track immediately rather than dropping the user
- * into an empty playlist — they said what they wanted before they were asked
- * where to put it.
+ * Creating from here adds them immediately rather than dropping the user into an
+ * empty playlist — they said what they wanted before they were asked where to
+ * put it.
  */
-export function AddToPlaylistSheet({ trackId, onClose }: AddToPlaylistSheetProps) {
+export function AddToPlaylistSheet({ trackIds, onClose }: AddToPlaylistSheetProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const playlists = usePlaylists();
@@ -29,27 +36,29 @@ export function AddToPlaylistSheet({ trackId, onClose }: AddToPlaylistSheetProps
 
   const addTo = useCallback(
     (playlistId: number) => {
-      if (trackId === null) return;
-      void addTracksToPlaylist(playlistId, [trackId]);
+      if (trackIds.length === 0) return;
+      commitFeedback();
+      void addTracksToPlaylist(playlistId, [...trackIds]);
       onClose();
     },
-    [trackId, onClose],
+    [trackIds, onClose],
   );
 
   const onCreate = useCallback(
     async (name: string) => {
       setNaming(false);
-      if (trackId === null) return;
+      if (trackIds.length === 0) return;
       const id = await createPlaylist(name);
-      if (id !== null) await addTracksToPlaylist(id, [trackId]);
+      if (id !== null) await addTracksToPlaylist(id, [...trackIds]);
+      commitFeedback();
       onClose();
     },
-    [trackId, onClose],
+    [trackIds, onClose],
   );
 
   return (
     <Modal
-      visible={trackId !== null}
+      visible={trackIds.length > 0}
       transparent
       animationType="slide"
       onRequestClose={onClose}
@@ -65,7 +74,9 @@ export function AddToPlaylistSheet({ trackId, onClose }: AddToPlaylistSheetProps
           className="max-h-96 gap-4 rounded-md border border-subtle bg-surface-elevated p-5"
         >
           <Text className="font-body-semibold text-base text-primary">
-            {t('playlists.addTo')}
+            {trackIds.length > 1
+              ? t('playlists.addCount', { count: trackIds.length })
+              : t('playlists.addTo')}
           </Text>
 
           <Pressable

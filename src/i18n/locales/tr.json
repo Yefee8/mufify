@@ -56,7 +56,9 @@
     "detailEmpty": [
       "Burada henüz bir şey yok. Kitaplıktan parça ekle.",
       "Boş bir liste. Bir parçaya uzun bas ve buraya koy."
-    ]
+    ],
+    "addCount_one": "{{count}} parçayı bir listeye ekle",
+    "addCount_other": "{{count}} parçayı bir listeye ekle"
   },
   "stats": {
     "title": "İstatistik",
@@ -145,7 +147,8 @@
   "common": {
     "cancel": "Vazgeç",
     "save": "Kaydet",
-    "back": "Geri"
+    "back": "Geri",
+    "close": "Kapat"
   },
   "queue": {
     "title": "Sıra",
@@ -155,5 +158,33 @@
     "empty": "Sırada bir şey yok. Kitaplıktan bir şey çal.",
     "remaining_one": "{{count}} parça kaldı",
     "remaining_other": "{{count}} parça kaldı"
+  },
+  "selection": {
+    "count_zero": "Parça seç",
+    "count_one": "{{count}} seçildi",
+    "count_other": "{{count}} seçildi",
+    "all": "Tümünü seç",
+    "none": "Seçimi temizle",
+    "cancel": "Seçimden çık",
+    "addToQueue": "Sıraya ekle",
+    "addToPlaylist": "Listeye ekle"
+  },
+  "track": {
+    "playNext": "Sıradaki çal",
+    "select": "Seç",
+    "info": "Parça bilgisi",
+    "field": {
+      "title": "Parça",
+      "artist": "Sanatçı",
+      "album": "Albüm",
+      "duration": "Süre",
+      "codec": "Kodek",
+      "container": "Kapsayıcı",
+      "bitrate": "Bit hızı",
+      "sampleRate": "Örnekleme",
+      "bitDepth": "Bit derinliği",
+      "channels": "Kanal",
+      "fileSize": "Dosya boyutu"
+    }
   }
 }

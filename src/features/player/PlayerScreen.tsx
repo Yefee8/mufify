@@ -28,6 +28,7 @@ import { useThemeColors } from '@/theme/useTheme';
 import { FavoriteButton } from './components/FavoriteButton';
 import { Scrubber } from './components/Scrubber';
 import { SpecStrip } from './components/SpecStrip';
+import { TransportSwipe } from './components/TransportSwipe';
 import { usePlayback, usePlaybackControls } from './hooks/usePlayback';
 
 /**
@@ -80,19 +81,29 @@ export function PlayerScreen() {
       <Header onClose={close} onOpenQueue={openQueue} label={t('player.title')} />
 
       <View className="flex-1 justify-center gap-8 px-6">
-        <View className="aspect-square w-full items-center justify-center rounded-md bg-surface-elevated">
-          {artworkUri ? (
-            <Image
-              source={{ uri: artworkUri }}
-              recyclingKey={String(track.id)}
-              cachePolicy="memory-disk"
-              contentFit="cover"
-              className="h-full w-full rounded-md"
-            />
-          ) : (
-            <Music color={colors.legend} size={64} strokeWidth={1} />
-          )}
-        </View>
+        {/*
+          The artwork carries the gestures, not the whole screen: the scrubber
+          below it owns a pan of its own, and two competing pans on one surface
+          means a scrub that sometimes dismisses the screen instead.
+
+          Down dismisses, which is what the brief asks for and what Android's
+          modal presentation does not give on its own.
+        */}
+        <TransportSwipe onSwipeDown={close} onSwipeLeft={next} onSwipeRight={previous}>
+          <View className="aspect-square w-full items-center justify-center rounded-md bg-surface-elevated">
+            {artworkUri ? (
+              <Image
+                source={{ uri: artworkUri }}
+                recyclingKey={String(track.id)}
+                cachePolicy="memory-disk"
+                contentFit="cover"
+                className="h-full w-full rounded-md"
+              />
+            ) : (
+              <Music color={colors.legend} size={64} strokeWidth={1} />
+            )}
+          </View>
+        </TransportSwipe>
 
         <View className="gap-2">
           <Text numberOfLines={2} className="font-display text-3xl text-primary">

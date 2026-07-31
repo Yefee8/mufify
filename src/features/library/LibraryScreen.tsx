@@ -1,51 +1,51 @@
-import { FlashList, type ListRenderItem } from '@shopify/flash-list';
-import { Music, Plus, SearchX } from 'lucide-react-native';
+import { Music, SearchX } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Linking, Pressable, RefreshControl, Text, View } from 'react-native';
+import { Linking, View } from 'react-native';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Screen } from '@/components/ui/Screen';
 import type { TrackListItem } from '@/db/queries/tracks';
 import { useMessages } from '@/i18n';
-import { isPermissionError } from '@/services/scanner/permission';
-import { useThemeColors } from '@/theme/useTheme';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
+import { isPermissionError } from '@/services/scanner/permission';
 
 import { AddToPlaylistSheet } from '../playlists/components/AddToPlaylistSheet';
-import { usePlaybackControls } from '../player/hooks/usePlayback';
+import { useCurrentTrack, usePlaybackControls } from '../player/hooks/usePlayback';
 import { toPlayable } from '../player/toPlayable';
+import { LibraryHeader } from './components/LibraryHeader';
 import { ScanBanner } from './components/ScanBanner';
 import { SearchField } from './components/SearchField';
+import { SelectionBar } from './components/SelectionBar';
+import { TrackActionSheet, type TrackAction } from './components/TrackActionSheet';
+import { TrackInfoSheet } from './components/TrackInfoSheet';
+import { TrackList } from './components/TrackList';
 import { TrackListSkeleton } from './components/TrackListSkeleton';
-import { TrackRow } from './components/TrackRow';
 import { useDebounced } from './hooks/useDebounced';
 import { useTracks } from './hooks/useLibrary';
 import { useScan } from './hooks/useScan';
+import { useSelection } from './hooks/useSelection';
+import { useTrackActions } from './hooks/useTrackActions';
 
 /** Opens this app's page in system settings, where the permission switch is. */
 function openAppSettings(): void {
   void Linking.openSettings();
 }
 
-function keyExtractor(track: TrackListItem): string {
-  return String(track.id);
-}
-
 /**
  * The library: every present track, with the scan that fills it.
  *
- * Tapping a row plays it and makes the visible list the queue; long-pressing
- * offers to add it to a playlist. The four states — loading, scanning, failed,
- * empty — are all here, per the States rule, and the scan banner sits above
- * the list rather than replacing it so the user can keep scrolling.
+ * This screen decides *what* happens to a track — play it, queue it, select it,
+ * describe it. `TrackList` decides how a row is drawn, and the sheets decide how
+ * a choice is offered. The four states — loading, scanning, failed, empty — are
+ * all here, per the States rule, and the scan banner sits above the list rather
+ * than replacing it so the user can keep scrolling.
  */
 export function LibraryScreen() {
   useLifecycleTrace('LibraryScreen');
   const { t, i18n } = useTranslation();
   const messages = useMessages('library.empty');
-  const colors = useThemeColors();
 
   const [search, setSearch] = useState('');
   // The field stays instant; only the query waits.
@@ -53,72 +53,126 @@ export function LibraryScreen() {
   /*
    * The launch sweep waits for the list to be on screen. Firing it on mount put
    * a MediaStore enumeration on the JS thread alongside the first library query
-   * and turned a 15ms query into 1608ms on the Mi 9T — see `useScan`.
+   * — see `useScan` and docs/performance.md.
    */
   const { progress, isScanning, isRefreshing, scanLibrary, addFolder, rescan, cancel } =
     useScan(!isLoading);
+
   const { playFrom } = usePlaybackControls();
-  const [playlistTarget, setPlaylistTarget] = useState<number | null>(null);
+  const currentTrack = useCurrentTrack();
+  const selection = useSelection();
+  const { addToQueue, playNext, toggleFavorite } = useTrackActions();
+
+  /** Which track's action sheet is open. */
+  const [actionTarget, setActionTarget] = useState<TrackListItem | null>(null);
+  /** Which track's info sheet is open. */
+  const [infoTarget, setInfoTarget] = useState<TrackListItem | null>(null);
+  /** Tracks queued for "add to playlist". Empty means the sheet is closed. */
+  const [playlistTargets, setPlaylistTargets] = useState<readonly number[]>([]);
 
   const hasFailed = !isScanning && progress.phase === 'failed';
   const permissionFailed = isPermissionError(progress.error);
   const permissionBlocked = progress.error === 'permission-blocked';
 
+  const find = useCallback(
+    (id: number) => tracks.find((track) => track.id === id) ?? null,
+    [tracks],
+  );
+
   /*
-   * Playing a track makes the list it came from the queue, which is what a
-   * user means by tapping a row — not "play this one thing and stop".
+   * Playing a track makes the list it came from the queue, which is what a user
+   * means by tapping a row — not "play this one thing and stop". While
+   * selecting, the same tap ticks a box instead.
    */
-  const handleTrackPress = useCallback(
+  const onPress = useCallback(
     (id: number) => {
+      if (selection.isActive) {
+        selection.toggle(id);
+        return;
+      }
       const index = tracks.findIndex((track) => track.id === id);
       if (index === -1) return;
       playFrom(tracks.map(toPlayable), index);
     },
-    [tracks, playFrom],
+    [tracks, playFrom, selection],
   );
 
-  const closePlaylistSheet = useCallback(() => setPlaylistTarget(null), []);
-
-  const renderItem = useCallback<ListRenderItem<TrackListItem>>(
-    ({ item }) => (
-      <TrackRow
-        track={item}
-        locale={i18n.language}
-        onPress={handleTrackPress}
-        onLongPress={setPlaylistTarget}
-      />
-    ),
-    [handleTrackPress, i18n.language],
+  const onLongPress = useCallback(
+    (id: number) => {
+      // Long-pressing during a selection extends it rather than opening a sheet
+      // about one row — the user is plainly in the middle of picking several.
+      if (selection.isActive) {
+        selection.toggle(id);
+        return;
+      }
+      setActionTarget(find(id));
+    },
+    [selection, find],
   );
+
+  const onSwipeToQueue = useCallback(
+    (id: number) => {
+      const track = find(id);
+      if (track) addToQueue([track]);
+    },
+    [find, addToQueue],
+  );
+
+  const onAction = useCallback(
+    (action: TrackAction) => {
+      const track = actionTarget;
+      if (!track) return;
+
+      switch (action) {
+        case 'playNext':
+          playNext([track]);
+          return;
+        case 'addToQueue':
+          addToQueue([track]);
+          return;
+        case 'addToPlaylist':
+          setPlaylistTargets([track.id]);
+          return;
+        case 'favorite':
+          toggleFavorite(track);
+          return;
+        case 'select':
+          selection.begin(track.id);
+          return;
+        case 'info':
+          setInfoTarget(track);
+          return;
+      }
+    },
+    [actionTarget, playNext, addToQueue, toggleFavorite, selection],
+  );
+
+  const onSelectionQueue = useCallback(() => {
+    // Resolved in selection order, so the queue takes them as they were picked.
+    const picked = selection.ids
+      .map(find)
+      .filter((track): track is TrackListItem => track !== null);
+    addToQueue(picked);
+    selection.clear();
+  }, [addToQueue, selection, find]);
+
+  const onSelectionPlaylist = useCallback(() => {
+    setPlaylistTargets(selection.ids);
+  }, [selection.ids]);
+
+  const closePlaylistSheet = useCallback(() => {
+    setPlaylistTargets([]);
+    selection.clear();
+  }, [selection]);
 
   return (
     <Screen title={t('library.title')}>
-      {/* Adding music is reachable from anywhere, not only when empty. */}
-      <View className="flex-row items-center justify-between px-6 pb-4">
-        <Text className="font-mono text-sm text-muted">
-          {isScanning ? '' : t('library.trackCount', { count: tracks.length })}
-        </Text>
-
-        <Pressable
-          onPress={addFolder}
-          disabled={isScanning}
-          accessibilityRole="button"
-          accessibilityLabel={t('library.addMusic')}
-          accessibilityState={{ disabled: isScanning }}
-          className="min-h-11 flex-row items-center gap-2 rounded-sm border border-subtle px-4"
-        >
-          <Plus color={isScanning ? colors.etch : colors.signal} size={18} strokeWidth={2} />
-          <Text
-            className={
-              isScanning
-                ? 'font-body-medium text-sm text-muted'
-                : 'font-body-medium text-sm text-accent'
-            }
-          >
-            {t('library.addMusic')}
-          </Text>
-        </Pressable>
-      </View>
+      <LibraryHeader
+        count={tracks.length}
+        isScanning={isScanning}
+        onAddMusic={addFolder}
+        onStartSelecting={selection.activate}
+      />
 
       <SearchField value={search} onChange={setSearch} />
 
@@ -147,36 +201,27 @@ export function LibraryScreen() {
       ) : null}
 
       {/*
-        The list owns whatever height is left, explicitly. Without a bounded
-        flex parent a virtualized list keeps the height it first measured, so
-        mounting the scan banner above it shrank the space without shrinking
-        the list — which is where the blank band above the first row during
-        "Reading tags…" came from.
+        The list owns whatever height is left, explicitly. Without a bounded flex
+        parent a virtualized list keeps the height it first measured, so mounting
+        the scan banner above it shrank the space without shrinking the list —
+        which is where the blank band above the first row during "Reading tags…"
+        came from.
       */}
       <View className="flex-1">
         {isLoading ? (
           <TrackListSkeleton />
         ) : (
-          <FlashList
-            data={tracks}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            /*
-              Pull to refresh re-indexes and sweeps. Without it a user who has
-              just copied files in has no way to make the app look again short of
-              restarting it — and Android's own scanner may not have noticed yet
-              either.
-            */
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefreshing}
-                onRefresh={rescan}
-                tintColor={colors.signal}
-                colors={[colors.signal]}
-                progressBackgroundColor={colors.panel}
-              />
-            }
-            ListEmptyComponent={
+          <TrackList
+            tracks={tracks}
+            locale={i18n.language}
+            selection={selection}
+            onPress={onPress}
+            onLongPress={onLongPress}
+            onSwipeToQueue={onSwipeToQueue}
+            currentTrackId={currentTrack?.id ?? null}
+            isRefreshing={isRefreshing}
+            onRefresh={rescan}
+            empty={
               hasFailed ? null : search.trim() ? (
                 /* No hits is not an empty library — offering "Add music" here
                    would answer a question the user did not ask. */
@@ -194,7 +239,24 @@ export function LibraryScreen() {
         )}
       </View>
 
-      <AddToPlaylistSheet trackId={playlistTarget} onClose={closePlaylistSheet} />
+      {selection.isActive ? (
+        <SelectionBar
+          count={selection.ids.length}
+          total={tracks.length}
+          onSelectAll={() => selection.toggleAll(tracks.map((track) => track.id))}
+          onAddToQueue={onSelectionQueue}
+          onAddToPlaylist={onSelectionPlaylist}
+          onCancel={selection.clear}
+        />
+      ) : null}
+
+      <TrackActionSheet
+        track={actionTarget}
+        onSelect={onAction}
+        onClose={() => setActionTarget(null)}
+      />
+      <TrackInfoSheet track={infoTarget} onClose={() => setInfoTarget(null)} />
+      <AddToPlaylistSheet trackIds={playlistTargets} onClose={closePlaylistSheet} />
     </Screen>
   );
 }

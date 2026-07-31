@@ -56,7 +56,9 @@
     "detailEmpty": [
       "Nothing in here yet. Add tracks from the library.",
       "An empty playlist. Long-press a track to put it here."
-    ]
+    ],
+    "addCount_one": "Add {{count}} track to a playlist",
+    "addCount_other": "Add {{count}} tracks to a playlist"
   },
   "stats": {
     "title": "Stats",
@@ -145,7 +147,8 @@
   "common": {
     "cancel": "Cancel",
     "save": "Save",
-    "back": "Back"
+    "back": "Back",
+    "close": "Close"
   },
   "queue": {
     "title": "Queue",
@@ -155,5 +158,33 @@
     "empty": "Nothing queued. Play something from the library.",
     "remaining_one": "{{count}} track left",
     "remaining_other": "{{count}} tracks left"
+  },
+  "selection": {
+    "count_zero": "Select tracks",
+    "count_one": "{{count}} selected",
+    "count_other": "{{count}} selected",
+    "all": "Select all",
+    "none": "Clear selection",
+    "cancel": "Leave selection",
+    "addToQueue": "Add to queue",
+    "addToPlaylist": "Add to playlist"
+  },
+  "track": {
+    "playNext": "Play next",
+    "select": "Select",
+    "info": "Track info",
+    "field": {
+      "title": "Title",
+      "artist": "Artist",
+      "album": "Album",
+      "duration": "Length",
+      "codec": "Codec",
+      "container": "Container",
+      "bitrate": "Bitrate",
+      "sampleRate": "Sample rate",
+      "bitDepth": "Bit depth",
+      "channels": "Channels",
+      "fileSize": "File size"
+    }
   }
 }
