@@ -81,6 +81,19 @@ export interface TrackTags {
   error: string | null;
 }
 
+/**
+ * The outcome of asking for the audio-reading permission.
+ *
+ * `canAskAgain` is false once the user has denied permanently (or the OEM has
+ * blocked the prompt outright, which MIUI does). That case cannot be retried —
+ * the only way forward is system settings — so it needs a different message
+ * from an ordinary "not now".
+ */
+export interface AudioPermissionResult {
+  granted: boolean;
+  canAskAgain: boolean;
+}
+
 export interface MediaStoreQueryOptions {
   /** Page size. The caller walks pages so the UI can paint between them. */
   limit: number;

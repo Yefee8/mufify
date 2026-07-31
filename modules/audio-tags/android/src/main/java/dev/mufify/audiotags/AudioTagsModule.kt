@@ -4,7 +4,11 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.media.MediaScannerConnection
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import androidx.core.content.ContextCompat
+import expo.modules.interfaces.permissions.PermissionsResponse
+import expo.modules.interfaces.permissions.PermissionsStatus
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -20,18 +24,63 @@ import java.io.File
  */
 class AudioTagsModule : Module() {
 
+  private companion object {
+    /** Long enough for a real folder, short enough not to look like a freeze. */
+    const val SCAN_TIMEOUT_MS = 10_000L
+  }
+
   private val context
     get() = requireNotNull(appContext.reactContext) { "React context is not available" }
+
+  /**
+   * `READ_MEDIA_AUDIO` only exists from API 33; before that the audio-reading
+   * permission is `READ_EXTERNAL_STORAGE`. Both callers below branch on this,
+   * so it lives in one place — requesting a permission the platform does not
+   * have is an instant denial that looks exactly like a user saying no.
+   */
+  private fun audioPermission(): String =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_AUDIO
+    else Manifest.permission.READ_EXTERNAL_STORAGE
 
   override fun definition() = ModuleDefinition {
     Name("AudioTags")
 
     AsyncFunction("hasAudioPermission") {
-      val permission =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_AUDIO
-        else Manifest.permission.READ_EXTERNAL_STORAGE
+      ContextCompat.checkSelfPermission(context, audioPermission()) ==
+        PackageManager.PERMISSION_GRANTED
+    }
 
-      ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+    /**
+     * Show the system permission dialog and report what the user chose.
+     *
+     * Without this permission a MediaStore audio query does not fail — under
+     * scoped storage it returns only the rows this app itself owns, which is
+     * none of them. The scan then completes "successfully" with zero tracks
+     * and the library falls back to its empty state, which reads as a broken
+     * feature rather than a missing grant. So the request has to happen before
+     * the first query, not be inferred from an empty result afterwards.
+     *
+     * `canAskAgain` is returned alongside because a permanent denial cannot be
+     * fixed by asking again — that case has to send the user to system
+     * settings instead, and only the caller knows how to say so.
+     */
+    AsyncFunction("requestAudioPermission") { promise: Promise ->
+      val manager = appContext.permissions
+      if (manager == null) {
+        promise.resolve(mapOf("granted" to false, "canAskAgain" to false))
+        return@AsyncFunction
+      }
+
+      val permission = audioPermission()
+      manager.askForPermissions({ result ->
+        val response: PermissionsResponse? = result[permission]
+        promise.resolve(
+          mapOf(
+            "granted" to (response?.status == PermissionsStatus.GRANTED),
+            "canAskAgain" to (response?.canAskAgain ?: false),
+          ),
+        )
+      }, permission)
     }
 
     AsyncFunction("countAudioFiles") { minDurationMs: Int ->
@@ -66,14 +115,34 @@ class AudioTagsModule : Module() {
 
       val scanned = mutableListOf<String>()
       var remaining = paths.size
+      var settled = false
+
+      /*
+       * The callback is not guaranteed to fire once per path. A path that does
+       * not exist, or a directory on a device whose provider declines to walk
+       * it, can be dropped silently — and then `remaining` never reaches zero
+       * and this promise never settles. An unsettled promise is worse than a
+       * failure here: the caller is awaiting it before it starts the scan, so
+       * the screen would sit forever with no progress and no error to show.
+       * Whatever arrived by the deadline is therefore good enough; indexing is
+       * best-effort and the MediaStore sweep runs either way.
+       */
+      fun settle() {
+        synchronized(scanned) {
+          if (settled) return
+          settled = true
+          promise.resolve(scanned.toList())
+        }
+      }
+
+      Handler(Looper.getMainLooper()).postDelayed(::settle, SCAN_TIMEOUT_MS)
 
       MediaScannerConnection.scanFile(context, paths.toTypedArray(), null) { _, uri ->
         synchronized(scanned) {
           if (uri != null) scanned.add(uri.toString())
           remaining -= 1
-          // The callback fires once per path; resolve on the last one.
-          if (remaining == 0) promise.resolve(scanned.toList())
         }
+        if (remaining == 0) settle()
       }
     }
 

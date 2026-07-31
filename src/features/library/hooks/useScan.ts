@@ -9,6 +9,7 @@ import {
   saveEnriched,
   saveEnumerated,
 } from '@/db/queries/scanning';
+import { permissionErrorFor } from '@/services/scanner/permission';
 import { PRIMARY_VOLUME_ROOT, treeUriToPath } from '@/services/scanner/treeUri';
 import {
   DEFAULT_SCAN_OPTIONS,
@@ -91,17 +92,42 @@ export function useScan(): UseScanResult {
     await enrichLibrary(ports, options, setProgress, controller);
   }, [ports]);
 
+  /**
+   * Make sure the audio permission is actually granted, asking for it if it
+   * has not been asked for yet.
+   *
+   * This has to happen before any MediaStore query. Without the grant a query
+   * does not throw — under scoped storage it returns only rows this app owns,
+   * which is none — so the scan completes with zero tracks and the library
+   * shows its empty state. That is indistinguishable from "you have no music"
+   * and was exactly the bug: picking a folder appeared to do nothing at all.
+   *
+   * Returns false when the scan must not proceed, having already put the right
+   * message on screen.
+   */
+  const ensurePermission = useCallback(async (): Promise<boolean> => {
+    if (await AudioTags.hasAudioPermission()) return true;
+
+    const error = permissionErrorFor(await AudioTags.requestAudioPermission());
+    if (error === null) return true;
+
+    setProgress({ phase: 'failed', total: 0, processed: 0, error });
+    return false;
+  }, []);
+
   const scanLibrary = useCallback(async () => {
-    const granted = await AudioTags.hasAudioPermission();
-    if (!granted) {
-      setProgress({ phase: 'failed', total: 0, processed: 0, error: 'permission-denied' });
-      return;
-    }
+    if (!(await ensurePermission())) return;
     await run();
-  }, [run]);
+  }, [ensurePermission, run]);
 
   const addFolder = useCallback(async () => {
     try {
+      // Ask before opening the picker, not after. The tree the picker returns
+      // grants access to that tree only — the scan queries MediaStore, which
+      // needs the audio permission — so without it the pick is wasted work and
+      // the user has chosen a folder for nothing.
+      if (!(await ensurePermission())) return;
+
       const directory = await Directory.pickDirectoryAsync();
       await addScanFolder(directory.uri);
 
@@ -122,14 +148,10 @@ export function useScan(): UseScanResult {
         error: error instanceof Error ? error.message : String(error),
       });
     }
-  }, [run]);
+  }, [ensurePermission, run]);
 
   const rescan = useCallback(async () => {
-    const granted = await AudioTags.hasAudioPermission();
-    if (!granted) {
-      setProgress({ phase: 'failed', total: 0, processed: 0, error: 'permission-denied' });
-      return;
-    }
+    if (!(await ensurePermission())) return;
 
     // Re-index first, then sweep. Without the re-index a file copied a minute
     // ago is still invisible to MediaStore and the sweep would find nothing,
@@ -151,7 +173,7 @@ export function useScan(): UseScanResult {
     }
 
     await run();
-  }, [run]);
+  }, [ensurePermission, run]);
 
   const cancel = useCallback(() => {
     cancelled.current = true;

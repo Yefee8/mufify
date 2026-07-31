@@ -1,6 +1,7 @@
 import { requireNativeModule } from 'expo-modules-core';
 
 import type {
+  AudioPermissionResult,
   MediaStoreQueryOptions,
   MediaStoreTrack,
   ReadTagsOptions,
@@ -25,6 +26,15 @@ declare class AudioTagsModuleType {
   hasAudioPermission(): Promise<boolean>;
 
   /**
+   * Show the system permission dialog and report what the user chose.
+   *
+   * Required before the first MediaStore query: without the grant, a query
+   * does not fail, it returns nothing — a scan that "succeeds" with zero
+   * tracks and an empty library that looks like a broken feature.
+   */
+  requestAudioPermission(): Promise<AudioPermissionResult>;
+
+  /**
    * Ask the platform to index these filesystem paths and wait for it.
    *
    * MediaStore only knows about files its scanner has visited, so a file
@@ -39,6 +49,7 @@ const AudioTagsModule = requireNativeModule<AudioTagsModuleType>('AudioTags');
 
 export default AudioTagsModule;
 export type {
+  AudioPermissionResult,
   MediaStoreQueryOptions,
   MediaStoreTrack,
   ReadTagsOptions,

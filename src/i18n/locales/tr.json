@@ -26,6 +26,8 @@
     "scanError": {
       "permission": "Mufify'ın bu cihazdaki sesleri okuması için izin gerekiyor.",
       "generic": "Tarama bitmeden durdu.",
+      "permissionBlocked": "Mufify için izin kapalı. Ses erişimine izin vermek üzere sistem ayarlarını aç.",
+      "openSettings": "Ayarları aç",
       "retry": "Tekrar dene"
     }
   },

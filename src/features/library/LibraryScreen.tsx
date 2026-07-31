@@ -1,7 +1,8 @@
 import { Music, Plus } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Linking, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
+import { isPermissionError } from '@/services/scanner/permission';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -11,6 +12,11 @@ import { useThemeColors } from '@/theme/useTheme';
 
 import { useTrackCount } from './hooks/useLibrary';
 import { useScan } from './hooks/useScan';
+
+/** Opens this app's page in system settings, where the permission switch is. */
+function openAppSettings(): void {
+  void Linking.openSettings();
+}
 
 /**
  * Phase 4 replaces the count with the actual list. The four states — scanning,
@@ -27,6 +33,8 @@ export function LibraryScreen() {
   const ratio = progress.total > 0 ? progress.processed / progress.total : 0;
   const hasFailed = !isScanning && progress.phase === 'failed';
   const isEmpty = !isScanning && !hasFailed && trackCount === 0;
+  const permissionFailed = isPermissionError(progress.error);
+  const permissionBlocked = progress.error === 'permission-blocked';
 
   return (
     <Screen title={t('library.title')}>
@@ -106,13 +114,24 @@ export function LibraryScreen() {
         {hasFailed ? (
           <ErrorState
             message={
-              progress.error === 'permission-denied'
-                ? t('library.scanError.permission')
-                : t('library.scanError.generic')
+              permissionBlocked
+                ? t('library.scanError.permissionBlocked')
+                : permissionFailed
+                  ? t('library.scanError.permission')
+                  : t('library.scanError.generic')
             }
-            detail={progress.error === 'permission-denied' ? null : progress.error}
-            retryLabel={t('library.scanError.retry')}
-            onRetry={scanLibrary}
+            detail={permissionFailed ? null : progress.error}
+            /*
+              A permanent denial cannot be undone by asking again, so retrying
+              would silently do nothing. Send the user where the switch
+              actually is instead.
+            */
+            retryLabel={
+              permissionBlocked
+                ? t('library.scanError.openSettings')
+                : t('library.scanError.retry')
+            }
+            onRetry={permissionBlocked ? openAppSettings : scanLibrary}
           />
         ) : null}
 
