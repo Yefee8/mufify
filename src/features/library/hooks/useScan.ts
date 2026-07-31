@@ -42,6 +42,14 @@ export interface UseScanResult {
   progress: ScanProgress;
   /** True while either stage is running. */
   isScanning: boolean;
+  /**
+   * True only for a scan the user pulled for.
+   *
+   * The refresh spinner is a response to a gesture, so it must not appear for
+   * the automatic launch sweep — that already has the scan banner, and showing
+   * both puts a spinner and a progress bar on screen for the same work.
+   */
+  isRefreshing: boolean;
   /** MediaStore sweep. Safe to call on every launch. */
   scanLibrary: () => Promise<void>;
   /** Opens the system folder picker, then scans what was chosen. */
@@ -67,6 +75,7 @@ export interface UseScanResult {
  */
 export function useScan(): UseScanResult {
   const [progress, setProgress] = useState<ScanProgress>(IDLE);
+  const [pulled, setPulled] = useState(false);
   const cancelled = useRef(false);
 
   const ports: ScannerPorts = useMemo(
@@ -174,7 +183,7 @@ export function useScan(): UseScanResult {
     }
   }, [ensurePermission, run]);
 
-  const rescan = useCallback(async () => {
+  const runRescan = useCallback(async () => {
     if ((await ensurePermission()) === 'denied') return;
 
     // Re-index first, then sweep. Without the re-index a file copied a minute
@@ -198,6 +207,15 @@ export function useScan(): UseScanResult {
 
     await run();
   }, [ensurePermission, run]);
+
+  const rescan = useCallback(async () => {
+    setPulled(true);
+    try {
+      await runRescan();
+    } finally {
+      setPulled(false);
+    }
+  }, [runRescan]);
 
   const cancel = useCallback(() => {
     cancelled.current = true;
@@ -227,9 +245,12 @@ export function useScan(): UseScanResult {
     return () => cancelIdleCallback(handle);
   }, [run]);
 
+  const isScanning = progress.phase === 'enumerating' || progress.phase === 'enriching';
+
   return {
     progress,
-    isScanning: progress.phase === 'enumerating' || progress.phase === 'enriching',
+    isScanning,
+    isRefreshing: pulled && isScanning,
     scanLibrary,
     addFolder,
     rescan,

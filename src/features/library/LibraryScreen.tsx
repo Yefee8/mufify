@@ -48,7 +48,7 @@ export function LibraryScreen() {
   const [search, setSearch] = useState('');
   // The field stays instant; only the query waits.
   const { tracks, isLoading } = useTracks(useDebounced(search));
-  const { progress, isScanning, scanLibrary, addFolder, rescan, cancel } = useScan();
+  const { progress, isScanning, isRefreshing, scanLibrary, addFolder, rescan, cancel } = useScan();
   const { playFrom } = usePlaybackControls();
   const [playlistTarget, setPlaylistTarget] = useState<number | null>(null);
 
@@ -153,7 +153,7 @@ export function LibraryScreen() {
           */
           refreshControl={
             <RefreshControl
-              refreshing={isScanning}
+              refreshing={isRefreshing}
               onRefresh={rescan}
               tintColor={colors.signal}
               colors={[colors.signal]}

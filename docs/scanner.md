@@ -243,6 +243,35 @@ So the feature is not obsolete — it is invisible on new Android and load-
 bearing on old. minSdk is 26, and the users most likely to keep a 400 GB FLAC
 library on a phone are not the ones with the newest phone.
 
+### Measured throughput, 528 files
+
+Pixel_7 AVD, API 35, headless, from a cleared install. Frame timing is not
+measurable here — see above — but throughput and responsiveness are.
+
+| Moment | Elapsed |
+|---|---|
+| First page of 500 rows written, library usable | ~10 s |
+| Stage one complete, all 528 enumerated | ~20 s |
+| Stage two complete, all 528 enriched | ~70 s |
+
+Stage two is roughly 95 ms per file, and that now includes two opens — the
+retriever for tags and artwork, plus `MediaExtractor` for the audio format.
+The second open bought sample rate, bit depth and channel count at every API
+level, which is a good trade for a cost paid once per file per rescan.
+
+**The library is usable a minute before the scan finishes**, which is the
+entire point of splitting the stages. Verified rather than assumed: scrolling
+during active enrichment reached track 70 with the progress banner still
+reading "Reading tags…", so the promise in `AGENTS.md` that the user can always
+scroll during a scan holds.
+
+One rough edge, cosmetic and self-correcting: while stage two is writing, the
+live query re-fires on every batch and FlashList re-measures against a list
+whose identity keeps changing, which can leave a gap above the first visible
+row. It settles as soon as enrichment finishes and only happens on a first-ever
+scan. Fixing it means throttling the library query during a scan, which is more
+machinery than the symptom currently justifies.
+
 ### The large-library measurement, next time the device is here
 
 Setup is automatable; only the gesture is not. Roughly five minutes:
