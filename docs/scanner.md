@@ -186,23 +186,39 @@ real FLAC and two WAVs, one of them deliberately under the duration floor.
 
 ### Still waiting on a real device
 
-- **a sweep over 500+ real files without dropping frames** — still the last
-  open item for Phase 2. The earlier emulator number was worthless: headless
-  swiftshader has no relationship to a real compositor. 520 FLAC files are
-  staged at `/sdcard/Music/bulk` on the Mi 9T; the measurement needs
-  `dumpsys gfxinfo dev.mufify.app framestats` taken across a scan of them. The
-  recipe is below — the last device window closed before the gesture happened,
-  not before the setup did.
-- **whether `MediaScannerConnection.scanFile()` recurses into a directory** —
-  the rescan path hands it `/storage/emulated/0/Music`, so everything depends
-  on this and it is inferred rather than measured. See the status section of
-  ADR 007.
-- **artwork extraction** — the generated test files carry no embedded picture,
-  so `ArtworkExtractor` has never actually written a JPEG. The path returns
-  null correctly, which is not the same as proving the happy path.
+- **a sweep over 500+ real files without dropping frames** — the last open item
+  for Phase 2, and it needs real silicon.
+
+  It has now been *run* on the Pixel_7 AVD over 523 tracks and the numbers are
+  bad: 42% janky on a 12-swipe scroll, 46 ms median frame. They are also
+  meaningless. `dumpsys SurfaceFlinger` reports the renderer as ANGLE over
+  **SwiftShader** — a software rasterizer on the host CPU — and the GPU
+  percentiles come back as `4950ms`, the sentinel for no data at all. A
+  software rasterizer missing a 16 ms budget says nothing about whether a
+  Snapdragon does.
+
+  Recording the number so nobody re-runs it expecting insight. The verdict
+  needs hardware; the recipe is below.
 - **incremental rescan speed** on a library large enough for it to matter.
-- **files with real tags** — the test files have no artist, album or genre, so
-  the tag-reading path is exercised but never sees populated values.
+
+### Verified on the Pixel_7 AVD, API 35
+
+The emulator answers the questions the Mi 9T could not, because `adb shell
+input` and `pm grant` both work here — the whole loop can be driven without a
+hand on the device.
+
+| Check | Result |
+|---|---|
+| `READ_MEDIA_AUDIO` request path (API 33+) | the system dialog appears and grants; this path had never run on a device before, since the Mi 9T is API 29 and takes the `READ_EXTERNAL_STORAGE` branch |
+| Automatic full-library sweep | from a cleared install with the permission pre-granted and **no folder picked**, 523 tracks appeared on their own |
+| Sweep after a first grant with the picker cancelled | 523 tracks anyway — see the fix in `useScan` |
+| `scanFile()` recursion into directories | resolved, twice, three levels deep — ADR 007 |
+| Artwork extraction | a real embedded cover produced the content-addressed `<hash>-512.jpg` / `-128.jpg` pair in the cache and rendered in the row |
+| Populated tags | the tagged files on the emulator list with artist and album, so the tag path has now been seen returning values rather than nulls |
+| Track list over 523 rows | scrolls end to end without error |
+
+Two of those — artwork and populated tags — were open since Phase 2 began and
+are closed by observation rather than by argument.
 
 ### Resolved: the unindexed-file scenario is real
 
@@ -212,6 +228,16 @@ here. 520 files pushed to `/sdcard/Music/bulk` sat on disk — 56 MB, confirmed
 by `ls` — with **zero** matching rows in MediaStore. The scenario reproduces on
 demand simply by pushing files, and it is exactly what `Add music` and pull-to-
 refresh exist to fix.
+
+**This is an API-level difference, not a device quirk.** The same push on the
+API 35 emulator indexes immediately: from Android 11 the FUSE layer indexes a
+file when it is closed, so `adb push`, an in-device `cp` and an app write are
+all visible to MediaStore at once, and the unindexed window effectively does
+not exist. On the API 29 phone it very much does.
+
+So the feature is not obsolete — it is invisible on new Android and load-
+bearing on old. minSdk is 26, and the users most likely to keep a 400 GB FLAC
+library on a phone are not the ones with the newest phone.
 
 ### The large-library measurement, next time the device is here
 

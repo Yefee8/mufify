@@ -74,13 +74,34 @@ naturally rather than needing to be simulated — which also means the scenario
 docs/scanner.md listed as unproven no longer needs a contrived MTP setup to
 reproduce.
 
-**Karar bekliyor / decision pending:** whether
-`MediaScannerConnection.scanFile()` on a *directory* path recurses into it. The
-whole rescan path depends on this — `requestMediaScan` is handed
-`/storage/emulated/0/Music`, not the individual files under it. Android 10+
-routes `scanFile` through `MediaStore.scanFile`, which is documented to handle
-directories, but that is inference, not measurement. If it turns out not to
-recurse, the fix is to enumerate the directory and pass file paths, which is
-itself constrained by scoped storage — `File.listFiles()` on shared storage is
-restricted without a legacy-storage opt-out. Do not treat the rescan path as
-proven until this is measured on hardware.
+**Resolved: `scanFile()` does recurse into a directory.** Measured on the
+Pixel_7 AVD, API 35, twice.
+
+Constructing the test took more effort than running it, because on API 35 a
+file written anywhere under `/sdcard` is indexed the moment it is closed — the
+FUSE layer does it, so there is no unindexed window to observe and `adb push`,
+`cp` and app writes are all indexed immediately. Deleting the MediaStore row
+instead is not a workaround: `content delete` unlinks the file with it. What
+does work is `.nomedia`, which suppresses indexing at write time; removing it
+afterwards leaves files on disk with no rows and nothing blocking a scan.
+
+| Trial | Setup | Before | After rescan |
+|---|---|---|---|
+| 1 | 3 files in `Music/deeptest/` | 523 rows, none matching | 526 rows, all 3 indexed |
+| 2 | 2 files in `Music/deep2/level2/level3/` | 526 rows, none matching | 528 rows, both indexed |
+
+Both times `requestMediaScan` was handed only `/storage/emulated/0/Music`, and
+both times the scanner walked down to the files — three levels down in trial 2.
+The library then listed them, so the whole chain holds: unindexed nested file →
+pull to refresh → `scanFile` on the parent → MediaStore → two-stage scan → row
+on screen.
+
+Measured on API 35. The same code path applies from API 29 up, where
+`MediaScannerConnection.scanFile` delegates to `MediaStore.scanFile`; below 29
+it used the old `MediaScannerService` and is not covered by this result.
+minSdk is 26, so API 26–28 remains inferred rather than measured — a narrow
+gap, and one that shrinks on its own.
+
+The scoped-storage fallback contemplated above is therefore not needed. Good,
+because it would not have worked: `File.listFiles()` over shared storage is
+restricted without a legacy-storage opt-out this app does not take.
