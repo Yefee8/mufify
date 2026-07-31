@@ -10,12 +10,16 @@ import { useEffect } from 'react';
 import { useDatabase } from '@/db/useDatabase';
 import { initI18n } from '@/i18n';
 import { APP_FONTS } from '@/theme/fonts';
+import { registerComponentInterop } from '@/theme/interop';
 import { applyStoredTheme, useTheme } from '@/theme/useTheme';
 
 // Both read synchronously from MMKV, before the first frame, so the app never
 // paints the wrong theme or language and then corrects itself.
 applyStoredTheme();
 initI18n();
+// Must run before any screen renders: a component whose interop is registered
+// late has already painted itself unstyled.
+registerComponentInterop();
 
 void SplashScreen.preventAutoHideAsync();
 

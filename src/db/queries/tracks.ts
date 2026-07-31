@@ -65,15 +65,31 @@ export async function countTracks(): Promise<number> {
 }
 
 /**
- * Live present-track count, re-running whenever the table changes.
+ * The live track list, re-running whenever the table changes.
  *
- * The `useLiveQuery` subscription lives here rather than in a feature hook so
- * that Drizzle stays behind the src/db boundary — enforced by ESLint.
+ * Same `isMissing = 0` predicate as `useTrackCount`, deliberately: the header
+ * count and the rows below it must come from one definition of "present", or
+ * the screen reports a number it cannot show. `LIST_SELECTION` and the shared
+ * `where` exist so that stays true by construction rather than by review.
+ *
+ * `useLiveQuery` lives here rather than in a feature hook so Drizzle stays
+ * behind the src/db boundary, which ESLint enforces.
  */
-export function useTrackCount(): number {
-  const query = db.select({ value: count() }).from(tracks).where(eq(tracks.isMissing, 0));
-  const { data } = useLiveQuery(query);
-  return data[0]?.value ?? 0;
+export function useTracks(): { tracks: TrackListItem[]; isLoading: boolean } {
+  const query = db
+    .select(listSelection)
+    .from(tracks)
+    .leftJoin(artists, eq(tracks.artistId, artists.id))
+    .leftJoin(albums, eq(tracks.albumId, albums.id))
+    .where(eq(tracks.isMissing, 0))
+    .orderBy(asc(sql`${tracks.title} COLLATE NOCASE`));
+
+  const { data, updatedAt } = useLiveQuery(query);
+
+  // `updatedAt` is undefined until the first result lands. Without it an empty
+  // library and a library that has not been read yet are the same value, and
+  // the screen flashes its empty state before the rows arrive.
+  return { tracks: data, isLoading: updatedAt === undefined };
 }
 
 /**

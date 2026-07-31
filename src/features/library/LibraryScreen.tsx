@@ -1,16 +1,21 @@
+import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import { Music, Plus } from 'lucide-react-native';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Linking, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Linking, Pressable, RefreshControl, Text, View } from 'react-native';
 
-import { isPermissionError } from '@/services/scanner/permission';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Screen } from '@/components/ui/Screen';
+import type { TrackListItem } from '@/db/queries/tracks';
 import { useMessages } from '@/i18n';
+import { isPermissionError } from '@/services/scanner/permission';
 import { useThemeColors } from '@/theme/useTheme';
 
-import { useTrackCount } from './hooks/useLibrary';
+import { ScanBanner } from './components/ScanBanner';
+import { TrackListSkeleton } from './components/TrackListSkeleton';
+import { TrackRow } from './components/TrackRow';
+import { useTracks } from './hooks/useLibrary';
 import { useScan } from './hooks/useScan';
 
 /** Opens this app's page in system settings, where the permission switch is. */
@@ -18,30 +23,49 @@ function openAppSettings(): void {
   void Linking.openSettings();
 }
 
+function keyExtractor(track: TrackListItem): string {
+  return String(track.id);
+}
+
 /**
- * Phase 4 replaces the count with the actual list. The four states — scanning,
- * failed, empty, populated — are all here already, per the States rule.
+ * The library: every present track, with the scan that fills it.
+ *
+ * Playback arrives in Phase 3; until then a row press is inert. The four
+ * states — loading, scanning, failed, empty — are all here, per the States
+ * rule, and the scan banner sits above the list rather than replacing it so
+ * the user can keep scrolling while it runs.
  */
 export function LibraryScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const messages = useMessages('library.empty');
   const colors = useThemeColors();
 
-  const trackCount = useTrackCount();
+  const { tracks, isLoading } = useTracks();
   const { progress, isScanning, scanLibrary, addFolder, rescan, cancel } = useScan();
 
-  const ratio = progress.total > 0 ? progress.processed / progress.total : 0;
   const hasFailed = !isScanning && progress.phase === 'failed';
-  const isEmpty = !isScanning && !hasFailed && trackCount === 0;
   const permissionFailed = isPermissionError(progress.error);
   const permissionBlocked = progress.error === 'permission-blocked';
+
+  const handleTrackPress = useCallback((id: number) => {
+    // Phase 3 hands this to the audio engine. Kept as a stable callback now so
+    // that wiring it up does not mean touching the memoized row.
+    void id;
+  }, []);
+
+  const renderItem = useCallback<ListRenderItem<TrackListItem>>(
+    ({ item }) => (
+      <TrackRow track={item} locale={i18n.language} onPress={handleTrackPress} />
+    ),
+    [handleTrackPress, i18n.language],
+  );
 
   return (
     <Screen title={t('library.title')}>
       {/* Adding music is reachable from anywhere, not only when empty. */}
       <View className="flex-row items-center justify-between px-6 pb-4">
         <Text className="font-mono text-sm text-muted">
-          {isScanning ? '' : t('library.trackCount', { count: trackCount })}
+          {isScanning ? '' : t('library.trackCount', { count: tracks.length })}
         </Text>
 
         <Pressable
@@ -65,85 +89,64 @@ export function LibraryScreen() {
         </Pressable>
       </View>
 
-      {/*
-        Pull to refresh re-indexes and sweeps. Without it, a user who has just
-        copied files in has no way to make the app look again short of
-        restarting it — and Android's own scanner may not have noticed yet
-        either. Phase 4 moves this onto the FlashList.
-      */}
-      <ScrollView
-        contentContainerClassName="grow"
-        refreshControl={
-          <RefreshControl
-            refreshing={isScanning}
-            onRefresh={rescan}
-            tintColor={colors.signal}
-            colors={[colors.signal]}
-            progressBackgroundColor={colors.panel}
-          />
-        }
-      >
-        {isScanning ? (
-          <View className="gap-3 px-6">
-            <View className="flex-row items-center justify-between">
-              <Text className="font-body text-sm text-muted">
-                {progress.phase === 'enumerating'
-                  ? t('library.scanning.enumerating')
-                  : t('library.scanning.enriching')}
-              </Text>
-              <Pressable
-                onPress={cancel}
-                accessibilityRole="button"
-                accessibilityLabel={t('library.scanning.cancel')}
-                className="min-h-11 justify-center"
-              >
-                <Text className="font-body-medium text-sm text-accent">
-                  {t('library.scanning.cancel')}
-                </Text>
-              </Pressable>
-            </View>
+      {isScanning ? <ScanBanner progress={progress} onCancel={cancel} /> : null}
 
-            <ProgressBar value={ratio} accessibilityLabel={t('library.scanning.enumerating')} />
+      {hasFailed ? (
+        <ErrorState
+          message={
+            permissionBlocked
+              ? t('library.scanError.permissionBlocked')
+              : permissionFailed
+                ? t('library.scanError.permission')
+                : t('library.scanError.generic')
+          }
+          detail={permissionFailed ? null : progress.error}
+          /*
+            A permanent denial cannot be undone by asking again, so retrying
+            would silently do nothing. Send the user where the switch actually
+            is instead.
+          */
+          retryLabel={
+            permissionBlocked ? t('library.scanError.openSettings') : t('library.scanError.retry')
+          }
+          onRetry={permissionBlocked ? openAppSettings : scanLibrary}
+        />
+      ) : null}
 
-            <Text className="font-mono text-sm text-muted">
-              {progress.processed} / {progress.total}
-            </Text>
-          </View>
-        ) : null}
-
-        {hasFailed ? (
-          <ErrorState
-            message={
-              permissionBlocked
-                ? t('library.scanError.permissionBlocked')
-                : permissionFailed
-                  ? t('library.scanError.permission')
-                  : t('library.scanError.generic')
-            }
-            detail={permissionFailed ? null : progress.error}
-            /*
-              A permanent denial cannot be undone by asking again, so retrying
-              would silently do nothing. Send the user where the switch
-              actually is instead.
-            */
-            retryLabel={
-              permissionBlocked
-                ? t('library.scanError.openSettings')
-                : t('library.scanError.retry')
-            }
-            onRetry={permissionBlocked ? openAppSettings : scanLibrary}
-          />
-        ) : null}
-
-        {isEmpty ? (
-          <EmptyState
-            icon={Music}
-            messages={messages}
-            actionLabel={t('library.emptyAction')}
-            onAction={addFolder}
-          />
-        ) : null}
-      </ScrollView>
+      {isLoading ? (
+        <TrackListSkeleton />
+      ) : (
+        <FlashList
+          data={tracks}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          /*
+            Pull to refresh re-indexes and sweeps. Without it a user who has
+            just copied files in has no way to make the app look again short of
+            restarting it — and Android's own scanner may not have noticed yet
+            either.
+          */
+          refreshControl={
+            <RefreshControl
+              refreshing={isScanning}
+              onRefresh={rescan}
+              tintColor={colors.signal}
+              colors={[colors.signal]}
+              progressBackgroundColor={colors.panel}
+            />
+          }
+          ListEmptyComponent={
+            hasFailed ? null : (
+              <EmptyState
+                icon={Music}
+                messages={messages}
+                actionLabel={t('library.emptyAction')}
+                onAction={addFolder}
+              />
+            )
+          }
+        />
+      )}
     </Screen>
   );
 }
