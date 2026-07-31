@@ -5,12 +5,17 @@ import { getShuffleAlgorithm } from '@/services/settings';
 import type { PlayableTrack, PlaybackState } from '@/services/audio/types';
 
 /**
- * Subscribe to the engine.
+ * Subscribe to the whole engine state, position included.
  *
  * `useSyncExternalStore` rather than `useState` + `useEffect` because that is
  * exactly what it is for: the engine is a store that lives outside React and
  * outlives every screen. It also gets tearing right during concurrent renders,
  * which a hand-rolled subscription does not.
+ *
+ * **This re-renders twice a second while anything is playing**, because the
+ * engine reports position on a 500ms interval. That is correct for the Now
+ * Playing screen and wrong for everything else — see `usePlaybackPhase` and
+ * `useCurrentTrack` below, and prefer them.
  */
 export function usePlayback(): PlaybackState {
   return useSyncExternalStore(subscribe, getSnapshot);
@@ -22,6 +27,39 @@ function subscribe(onChange: () => void): () => void {
 
 function getSnapshot(): PlaybackState {
   return AudioEngine.getState();
+}
+
+/*
+ * Narrow subscriptions.
+ *
+ * These exist because the mini player is permanently mounted and only needs to
+ * know *what* is playing, not *where* it is. Measured on the Pixel_7 AVD over
+ * ten seconds of playback: 20 mini-player renders with the full subscription,
+ * 0 with these. Twenty is exactly the 2 Hz status interval.
+ *
+ * Both snapshots are referentially stable when nothing has changed, which is
+ * what `useSyncExternalStore` requires to skip a render: `phase` is a string,
+ * and `state.track` keeps its identity across position updates because `emit`
+ * only replaces the key it is given. Returning a fresh object from either of
+ * these would defeat the whole point and loop instead.
+ */
+
+/** Just whether it is playing, loading, paused or idle. */
+export function usePlaybackPhase(): PlaybackState['phase'] {
+  return useSyncExternalStore(subscribe, getPhase);
+}
+
+/** Just what is loaded. Null when idle. */
+export function useCurrentTrack(): PlayableTrack | null {
+  return useSyncExternalStore(subscribe, getTrack);
+}
+
+function getPhase(): PlaybackState['phase'] {
+  return AudioEngine.getState().phase;
+}
+
+function getTrack(): PlayableTrack | null {
+  return AudioEngine.getState().track;
 }
 
 export interface PlaybackControls {
