@@ -153,6 +153,11 @@ These are not preferences. Violating them is a bug.
 - The Tailwind config **overrides** rather than extends the colour, spacing and radius scales, so
   `bg-indigo-600` and `rounded-2xl` produce no output at all. If a class silently does nothing,
   that is why: it is not in the design system.
+- **`className` only works on components NativeWind knows.** A third-party component receives it
+  as an unrecognised prop and renders unstyled — no warning, no error, just a view with no size.
+  Register it once in `src/theme/interop.ts` with `cssInterop`. This cost an afternoon: artwork on
+  `expo-image` was `h-10 w-10`, drew at zero by zero, and collapsed the row — but only for tracks
+  that *had* a cover, because the placeholder was a plain `View` and looked fine.
 - Spacing from the scale only. No arbitrary values like `p-[13px]`.
 - Contrast is a hard constraint, not a preference: ≥ 4.5:1 for body text in both themes, asserted
   in `tokens.test.ts`. On a filled indigo surface use `text-on-accent` and never white — white on
@@ -210,6 +215,9 @@ The app must stay fluid with a 10,000-track library. Concretely:
 - Images go through `expo-image` with an explicit `recyclingKey` and `cachePolicy`.
 - **Statistics screens read `stats_rollups` only.** Never aggregate `play_events` in a screen
   query. Rollups are updated incrementally when a play event is recorded.
+- **A count and the list it describes come from one query.** Two live queries over the same table
+  drift, and the screen then reports a number it cannot show — the library header once read
+  "14 tracks" above nothing. If a screen shows both, the count is `list.length`.
 - Scanning work is chunked and yields to the UI thread. The user can always scroll during a scan.
 - DB writes during scan are batched in transactions of ~500 rows.
 - Playback progress animates in a Reanimated worklet — it does not set React state 60 times a

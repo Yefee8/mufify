@@ -7,6 +7,12 @@ import { albums, artists, tracks, type NewTrack } from '../schema';
 /** A track with its artist and album names resolved, ready for a list row. */
 export interface TrackListItem {
   id: number;
+  /**
+   * Selected even though no row renders it: tapping a row starts playback, and
+   * fetching the URI at that moment would put a database round trip between
+   * the tap and the sound.
+   */
+  fileUri: string;
   title: string;
   artistName: string | null;
   albumName: string | null;
@@ -16,6 +22,7 @@ export interface TrackListItem {
 
 const listSelection = {
   id: tracks.id,
+  fileUri: tracks.fileUri,
   title: tracks.title,
   artistName: artists.name,
   albumName: albums.name,

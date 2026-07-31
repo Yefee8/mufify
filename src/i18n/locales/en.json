@@ -71,5 +71,23 @@
       "remove": "Remove {{folder}}",
       "removeNote": "Removing a folder stops re-indexing it. Your tracks stay."
     }
+  },
+  "player": {
+    "title": "Now playing",
+    "open": "Open the player",
+    "close": "Close the player",
+    "play": "Play",
+    "pause": "Pause",
+    "next": "Next track",
+    "previous": "Previous track",
+    "seek": "Seek",
+    "unknownArtist": "Unknown artist",
+    "empty": "Nothing playing. Pick a track from the library.",
+    "error": "This track would not play.",
+    "repeat": {
+      "off": "Repeat off",
+      "all": "Repeat all",
+      "one": "Repeat one"
+    }
   }
 }

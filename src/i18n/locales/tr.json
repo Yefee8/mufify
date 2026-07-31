@@ -71,5 +71,23 @@
       "remove": "{{folder}} klasörünü kaldır",
       "removeNote": "Klasörü kaldırmak yeniden taranmasını durdurur. Parçaların kalır."
     }
+  },
+  "player": {
+    "title": "Çalıyor",
+    "open": "Oynatıcıyı aç",
+    "close": "Oynatıcıyı kapat",
+    "play": "Çal",
+    "pause": "Duraklat",
+    "next": "Sonraki parça",
+    "previous": "Önceki parça",
+    "seek": "İleri sar",
+    "unknownArtist": "Bilinmeyen sanatçı",
+    "empty": "Çalan bir şey yok. Kitaplıktan bir parça seç.",
+    "error": "Bu parça çalınamadı.",
+    "repeat": {
+      "off": "Tekrar kapalı",
+      "all": "Tümünü tekrarla",
+      "one": "Parçayı tekrarla"
+    }
   }
 }

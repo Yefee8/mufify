@@ -6,8 +6,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useDatabase } from '@/db/useDatabase';
+import { startListenRecording } from '@/features/player/listenRecorder';
 import { initI18n } from '@/i18n';
 import { APP_FONTS } from '@/theme/fonts';
 import { registerComponentInterop } from '@/theme/interop';
@@ -34,6 +36,10 @@ export default function RootLayout() {
     void SystemUI.setBackgroundColorAsync(colors.chassis);
   }, [colors.chassis]);
 
+  // Listens are recorded for as long as the app is alive, not for as long as
+  // a particular screen is mounted — playback outlives every screen.
+  useEffect(() => startListenRecording(), []);
+
   const fontsSettled = fontsLoaded || fontError !== null;
   const databaseSettled = databaseReady || databaseError !== undefined;
 
@@ -46,9 +52,16 @@ export default function RootLayout() {
   if (!fontsSettled || !databaseSettled) return null;
 
   return (
-    <>
+    // Required by every GestureDetector in the app — the scrubber is the first
+    // one, and gesture-handler throws rather than silently ignoring gestures.
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false }} />
-    </>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        {/* Now Playing is somewhere you go from a track and dismiss, not a
+            destination you switch to — so it presents rather than pushes. */}
+        <Stack.Screen name="player" options={{ presentation: 'modal' }} />
+      </Stack>
+    </GestureHandlerRootView>
   );
 }

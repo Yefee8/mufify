@@ -12,4 +12,5 @@ export const settingsStorage = createMMKV({ id: 'mufify.settings' });
 export const SETTINGS_KEYS = {
   theme: 'settings.theme',
   language: 'settings.language',
+  weekStart: 'settings.weekStart',
 } as const;

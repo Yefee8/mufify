@@ -1,8 +1,41 @@
 import { Tabs } from 'expo-router';
+// expo-router vendors react-navigation rather than depending on it, so the tab
+// bar is only reachable through its build path. Needed because the mini player
+// has to sit *above* the bar, which only the `tabBar` slot can express.
+import { BottomTabBar } from 'expo-router/build/react-navigation/bottom-tabs';
+import type { BottomTabBarProps } from 'expo-router/build/react-navigation/bottom-tabs';
 import { BarChart3, Disc3, ListMusic, SlidersHorizontal } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
+import { View } from 'react-native';
 
+import { MiniPlayer } from '@/features/player/components/MiniPlayer';
 import { useTheme } from '@/theme/useTheme';
+
+/**
+ * The transport strip rides directly above the tab bar, on every tab.
+ *
+ * Mounting it here rather than inside each screen means it survives tab
+ * switches without remounting — restarting the artwork fetch and dropping the
+ * progress animation every time the user looks at Settings.
+ */
+function TabBarWithPlayer(props: BottomTabBarProps) {
+  return (
+    <View>
+      <MiniPlayer />
+      <BottomTabBar {...props} />
+    </View>
+  );
+}
+
+/*
+ * Rendered as an element, never handed over as the `tabBar` function itself.
+ * react-navigation *calls* `tabBar(props)` rather than mounting it, and the
+ * React Compiler — enabled in app.json — rewrites anything shaped like a
+ * component to call `useMemoCache`. A plain call then runs that hook outside
+ * any component render, which fails as "Invalid hook call" with a stack that
+ * points at the tab bar rather than at the cause.
+ */
+const renderTabBar = (props: BottomTabBarProps) => <TabBarWithPlayer {...props} />;
 
 export default function TabsLayout() {
   const { t } = useTranslation();
@@ -10,6 +43,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      tabBar={renderTabBar}
       screenOptions={{
         headerShown: false,
         // Indigo marks the active tab and nothing else in this bar.

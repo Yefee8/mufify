@@ -6,7 +6,9 @@
     "orientation": "portrait",
     "scheme": "mufify",
     "userInterfaceStyle": "automatic",
-    "platforms": ["android"],
+    "platforms": [
+      "android"
+    ],
     "icon": "./assets/images/icon.png",
     "android": {
       "package": "dev.mufify.app",
@@ -22,7 +24,9 @@
       ],
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
@@ -47,7 +51,14 @@
         }
       ],
       "expo-localization",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-audio",
+        {
+          "recordAudioAndroid": false
+        }
+      ],
+      "./plugins/withOfflineOnly"
     ],
     "experiments": {
       "typedRoutes": true,

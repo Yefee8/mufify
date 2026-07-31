@@ -12,6 +12,8 @@ import { useMessages } from '@/i18n';
 import { isPermissionError } from '@/services/scanner/permission';
 import { useThemeColors } from '@/theme/useTheme';
 
+import { usePlaybackControls } from '../player/hooks/usePlayback';
+import { toPlayable } from '../player/toPlayable';
 import { ScanBanner } from './components/ScanBanner';
 import { TrackListSkeleton } from './components/TrackListSkeleton';
 import { TrackRow } from './components/TrackRow';
@@ -42,16 +44,24 @@ export function LibraryScreen() {
 
   const { tracks, isLoading } = useTracks();
   const { progress, isScanning, scanLibrary, addFolder, rescan, cancel } = useScan();
+  const { playFrom } = usePlaybackControls();
 
   const hasFailed = !isScanning && progress.phase === 'failed';
   const permissionFailed = isPermissionError(progress.error);
   const permissionBlocked = progress.error === 'permission-blocked';
 
-  const handleTrackPress = useCallback((id: number) => {
-    // Phase 3 hands this to the audio engine. Kept as a stable callback now so
-    // that wiring it up does not mean touching the memoized row.
-    void id;
-  }, []);
+  /*
+   * Playing a track makes the list it came from the queue, which is what a
+   * user means by tapping a row — not "play this one thing and stop".
+   */
+  const handleTrackPress = useCallback(
+    (id: number) => {
+      const index = tracks.findIndex((track) => track.id === id);
+      if (index === -1) return;
+      playFrom(tracks.map(toPlayable), index);
+    },
+    [tracks, playFrom],
+  );
 
   const renderItem = useCallback<ListRenderItem<TrackListItem>>(
     ({ item }) => (
