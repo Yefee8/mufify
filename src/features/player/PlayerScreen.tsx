@@ -24,6 +24,7 @@ import { formatDuration } from '@/services/format/duration';
 import { useThemeColors } from '@/theme/useTheme';
 
 import { Scrubber } from './components/Scrubber';
+import { SpecStrip } from './components/SpecStrip';
 import { usePlayback, usePlaybackControls } from './hooks/usePlayback';
 
 /**
@@ -96,6 +97,7 @@ export function PlayerScreen() {
           <Text numberOfLines={1} className="font-body text-base text-muted">
             {track.artistName ?? t('player.unknownArtist')}
           </Text>
+          <SpecStrip trackId={track.id} />
         </View>
 
         {phase === 'error' ? (

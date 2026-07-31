@@ -1,6 +1,7 @@
 import type { MediaStoreTrack, TrackTags } from 'audio-tags';
 
 import {
+  codecOf,
   containerOf,
   fromMediaStore,
   fromTags,
@@ -189,7 +190,9 @@ describe('fromTags', () => {
     const enriched = fromTags(tagRow());
     expect(enriched).toMatchObject({
       container: 'FLAC',
-      codec: 'flac',
+      // Null rather than 'flac': container and codec read the same MIME
+      // subtype, so repeating it produced the strip "FLAC · flac".
+      codec: null,
       bitrateKbps: 1006,
       sampleRateHz: 44_100,
       bitDepth: 16,
@@ -228,6 +231,25 @@ describe('containerOf', () => {
 
   it('returns null when there is no mime type', () => {
     expect(containerOf(null)).toBeNull();
+  });
+});
+
+describe('codecOf', () => {
+  it('is null when the container name already says it', () => {
+    // Both read the same MIME subtype, so `audio/mpeg` gave "MP3 · mpeg" —
+    // the identical fact spelled worse.
+    expect(codecOf('audio/mpeg')).toBeNull();
+    expect(codecOf('audio/flac')).toBeNull();
+    expect(codecOf('audio/x-wav')).toBeNull();
+  });
+
+  it('keeps a subtype nothing is known about', () => {
+    expect(codecOf('audio/weird-new-thing')).toBe('weird-new-thing');
+  });
+
+  it('is null for a missing or malformed mime type', () => {
+    expect(codecOf(null)).toBeNull();
+    expect(codecOf('audio')).toBeNull();
   });
 });
 

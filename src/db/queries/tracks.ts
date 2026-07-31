@@ -109,6 +109,33 @@ export function useTracks(): { tracks: TrackListItem[]; isLoading: boolean } {
 }
 
 /**
+ * The technical strip for one track.
+ *
+ * Queried on demand rather than carried on `PlayableTrack`: it is seven more
+ * columns that only one screen reads, and the queue holds the whole library.
+ * Nullable throughout — below API 31 the retriever reports no sample rate or
+ * bit depth, and stage two may not have reached this row yet.
+ */
+export function useTrackSpec(trackId: number | null) {
+  const query = db
+    .select({
+      container: tracks.container,
+      codec: tracks.codec,
+      bitrateKbps: tracks.bitrateKbps,
+      sampleRateHz: tracks.sampleRateHz,
+      bitDepth: tracks.bitDepth,
+      channels: tracks.channels,
+      fileSize: tracks.fileSize,
+    })
+    .from(tracks)
+    .where(eq(tracks.id, trackId ?? -1))
+    .limit(1);
+
+  const { data } = useLiveQuery(query, [trackId]);
+  return data[0] ?? null;
+}
+
+/**
  * Insert or update by `fileUri`, which is the stable identity of a track — a
  * rescan must not create a second row for a file it has already seen.
  */

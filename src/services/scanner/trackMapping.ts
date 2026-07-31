@@ -145,8 +145,22 @@ const CONTAINER_NAMES: Record<string, string> = {
   mp4: 'M4A',
 };
 
+/**
+ * The codec, when it says something the container does not.
+ *
+ * Both this and `containerOf` read the same MIME subtype, so whenever the
+ * subtype has a container name the codec is the identical fact spelled worse:
+ * `audio/mpeg` produced the strip `MP3 · mpeg`, which reads like a bug.
+ *
+ * Null in that case. The column stays because container and codec genuinely
+ * differ for things like ALAC inside MP4 — MediaStore's MIME type simply
+ * cannot tell us so, and a real codec source can fill it in later without
+ * anything downstream changing.
+ */
 export function codecOf(mimeType: string | null): string | null {
-  return mimeType?.split('/')[1]?.replace(/^x-/u, '')?.toLowerCase() ?? null;
+  const subtype = mimeType?.split('/')[1]?.replace(/^x-/u, '')?.toLowerCase();
+  if (!subtype) return null;
+  return subtype in CONTAINER_NAMES ? null : subtype;
 }
 
 /** Lossless gets a visual distinction on the spec strip. */
