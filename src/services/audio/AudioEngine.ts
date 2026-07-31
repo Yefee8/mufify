@@ -7,6 +7,8 @@ import {
   type AudioStatus,
 } from 'expo-audio';
 
+import { shuffleTracks, type ShuffleAlgorithm } from '@/services/shuffle';
+
 import { isPlayable, nextIndex, previousIndex } from './queue';
 import {
   IDLE_PLAYBACK,
@@ -44,6 +46,14 @@ class Engine {
   private queue: PlayableTrack[] = [];
   private index = -1;
   private repeat: RepeatMode = 'off';
+
+  /*
+   * The queue as the user built it, kept alongside the shuffled one so that
+   * turning shuffle off restores the original order rather than freezing
+   * whatever random arrangement happened to be playing.
+   */
+  private sourceQueue: PlayableTrack[] = [];
+  private shuffled = false;
   private state: PlaybackState = IDLE_PLAYBACK;
   private listeners = new Set<Listener>();
   private configured = false;
@@ -122,12 +132,47 @@ class Engine {
 
   /** Replace the queue and start at `startIndex`. */
   async setQueue(tracks: PlayableTrack[], startIndex: number): Promise<void> {
+    this.sourceQueue = tracks;
     this.queue = tracks;
+    this.shuffled = false;
+
     if (!isPlayable(startIndex, tracks.length)) {
       await this.stop();
       return;
     }
     await this.loadIndex(startIndex, true);
+  }
+
+  isShuffled(): boolean {
+    return this.shuffled;
+  }
+
+  /**
+   * Turn shuffle on or off without interrupting what is playing.
+   *
+   * The current track stays current — it moves to the front of the reordered
+   * queue rather than being replaced. Reshuffling underneath a playing track
+   * and jumping to a different one is the behaviour every player gets wrong
+   * once; pressing shuffle is a statement about what comes *next*.
+   *
+   * Turning it off restores the original order and finds the current track's
+   * place in it, so the album resumes from where it actually is.
+   */
+  async setShuffled(shuffled: boolean, algorithm: ShuffleAlgorithm): Promise<void> {
+    const current = this.queue[this.index] ?? null;
+    this.shuffled = shuffled;
+
+    if (!shuffled) {
+      this.queue = this.sourceQueue;
+    } else {
+      const rest = this.sourceQueue.filter((track) => track.id !== current?.id);
+      const reordered = shuffleTracks(rest, algorithm);
+      this.queue = current ? [current, ...reordered] : reordered;
+    }
+
+    // Follow the current track to its new home. Nothing reloads: the audio
+    // keeps playing and only the index moves.
+    this.index = current ? this.queue.findIndex((track) => track.id === current.id) : -1;
   }
 
   /**

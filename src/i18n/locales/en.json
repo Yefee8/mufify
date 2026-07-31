@@ -70,6 +70,16 @@
       "empty": "No folders added. Mufify still scans everything Android has indexed.",
       "remove": "Remove {{folder}}",
       "removeNote": "Removing a folder stops re-indexing it. Your tracks stay."
+    },
+    "shuffle": {
+      "title": "Shuffle",
+      "label": "Algorithm",
+      "pure": "Pure",
+      "balanced": "Balanced",
+      "discovery": "Discovery",
+      "pureHint": "Truly random. Clusters, because randomness does.",
+      "balancedHint": "Spreads each artist across the queue.",
+      "discoveryHint": "Favours tracks you have played least."
     }
   },
   "player": {
@@ -88,6 +98,10 @@
       "off": "Repeat off",
       "all": "Repeat all",
       "one": "Repeat one"
+    },
+    "shuffle": {
+      "on": "Shuffle on, {{algorithm}}",
+      "off": "Shuffle off"
     }
   }
 }

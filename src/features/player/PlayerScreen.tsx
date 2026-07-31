@@ -1,6 +1,16 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { ChevronDown, Music, Pause, Play, Repeat, Repeat1, SkipBack, SkipForward } from 'lucide-react-native';
+import {
+  ChevronDown,
+  Music,
+  Pause,
+  Play,
+  Repeat,
+  Repeat1,
+  Shuffle,
+  SkipBack,
+  SkipForward,
+} from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
@@ -8,6 +18,7 @@ import { Pressable, Text, View } from 'react-native';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AudioEngine } from '@/services/audio/AudioEngine';
 import { cycleRepeat } from '@/services/audio/queue';
+import { getShuffleAlgorithm } from '@/services/settings';
 import type { RepeatMode } from '@/services/audio/types';
 import { formatDuration } from '@/services/format/duration';
 import { useThemeColors } from '@/theme/useTheme';
@@ -27,10 +38,16 @@ export function PlayerScreen() {
   const router = useRouter();
 
   const { phase, track, positionMs, durationMs, error } = usePlayback();
-  const { toggle, next, previous, seekTo } = usePlaybackControls();
+  const { toggle, toggleShuffle, next, previous, seekTo } = usePlaybackControls();
   const [repeat, setRepeatState] = useState<RepeatMode>(() => AudioEngine.getRepeat());
+  const [shuffled, setShuffledState] = useState(() => AudioEngine.isShuffled());
 
   const close = useCallback(() => router.back(), [router]);
+
+  const onShufflePress = useCallback(() => {
+    toggleShuffle();
+    setShuffledState(AudioEngine.isShuffled());
+  }, [toggleShuffle]);
 
   const onRepeatPress = useCallback(() => {
     const nextMode = cycleRepeat(repeat);
@@ -49,6 +66,7 @@ export function PlayerScreen() {
 
   const isPlaying = phase === 'playing';
   const isLoading = phase === 'loading';
+  const algorithm = getShuffleAlgorithm();
   const artworkUri = track.artworkPath ? `file://${track.artworkPath}` : null;
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
 
@@ -153,8 +171,21 @@ export function PlayerScreen() {
             <SkipForward color={colors.label} size={28} strokeWidth={2} fill={colors.label} />
           </Pressable>
 
-          {/* Balances the repeat control so the transport stays centred. */}
-          <View className="min-h-11 min-w-11" />
+          <Pressable
+            onPress={onShufflePress}
+            accessibilityRole="button"
+            /* Names the algorithm, not just "shuffle" — the brief asks for
+               several and the indicator has to say which one is running. */
+            accessibilityLabel={
+              shuffled
+                ? t('player.shuffle.on', { algorithm: t(`settings.shuffle.${algorithm}`) })
+                : t('player.shuffle.off')
+            }
+            accessibilityState={{ selected: shuffled }}
+            className="min-h-11 min-w-11 items-center justify-center"
+          >
+            <Shuffle color={shuffled ? colors.signal : colors.legend} size={22} strokeWidth={2} />
+          </Pressable>
         </View>
       </View>
     </View>

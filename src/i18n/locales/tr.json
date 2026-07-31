@@ -70,6 +70,16 @@
       "empty": "Eklenmiş klasör yok. Mufify yine de Android’in indekslediği her şeyi tarar.",
       "remove": "{{folder}} klasörünü kaldır",
       "removeNote": "Klasörü kaldırmak yeniden taranmasını durdurur. Parçaların kalır."
+    },
+    "shuffle": {
+      "title": "Karıştırma",
+      "label": "Algoritma",
+      "pure": "Saf",
+      "balanced": "Dengeli",
+      "discovery": "Keşif",
+      "pureHint": "Gerçekten rastgele. Kümelenir, çünkü rastgelelik böyledir.",
+      "balancedHint": "Her sanatçıyı kuyruğa yayar.",
+      "discoveryHint": "En az çaldığın parçaları öne alır."
     }
   },
   "player": {
@@ -88,6 +98,10 @@
       "off": "Tekrar kapalı",
       "all": "Tümünü tekrarla",
       "one": "Parçayı tekrarla"
+    },
+    "shuffle": {
+      "on": "Karıştırma açık, {{algorithm}}",
+      "off": "Karıştırma kapalı"
     }
   }
 }

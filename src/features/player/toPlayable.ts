@@ -19,5 +19,6 @@ export function toPlayable(track: TrackListItem): PlayableTrack {
     albumName: track.albumName,
     durationMs: track.durationMs,
     artworkPath: track.artworkPath,
+    playCount: track.playCount,
   };
 }

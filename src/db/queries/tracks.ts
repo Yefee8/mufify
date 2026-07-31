@@ -2,7 +2,7 @@ import { and, asc, count, eq, like, or, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 
 import { db } from '../client';
-import { albums, artists, tracks, type NewTrack } from '../schema';
+import { albums, artists, trackStats, tracks, type NewTrack } from '../schema';
 
 /** A track with its artist and album names resolved, ready for a list row. */
 export interface TrackListItem {
@@ -18,6 +18,11 @@ export interface TrackListItem {
   albumName: string | null;
   durationMs: number;
   artworkPath: string | null;
+  /**
+   * Lifetime plays, for the discovery shuffle. Zero when the track has never
+   * been played, since `track_stats` only gains a row on the first listen.
+   */
+  playCount: number;
 }
 
 const listSelection = {
@@ -28,6 +33,7 @@ const listSelection = {
   albumName: albums.name,
   durationMs: tracks.durationMs,
   artworkPath: tracks.artworkPath,
+  playCount: sql<number>`coalesce(${trackStats.playCount}, 0)`,
 };
 
 /** Present tracks, alphabetical, case-insensitive. */
@@ -37,6 +43,7 @@ export function listTracks(limit = 100, offset = 0) {
     .from(tracks)
     .leftJoin(artists, eq(tracks.artistId, artists.id))
     .leftJoin(albums, eq(tracks.albumId, albums.id))
+    .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
     .where(eq(tracks.isMissing, 0))
     .orderBy(asc(sql`${tracks.title} COLLATE NOCASE`))
     .limit(limit)
@@ -51,6 +58,7 @@ export function searchTracks(term: string, limit = 100) {
     .from(tracks)
     .leftJoin(artists, eq(tracks.artistId, artists.id))
     .leftJoin(albums, eq(tracks.albumId, albums.id))
+    .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
     .where(
       and(
         eq(tracks.isMissing, 0),
@@ -88,6 +96,7 @@ export function useTracks(): { tracks: TrackListItem[]; isLoading: boolean } {
     .from(tracks)
     .leftJoin(artists, eq(tracks.artistId, artists.id))
     .leftJoin(albums, eq(tracks.albumId, albums.id))
+    .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
     .where(eq(tracks.isMissing, 0))
     .orderBy(asc(sql`${tracks.title} COLLATE NOCASE`));
 

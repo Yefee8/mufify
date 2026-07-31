@@ -19,6 +19,12 @@ export interface PlayableTrack {
   durationMs: number;
   /** Bare filesystem path, no scheme. Null when the file has no cover. */
   artworkPath: string | null;
+  /**
+   * Lifetime plays. Carried so the queue satisfies `ShuffleTrack` — the
+   * discovery algorithm weights by it, and re-querying at shuffle time would
+   * put a database round trip between the button and the music.
+   */
+  playCount: number;
 }
 
 /**

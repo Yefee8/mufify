@@ -1,3 +1,4 @@
+import { DEFAULT_SHUFFLE, SHUFFLE_ALGORITHMS, type ShuffleAlgorithm } from '@/services/shuffle';
 import { WEEK_STARTS, type WeekStart } from '@/services/stats/periodKeys';
 
 import { LANGUAGE_PREFERENCES, type LanguagePreference } from './language';
@@ -49,4 +50,20 @@ export function getWeekStart(): WeekStart {
 
 export function setWeekStart(weekStart: WeekStart): void {
   settingsStorage.set(SETTINGS_KEYS.weekStart, weekStart);
+}
+
+/**
+ * Which shuffle algorithm the shuffle button uses.
+ *
+ * The brief asks for several algorithms selectable in Settings rather than one
+ * shuffle behind a toggle, so this is a choice and not a boolean. Balanced is
+ * the default because it answers the complaint people actually have about
+ * shuffle — that it clusters.
+ */
+export function getShuffleAlgorithm(): ShuffleAlgorithm {
+  return readStoredValue(SETTINGS_KEYS.shuffleAlgorithm, SHUFFLE_ALGORITHMS, DEFAULT_SHUFFLE);
+}
+
+export function setShuffleAlgorithm(algorithm: ShuffleAlgorithm): void {
+  settingsStorage.set(SETTINGS_KEYS.shuffleAlgorithm, algorithm);
 }
