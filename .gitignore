@@ -42,5 +42,11 @@ example
 /ios
 /android
 
+# Gradle output from the local Expo modules. The generated /android above is
+# ignored wholesale, but a module keeps its sources in the repo and builds
+# beside them — without this, 254 .class and .dex files land in every diff.
+modules/*/android/build/
+modules/*/android/.gradle/
+
 # IDE
 .idea/
