@@ -1,6 +1,6 @@
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import { Music, Plus } from 'lucide-react-native';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, Pressable, RefreshControl, Text, View } from 'react-native';
 
@@ -12,6 +12,7 @@ import { useMessages } from '@/i18n';
 import { isPermissionError } from '@/services/scanner/permission';
 import { useThemeColors } from '@/theme/useTheme';
 
+import { AddToPlaylistSheet } from '../playlists/components/AddToPlaylistSheet';
 import { usePlaybackControls } from '../player/hooks/usePlayback';
 import { toPlayable } from '../player/toPlayable';
 import { ScanBanner } from './components/ScanBanner';
@@ -32,10 +33,10 @@ function keyExtractor(track: TrackListItem): string {
 /**
  * The library: every present track, with the scan that fills it.
  *
- * Playback arrives in Phase 3; until then a row press is inert. The four
- * states — loading, scanning, failed, empty — are all here, per the States
- * rule, and the scan banner sits above the list rather than replacing it so
- * the user can keep scrolling while it runs.
+ * Tapping a row plays it and makes the visible list the queue; long-pressing
+ * offers to add it to a playlist. The four states — loading, scanning, failed,
+ * empty — are all here, per the States rule, and the scan banner sits above
+ * the list rather than replacing it so the user can keep scrolling.
  */
 export function LibraryScreen() {
   const { t, i18n } = useTranslation();
@@ -45,6 +46,7 @@ export function LibraryScreen() {
   const { tracks, isLoading } = useTracks();
   const { progress, isScanning, scanLibrary, addFolder, rescan, cancel } = useScan();
   const { playFrom } = usePlaybackControls();
+  const [playlistTarget, setPlaylistTarget] = useState<number | null>(null);
 
   const hasFailed = !isScanning && progress.phase === 'failed';
   const permissionFailed = isPermissionError(progress.error);
@@ -63,9 +65,16 @@ export function LibraryScreen() {
     [tracks, playFrom],
   );
 
+  const closePlaylistSheet = useCallback(() => setPlaylistTarget(null), []);
+
   const renderItem = useCallback<ListRenderItem<TrackListItem>>(
     ({ item }) => (
-      <TrackRow track={item} locale={i18n.language} onPress={handleTrackPress} />
+      <TrackRow
+        track={item}
+        locale={i18n.language}
+        onPress={handleTrackPress}
+        onLongPress={setPlaylistTarget}
+      />
     ),
     [handleTrackPress, i18n.language],
   );
@@ -157,6 +166,8 @@ export function LibraryScreen() {
           }
         />
       )}
+
+      <AddToPlaylistSheet trackId={playlistTarget} onClose={closePlaylistSheet} />
     </Screen>
   );
 }

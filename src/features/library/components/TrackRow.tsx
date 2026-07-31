@@ -13,6 +13,8 @@ export interface TrackRowProps {
   locale: string;
   /** Stable across renders — an inline arrow here would defeat the memo. */
   onPress: (id: number) => void;
+  /** Long press opens the track's actions. Also stable. */
+  onLongPress: (id: number) => void;
 }
 
 /**
@@ -22,9 +24,15 @@ export interface TrackRowProps {
  * visible row on each parent render is the difference between a list that
  * scrolls and one that does not.
  */
-export const TrackRow = memo(function TrackRow({ track, locale, onPress }: TrackRowProps) {
+export const TrackRow = memo(function TrackRow({
+  track,
+  locale,
+  onPress,
+  onLongPress,
+}: TrackRowProps) {
   const colors = useThemeColors();
   const handlePress = useCallback(() => onPress(track.id), [onPress, track.id]);
+  const handleLongPress = useCallback(() => onLongPress(track.id), [onLongPress, track.id]);
 
   // Artwork paths are stored bare, without a scheme, because that is what the
   // Kotlin side writes and what it hands back. expo-image needs the scheme.
@@ -35,6 +43,7 @@ export const TrackRow = memo(function TrackRow({ track, locale, onPress }: Track
   return (
     <Pressable
       onPress={handlePress}
+      onLongPress={handleLongPress}
       accessibilityRole="button"
       accessibilityLabel={track.title}
       accessibilityHint={subtitle || undefined}

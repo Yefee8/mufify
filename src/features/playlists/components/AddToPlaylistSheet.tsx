@@ -1,0 +1,114 @@
+import { ListMusic, Plus } from 'lucide-react-native';
+import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Modal, Pressable, ScrollView, Text } from 'react-native';
+
+import { addTracksToPlaylist, createPlaylist, usePlaylists } from '@/db/queries/playlists';
+import { useThemeColors } from '@/theme/useTheme';
+
+import { NamePlaylistDialog } from './NamePlaylistDialog';
+
+export interface AddToPlaylistSheetProps {
+  /** The track to add, or null when the sheet is closed. */
+  trackId: number | null;
+  onClose: () => void;
+}
+
+/**
+ * Pick a playlist for a track, or make one.
+ *
+ * Creating from here adds the track immediately rather than dropping the user
+ * into an empty playlist — they said what they wanted before they were asked
+ * where to put it.
+ */
+export function AddToPlaylistSheet({ trackId, onClose }: AddToPlaylistSheetProps) {
+  const { t } = useTranslation();
+  const colors = useThemeColors();
+  const playlists = usePlaylists();
+  const [naming, setNaming] = useState(false);
+
+  const addTo = useCallback(
+    (playlistId: number) => {
+      if (trackId === null) return;
+      void addTracksToPlaylist(playlistId, [trackId]);
+      onClose();
+    },
+    [trackId, onClose],
+  );
+
+  const onCreate = useCallback(
+    async (name: string) => {
+      setNaming(false);
+      if (trackId === null) return;
+      const id = await createPlaylist(name);
+      if (id !== null) await addTracksToPlaylist(id, [trackId]);
+      onClose();
+    },
+    [trackId, onClose],
+  );
+
+  return (
+    <Modal
+      visible={trackId !== null}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <Pressable
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel={t('common.cancel')}
+        className="flex-1 justify-end bg-surface/80"
+      >
+        <Pressable
+          onPress={absorb}
+          className="max-h-96 gap-4 rounded-md border border-subtle bg-surface-elevated p-5"
+        >
+          <Text className="font-body-semibold text-base text-primary">
+            {t('playlists.addTo')}
+          </Text>
+
+          <Pressable
+            onPress={() => setNaming(true)}
+            accessibilityRole="button"
+            className="min-h-11 flex-row items-center gap-3"
+          >
+            <Plus color={colors.signal} size={20} strokeWidth={2} />
+            <Text className="font-body-medium text-base text-accent">
+              {t('playlists.create')}
+            </Text>
+          </Pressable>
+
+          <ScrollView>
+            {playlists.map((playlist) => (
+              <Pressable
+                key={playlist.id}
+                onPress={() => addTo(playlist.id)}
+                accessibilityRole="button"
+                accessibilityLabel={playlist.name}
+                className="min-h-11 flex-row items-center gap-3"
+              >
+                <ListMusic color={colors.legend} size={20} strokeWidth={2} />
+                <Text numberOfLines={1} className="flex-1 font-body text-base text-primary">
+                  {playlist.name}
+                </Text>
+                <Text className="font-mono text-sm text-muted">{playlist.trackCount}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+
+      <NamePlaylistDialog
+        visible={naming}
+        title={t('playlists.create')}
+        onCancel={() => setNaming(false)}
+        onSubmit={onCreate}
+      />
+    </Modal>
+  );
+}
+
+function absorb(): void {
+  // Stops a tap inside the sheet from reaching the dismissing scrim.
+}

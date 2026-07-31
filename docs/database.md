@@ -47,6 +47,18 @@ cache directory, and referenced by path. `artwork_path` is a string. A 24-bit
 FLAC picture block can be several megabytes; putting that in SQLite would make
 every query that touches the row slow and the database enormous.
 
+**`playlist_tracks.position` is half the primary key, not a hint.** The unique
+index is `(playlist_id, position)`, so every write has to leave positions
+contiguous from zero. Removing an entry therefore decrements everything after
+it in the same operation — a hole left behind stays invisible until the next
+reorder lands two rows on the same number and the insert fails with a
+constraint violation nobody can trace back.
+
+Duplicates are allowed: the same track may appear twice in one playlist,
+because that is a choice a person can legitimately make. Entries are
+consequently identified and removed by **position**, never by track id —
+removing "the track" would take both copies.
+
 **Rows are never deleted during a rescan.** A file that has gone gets
 `is_missing = 1`. Deleting it would take playlist entries and play history with
 it, and an SD card that is merely unmounted would look like a library wipe.

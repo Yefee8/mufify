@@ -32,12 +32,26 @@
     }
   },
   "playlists": {
-    "title": "Çalma listeleri",
+    "title": "Listeler",
+    "create": "Yeni liste",
+    "rename": "Yeniden adlandır",
+    "delete": "Listeyi sil",
+    "playAll": "Tümünü çal",
+    "addTo": "Listeye ekle",
+    "nameLabel": "Liste adı",
+    "namePlaceholder": "Bir ad ver",
+    "removeTrack": "{{title}} parçasını kaldır",
+    "count_one": "{{count}} liste",
+    "count_other": "{{count}} liste",
+    "trackCount_one": "{{count}} parça",
+    "trackCount_other": "{{count}} parça",
     "empty": [
-      "Henüz listen yok. Herhangi bir parçadan başlat.",
-      "Burası boş. Bir parçaya uzun bas, listeye at.",
-      "Her liste tek bir parçayla başlar.",
-      "Daha liste yok. İlkini sen kur."
+      "Henüz liste yok. Bir tane oluştur ve doldurmaya başla.",
+      "Burası boş. Liste oluşturmak tek dokunuş."
+    ],
+    "detailEmpty": [
+      "Burada henüz bir şey yok. Kitaplıktan parça ekle.",
+      "Boş bir liste. Bir parçaya uzun bas ve buraya koy."
     ]
   },
   "stats": {
@@ -116,5 +130,10 @@
       "on": "Karıştırma açık, {{algorithm}}",
       "off": "Karıştırma kapalı"
     }
+  },
+  "common": {
+    "cancel": "Vazgeç",
+    "save": "Kaydet",
+    "back": "Geri"
   }
 }
