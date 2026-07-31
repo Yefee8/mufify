@@ -189,9 +189,10 @@ real FLAC and two WAVs, one of them deliberately under the duration floor.
 - **a sweep over 500+ real files without dropping frames** — still the last
   open item for Phase 2. The earlier emulator number was worthless: headless
   swiftshader has no relationship to a real compositor. 520 FLAC files are
-  staged at `/sdcard/Music/bulk` on the Mi 9T and frame stats have been reset;
-  the measurement needs `adb shell dumpsys gfxinfo dev.mufify.app framestats`
-  taken across a scan of them.
+  staged at `/sdcard/Music/bulk` on the Mi 9T; the measurement needs
+  `dumpsys gfxinfo dev.mufify.app framestats` taken across a scan of them. The
+  recipe is below — the last device window closed before the gesture happened,
+  not before the setup did.
 - **whether `MediaScannerConnection.scanFile()` recurses into a directory** —
   the rescan path hands it `/storage/emulated/0/Music`, so everything depends
   on this and it is inferred rather than measured. See the status section of
@@ -211,6 +212,32 @@ here. 520 files pushed to `/sdcard/Music/bulk` sat on disk — 56 MB, confirmed
 by `ls` — with **zero** matching rows in MediaStore. The scenario reproduces on
 demand simply by pushing files, and it is exactly what `Add music` and pull-to-
 refresh exist to fix.
+
+### The large-library measurement, next time the device is here
+
+Setup is automatable; only the gesture is not. Roughly five minutes:
+
+```bash
+adb push <520-file-set>/. /sdcard/Music/bulk/     # ~1.7s, 56 MB
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+adb reverse tcp:8081 tcp:8081 && npx expo start --dev-client
+adb shell dumpsys gfxinfo dev.mufify.app reset
+# --- by hand on the phone: pull down to refresh on Kitaplık ---
+adb shell dumpsys gfxinfo dev.mufify.app framestats
+```
+
+Read `Total frames rendered`, `Janky frames` and the 90/95/99th percentiles.
+The claim to support or refute is the `AGENTS.md` performance rule: the scan
+chunks its work and yields, so the user can scroll throughout. Jank during the
+scan is the thing being measured, so scroll the list while it runs rather than
+watching it politely.
+
+One trap worth knowing: **a USB disconnect triggers a full-volume media scan on
+this phone.** In the last session `MediaScannerInjector` walked `Music`,
+`Music/bulk` *and* `Ringtones` seconds before the cable dropped. Nothing in the
+app asked for that, and it would be easy to read as proof that
+`requestMediaScan` works. Attribute a scan to our code only when the paths
+match what we passed.
 
 ### Automating verification on Xiaomi hardware — don't
 
