@@ -11,6 +11,7 @@ import type { TrackListItem } from '@/db/queries/tracks';
 import { useMessages } from '@/i18n';
 import { isPermissionError } from '@/services/scanner/permission';
 import { useThemeColors } from '@/theme/useTheme';
+import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 
 import { AddToPlaylistSheet } from '../playlists/components/AddToPlaylistSheet';
 import { usePlaybackControls } from '../player/hooks/usePlayback';
@@ -41,6 +42,7 @@ function keyExtractor(track: TrackListItem): string {
  * the list rather than replacing it so the user can keep scrolling.
  */
 export function LibraryScreen() {
+  useLifecycleTrace('LibraryScreen');
   const { t, i18n } = useTranslation();
   const messages = useMessages('library.empty');
   const colors = useThemeColors();
@@ -48,7 +50,13 @@ export function LibraryScreen() {
   const [search, setSearch] = useState('');
   // The field stays instant; only the query waits.
   const { tracks, isLoading } = useTracks(useDebounced(search));
-  const { progress, isScanning, isRefreshing, scanLibrary, addFolder, rescan, cancel } = useScan();
+  /*
+   * The launch sweep waits for the list to be on screen. Firing it on mount put
+   * a MediaStore enumeration on the JS thread alongside the first library query
+   * and turned a 15ms query into 1608ms on the Mi 9T — see `useScan`.
+   */
+  const { progress, isScanning, isRefreshing, scanLibrary, addFolder, rescan, cancel } =
+    useScan(!isLoading);
   const { playFrom } = usePlaybackControls();
   const [playlistTarget, setPlaylistTarget] = useState<number | null>(null);
 
@@ -149,7 +157,7 @@ export function LibraryScreen() {
         {isLoading ? (
           <TrackListSkeleton />
         ) : (
-            <FlashList
+          <FlashList
             data={tracks}
             renderItem={renderItem}
             keyExtractor={keyExtractor}
@@ -181,7 +189,7 @@ export function LibraryScreen() {
                   onAction={addFolder}
                 />
               )
-              }
+            }
           />
         )}
       </View>

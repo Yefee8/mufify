@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 
 import { MiniPlayer } from '@/features/player/components/MiniPlayer';
+import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 import { useTheme } from '@/theme/useTheme';
 
 /**
@@ -19,6 +20,7 @@ import { useTheme } from '@/theme/useTheme';
  * progress animation every time the user looks at Settings.
  */
 function TabBarWithPlayer(props: BottomTabBarProps) {
+  useLifecycleTrace('TabBar');
   return (
     <View>
       <MiniPlayer />

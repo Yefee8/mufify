@@ -11,6 +11,7 @@ import { useMessages } from '@/i18n';
 import { getWeekStart } from '@/services/settings';
 import { periodKeys } from '@/services/stats/periodKeys';
 import { PERIOD_TYPES, type PeriodType } from '@/services/stats/rollups';
+import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 
 import { StatTotals } from './components/StatTotals';
 import { TopList } from './components/TopList';
@@ -23,6 +24,7 @@ import { TopList } from './components/TopList';
  * `docs/stats.md`.
  */
 export function StatsScreen() {
+  useLifecycleTrace('StatsScreen');
   const { t } = useTranslation();
   const messages = useMessages('stats.empty');
   const [period, setPeriod] = useState<PeriodType>('week');

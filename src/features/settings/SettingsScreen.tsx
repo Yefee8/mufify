@@ -19,7 +19,9 @@ import {
 } from '@/services/settings';
 import { SHUFFLE_ALGORITHMS, type ShuffleAlgorithm } from '@/services/shuffle';
 import { useTheme } from '@/theme/useTheme';
+import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 
+import { DevTools } from './components/DevTools';
 import { ScanFolderList } from './components/ScanFolderList';
 
 const THEME_ICONS: Record<ThemePreference, LucideIcon> = {
@@ -29,6 +31,7 @@ const THEME_ICONS: Record<ThemePreference, LucideIcon> = {
 };
 
 export function SettingsScreen() {
+  useLifecycleTrace('SettingsScreen');
   const { t } = useTranslation();
   const { preference: theme, setPreference: setTheme } = useTheme();
   const [language, setLanguage] = useState<LanguagePreference>(getLanguagePreference);
@@ -117,6 +120,12 @@ export function SettingsScreen() {
         <SettingGroup title={t('settings.folders.title')}>
           <ScanFolderList />
         </SettingGroup>
+
+        {__DEV__ ? (
+          <SettingGroup title="Development">
+            <DevTools />
+          </SettingGroup>
+        ) : null}
       </ScrollView>
     </Screen>
   );

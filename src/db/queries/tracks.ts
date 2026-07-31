@@ -1,5 +1,8 @@
 import { and, asc, count, eq, like, or, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+import { useEffect } from 'react';
+
+import * as perf from '@/services/perf';
 
 import { db } from '../client';
 import { useThrottledData } from '../useThrottledData';
@@ -128,6 +131,16 @@ export function useTracks(search = ''): { tracks: TrackListItem[]; isLoading: bo
 
   const { data, updatedAt } = useLiveQuery(query, [term]);
 
+  // Temporary instrumentation for the tab-switch investigation.
+  perf.count('useTracks.render');
+  useEffect(() => {
+    perf.count('useTracks.subscribe');
+    perf.mark('useTracks.firstRows');
+  }, [term]);
+  useEffect(() => {
+    if (updatedAt !== undefined) perf.measure('useTracks.firstRows', data.length);
+  }, [updatedAt, data.length]);
+
   // `updatedAt` is undefined until the first result lands. Without it an empty
   // library and a library that has not been read yet are the same value, and
   // the screen flashes its empty state before the rows arrive.
@@ -159,6 +172,24 @@ export function useTrackSpec(trackId: number | null) {
 
   const { data } = useLiveQuery(query, [trackId]);
   return data[0] ?? null;
+}
+
+/**
+ * The library query, run once and awaited. Development measurement only.
+ *
+ * Exactly what `useTracks` runs, so timing this and timing that are comparable.
+ * It exists because the two numbers turned out to be wildly different, and the
+ * gap is the interesting part rather than either figure on its own.
+ */
+export function timeLibraryQuery() {
+  return db
+    .select(listSelection)
+    .from(tracks)
+    .leftJoin(artists, eq(tracks.artistId, artists.id))
+    .leftJoin(albums, eq(tracks.albumId, albums.id))
+    .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
+    .where(eq(tracks.isMissing, 0))
+    .orderBy(asc(sql`${tracks.title} COLLATE NOCASE`));
 }
 
 /**

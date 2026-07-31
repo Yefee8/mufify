@@ -9,6 +9,7 @@ import { Screen } from '@/components/ui/Screen';
 import { createPlaylist, usePlaylists, type PlaylistSummary } from '@/db/queries/playlists';
 import { useMessages } from '@/i18n';
 import { useThemeColors } from '@/theme/useTheme';
+import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 
 import { NamePlaylistDialog } from './components/NamePlaylistDialog';
 import { PlaylistRow } from './components/PlaylistRow';
@@ -21,6 +22,7 @@ import { PlaylistRow } from './components/PlaylistRow';
  * playlists, and FlashList's recycling costs more than it saves at this size.
  */
 export function PlaylistsScreen() {
+  useLifecycleTrace('PlaylistsScreen');
   const { t } = useTranslation();
   const messages = useMessages('playlists.empty');
   const colors = useThemeColors();

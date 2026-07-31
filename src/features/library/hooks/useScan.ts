@@ -67,6 +67,10 @@ export interface UseScanResult {
 /**
  * Drives the two-stage scan and exposes its progress.
  *
+ * `ready` gates the automatic launch sweep: pass false until the library has
+ * painted. The manual entry points ignore it — a user pressing "Add music" has
+ * asked for the work and should not wait on anything.
+ *
  * Both entry points — the automatic MediaStore sweep and the manual folder
  * pick — go through the same pipeline. Manual adding is a first-class way to
  * fill the library, not a fallback for when the automatic scan disappoints:
@@ -74,7 +78,7 @@ export interface UseScanResult {
  * with a `.nomedia`, or some SD card layouts, and this audience keeps music
  * in exactly those places.
  */
-export function useScan(): UseScanResult {
+export function useScan(ready: boolean): UseScanResult {
   const [progress, setProgress] = useState<ScanProgress>(IDLE);
   const [pulled, setPulled] = useState(false);
   const cancelled = useRef(false);
@@ -224,15 +228,30 @@ export function useScan(): UseScanResult {
   }, []);
 
   /*
-   * The automatic sweep. Starts itself once per app session, behind the first
-   * paint, so the user never waits on it — and because the scan is
-   * incremental, an unchanged library costs one MediaStore count and nothing
-   * else. A missing permission is not surfaced here: the automatic path stays
-   * quiet and the empty state does the asking.
+   * The automatic sweep. Starts itself once per app session, and only after the
+   * library it is filling has something on screen.
+   *
+   * `ready` is what makes that true, and it was worth measuring. This used to
+   * be `requestIdleCallback(…, { timeout: 1_000 })` on mount, which meant the
+   * sweep fired a second after mount whether or not the thread had ever gone
+   * idle — landing on top of the very first library query. Time from the query
+   * subscribing to its rows arriving, cold start:
+   *
+   *   Pixel_7 AVD, 528 tracks   210ms
+   *   Mi 9T, 521 tracks        1608ms
+   *
+   * The query itself is 14–15ms on the emulator, measured five times in a row
+   * with nothing else running. So nearly all of that was contention, and on the
+   * slower real device it was a second and a half of skeleton for work that
+   * takes fifteen milliseconds.
+   *
+   * Because the scan is incremental, an unchanged library still costs one
+   * MediaStore count and nothing else. A missing permission is not surfaced
+   * here: the automatic path stays quiet and the empty state does the asking.
    */
   const swept = useRef(false);
   useEffect(() => {
-    if (swept.current) return;
+    if (!ready || swept.current) return;
     swept.current = true;
 
     const handle = requestIdleCallback(
@@ -245,7 +264,7 @@ export function useScan(): UseScanResult {
     );
 
     return () => cancelIdleCallback(handle);
-  }, [run]);
+  }, [ready, run]);
 
   const isScanning = progress.phase === 'enumerating' || progress.phase === 'enriching';
 
