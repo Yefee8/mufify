@@ -17,6 +17,8 @@ import {
 } from '@/services/settings';
 import { useTheme } from '@/theme/useTheme';
 
+import { ScanFolderList } from './components/ScanFolderList';
+
 const THEME_ICONS: Record<ThemePreference, LucideIcon> = {
   system: Monitor,
   light: Sun,
@@ -76,6 +78,10 @@ export function SettingsScreen() {
               accessibilityLabel={t('settings.language.label')}
             />
           </SettingRow>
+        </SettingGroup>
+
+        <SettingGroup title={t('settings.folders.title')}>
+          <ScanFolderList />
         </SettingGroup>
       </ScrollView>
     </Screen>

@@ -64,6 +64,12 @@
       "system": "Sistem",
       "en": "English",
       "tr": "Türkçe"
+    },
+    "folders": {
+      "title": "Müzik klasörleri",
+      "empty": "Eklenmiş klasör yok. Mufify yine de Android’in indekslediği her şeyi tarar.",
+      "remove": "{{folder}} klasörünü kaldır",
+      "removeNote": "Klasörü kaldırmak yeniden taranmasını durdurur. Parçaların kalır."
     }
   }
 }

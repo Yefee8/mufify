@@ -1,4 +1,5 @@
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 
 import { db } from '../client';
 import { needsRescan } from '@/services/scanner/trackMapping';
@@ -207,11 +208,53 @@ export async function listUnenrichedUris(limit: number): Promise<string[]> {
   return rows.map((row) => row.fileUri);
 }
 
-/** Folders the user added by hand, on top of whatever MediaStore indexes. */
+/**
+ * Folders the user added by hand, on top of whatever MediaStore indexes.
+ *
+ * Adding is cumulative. `onConflictDoNothing` against the unique `uri` index
+ * means picking the same folder twice is a no-op rather than a duplicate row,
+ * and picking a second folder never displaces the first — a library assembled
+ * from four places stays assembled from four places.
+ */
 export async function addScanFolder(uri: string): Promise<void> {
   await db.insert(scanFolders).values({ uri, enabled: 1 }).onConflictDoNothing();
 }
 
 export async function listScanFolders() {
   return db.select().from(scanFolders).where(eq(scanFolders.enabled, 1));
+}
+
+export interface ScanFolder {
+  id: number;
+  uri: string;
+}
+
+/**
+ * Live list of added folders, for the settings screen.
+ *
+ * Ordered by id so the list reads in the order folders were added, which is
+ * the order the user remembers adding them in.
+ */
+export function useScanFolders(): ScanFolder[] {
+  const query = db
+    .select({ id: scanFolders.id, uri: scanFolders.uri })
+    .from(scanFolders)
+    .where(eq(scanFolders.enabled, 1))
+    .orderBy(asc(scanFolders.id));
+
+  const { data } = useLiveQuery(query);
+  return data;
+}
+
+/**
+ * Forget a folder.
+ *
+ * The row goes; the tracks stay. Those tracks are ordinary MediaStore content
+ * that the automatic sweep would find anyway, so deleting them here would
+ * take playlist entries and play history with them to remove something the
+ * next scan puts straight back. Removing a folder means "stop re-indexing
+ * this path", not "delete this music".
+ */
+export async function removeScanFolder(id: number): Promise<void> {
+  await db.delete(scanFolders).where(eq(scanFolders.id, id));
 }

@@ -43,3 +43,40 @@ export function treeUriToPath(treeUri: string): string | null {
 
   return relative ? `${PRIMARY_VOLUME_ROOT}/${relative}` : PRIMARY_VOLUME_ROOT;
 }
+
+/**
+ * A folder name worth showing a person.
+ *
+ * `treeUriToPath` is for the media scanner and returns null for anything it
+ * cannot resolve — SD cards and USB volumes carry an opaque id. A settings
+ * list cannot do that: a row the user added has to render as *something*, or
+ * the screen quietly loses folders it is supposed to be accounting for. So
+ * this always produces a string, degrading from a real path to the volume-
+ * qualified name to the raw URI.
+ */
+export function treeUriToLabel(treeUri: string): string {
+  const encoded = treeUri.split('/tree/')[1];
+  if (!encoded) return treeUri;
+
+  const treePart = encoded.split('/document/')[0];
+  if (!treePart) return treeUri;
+
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(treePart);
+  } catch {
+    return treeUri;
+  }
+
+  const separator = decoded.indexOf(':');
+  if (separator === -1) return decoded;
+
+  const volume = decoded.slice(0, separator);
+  const relative = decoded.slice(separator + 1).replace(/^\/+|\/+$/gu, '');
+
+  // The internal volume is the unremarkable case, so it goes unlabelled; a
+  // removable one is worth naming, because "which card was that on" is the
+  // whole question the user is asking when they look at this list.
+  if (volume === 'primary') return relative || 'Internal storage';
+  return relative ? `${volume}: ${relative}` : volume;
+}
