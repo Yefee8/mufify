@@ -170,9 +170,21 @@ export function needsRescan(
   return existing.fileSize !== incoming.fileSize;
 }
 
+/**
+ * MediaStore's stand-in for a missing tag.
+ *
+ * It writes the literal string `<unknown>` rather than null for an untagged
+ * artist or album. Stored as-is it becomes a real artist named `<unknown>`:
+ * it gets an `artists` row, appears in the library, tops the statistics for
+ * anyone with a folder of untagged files, and — worst — the balanced shuffle
+ * treats every untagged track as the same act and spreads them apart.
+ */
+const MEDIASTORE_UNKNOWN = '<unknown>';
+
 function blankToNull(value: string | null): string | null {
   const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
+  if (!trimmed) return null;
+  return trimmed.toLowerCase() === MEDIASTORE_UNKNOWN ? null : trimmed;
 }
 
 function positiveOrNull(value: number | null | undefined): number | null {

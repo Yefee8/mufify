@@ -156,6 +156,30 @@ describe('fromMediaStore', () => {
   });
 });
 
+describe("MediaStore's <unknown> placeholder", () => {
+  it('becomes null rather than an artist called <unknown>', () => {
+    // Stored as-is it gets an `artists` row, tops the statistics for anyone
+    // with a folder of untagged files, and makes the balanced shuffle treat
+    // every untagged track as the same act.
+    const row = fromMediaStore(
+      mediaStoreRow({ artist: '<unknown>', album: '<unknown>', albumArtist: '<unknown>' }),
+    );
+    expect(row.artistName).toBeNull();
+    expect(row.albumName).toBeNull();
+    expect(row.albumArtist).toBeNull();
+  });
+
+  it('is matched case-insensitively and around whitespace', () => {
+    expect(fromMediaStore(mediaStoreRow({ artist: '  <Unknown>  ' })).artistName).toBeNull();
+  });
+
+  it('does not touch a real artist whose name merely contains the word', () => {
+    expect(fromMediaStore(mediaStoreRow({ artist: 'Unknown Mortal Orchestra' })).artistName).toBe(
+      'Unknown Mortal Orchestra',
+    );
+  });
+});
+
 describe('fromTags', () => {
   it('returns null for a file that could not be opened', () => {
     expect(fromTags(tagRow({ error: 'setDataSource failed' }))).toBeNull();
