@@ -58,7 +58,13 @@
       "Boş bir liste. Bir parçaya uzun bas ve buraya koy."
     ],
     "addCount_one": "{{count}} parçayı bir listeye ekle",
-    "addCount_other": "{{count}} parçayı bir listeye ekle"
+    "addCount_other": "{{count}} parçayı bir listeye ekle",
+    "shuffleAll": "Karıştır",
+    "addTracks": "Parça ekle",
+    "reorder": "{{title}} sırasını değiştir",
+    "addSelected_zero": "Birkaç parça seç",
+    "addSelected_one": "{{count}} parça ekle",
+    "addSelected_other": "{{count}} parça ekle"
   },
   "stats": {
     "title": "İstatistik",

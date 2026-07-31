@@ -58,7 +58,13 @@
       "An empty playlist. Long-press a track to put it here."
     ],
     "addCount_one": "Add {{count}} track to a playlist",
-    "addCount_other": "Add {{count}} tracks to a playlist"
+    "addCount_other": "Add {{count}} tracks to a playlist",
+    "shuffleAll": "Shuffle",
+    "addTracks": "Add tracks",
+    "reorder": "Reorder {{title}}",
+    "addSelected_zero": "Pick some tracks",
+    "addSelected_one": "Add {{count}} track",
+    "addSelected_other": "Add {{count}} tracks"
   },
   "stats": {
     "title": "Stats",
