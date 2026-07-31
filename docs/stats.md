@@ -122,15 +122,56 @@ counted at the time.
 
 ---
 
-## Rollups — Phase 7
+## Rollups
 
 `stats_rollups` is keyed `(period_type, period_key, entity_type, entity_id)`
-with a unique index, which is the upsert target. Every play event will
-increment week/month/year × track/artist/album/playlist incrementally.
+with a unique index, which is the upsert target. Every play event increments
+week/month/year × track/artist/album/playlist incrementally, from
+`applyRollups` inside `recordListen`.
+
+One listen writes up to twelve cells — three periods times four entities,
+minus whatever is null. `rollupDeltas` builds that as a product rather than by
+hand, so adding a period or an entity type cannot be done to one and forgotten
+in the others. Null artist and album ids are **skipped**, never defaulted to
+zero: an untagged file must not accumulate against a phantom entity.
+
+The artist and album come from the `tracks` row, not from the caller. The
+player knows what it is playing, not how the library has it classified, and a
+rollup keyed on the wrong artist stays invisible until a year-end summary looks
+wrong.
 
 **Stats screens read rollups only.** Never aggregate `play_events` in a screen
-query.
+query — that is a scan over the entire listening history on every tab switch,
+and it grows forever.
 
-Correctness is tested by comparing incremental rollups against a brute-force
-recount over `play_events` — that test is the point of the whole design and
-lands with the rollups.
+Period totals sum the `track` rows only. Adding artist and album rows would
+count every listen three times; they are the same listening seen from
+different angles, not additional listening.
+
+### Correctness
+
+The design's whole risk is drift: a rollup that disagrees with the events it
+summarises produces numbers that are wrong but plausible, and nothing on screen
+looks broken.
+
+So `rollups.test.ts` applies events one at a time into a running table — the
+way `recordListen` does — and compares against a brute-force recount that
+rebuilds every cell from scratch. 300 events across a year, five seeds, all
+cells must match exactly. It also asserts order-independence, because a restore
+or a backfill replays history in a different order and must reach the same
+totals.
+
+Verified on device as well as in tests: after playing ten tracks, the rollups
+reproduced exactly the ten most recent `play_events` — 10 plays and 365,560 ms,
+consistent across all three period types.
+
+### Events recorded before rollups existed are not backfilled
+
+Rollups began being written partway through development, so events older than
+that are absent from them. This is visible only in this repository's test
+data and is left alone deliberately: a backfill is a one-line recount over
+`play_events`, and writing it now would be code that exists solely to fix a
+situation no user will ever be in.
+
+If history import or a schema migration later needs one, `foldDeltas` over
+`rollupDeltas` for every event is the whole implementation.

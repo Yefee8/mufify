@@ -2,9 +2,10 @@ import { eq, sql } from 'drizzle-orm';
 
 import { classifyListen, type ListenOutcome } from '@/services/stats/playCounting';
 import { periodKeys, type WeekStart } from '@/services/stats/periodKeys';
+import { foldDeltas, rollupDeltas } from '@/services/stats/rollups';
 
 import { db } from '../client';
-import { playEvents, trackStats, type PlayEvent } from '../schema';
+import { playEvents, statsRollups, tracks, trackStats, type PlayEvent } from '../schema';
 
 export interface RecordListenInput {
   trackId: number;
@@ -26,7 +27,11 @@ export interface RecordListenInput {
  * Deriving them at read time gives wrong answers across DST and travel and
  * forces a table scan — see `src/services/stats/periodKeys.ts`.
  *
- * Rollup upserts land in Phase 7 and will hang off this function.
+ * Rollups are updated here too, incrementally. Statistics screens read
+ * `stats_rollups` and never aggregate `play_events`, so if this and the events
+ * ever disagree the screens show numbers that are wrong but plausible —
+ * `src/services/stats/rollups.test.ts` compares the incremental result against
+ * a brute-force recount to keep them honest.
  */
 export async function recordListen(
   input: RecordListenInput,
@@ -73,7 +78,72 @@ export async function recordListen(
       },
     });
 
+  await applyRollups(input, keys, outcome);
+
   return { event: event ?? null, outcome };
+}
+
+/**
+ * Fold this listen into every `(period, entity)` cell it touches.
+ *
+ * The artist and album come from the track row rather than the caller: the
+ * player knows what it is playing, not how the library has it classified, and
+ * a rollup keyed on the wrong artist is invisible until the year-end summary
+ * looks wrong.
+ */
+async function applyRollups(
+  input: RecordListenInput,
+  keys: ReturnType<typeof periodKeys>,
+  outcome: ListenOutcome,
+): Promise<void> {
+  const [row] = await db
+    .select({ artistId: tracks.artistId, albumId: tracks.albumId })
+    .from(tracks)
+    .where(eq(tracks.id, input.trackId))
+    .limit(1);
+
+  const deltas = foldDeltas(
+    rollupDeltas({
+      subject: {
+        trackId: input.trackId,
+        artistId: row?.artistId ?? null,
+        albumId: row?.albumId ?? null,
+        playlistId: input.sourceType === 'playlist' ? (input.sourceId ?? null) : null,
+      },
+      keys,
+      msPlayed: input.msPlayed,
+      countsAsPlay: outcome === 'play',
+    }),
+  );
+
+  const now = Date.now();
+
+  for (const delta of deltas) {
+    await db
+      .insert(statsRollups)
+      .values({
+        periodType: delta.periodType,
+        periodKey: delta.periodKey,
+        entityType: delta.entityType,
+        entityId: delta.entityId,
+        playCount: delta.playCount,
+        msPlayed: delta.msPlayed,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [
+          statsRollups.periodType,
+          statsRollups.periodKey,
+          statsRollups.entityType,
+          statsRollups.entityId,
+        ],
+        set: {
+          playCount: sql`${statsRollups.playCount} + ${delta.playCount}`,
+          msPlayed: sql`${statsRollups.msPlayed} + ${delta.msPlayed}`,
+          updatedAt: now,
+        },
+      });
+  }
 }
 
 export function listEventsForTrack(trackId: number, limit = 50) {

@@ -43,11 +43,24 @@
   "stats": {
     "title": "İstatistik",
     "empty": [
-      "Gösterecek bir şey yok. Biraz dinle, sonra uğra.",
-      "İstatistik için önce dinlemek gerek.",
-      "Henüz geçmiş yok. Dinledikçe burası dolar.",
-      "Birkaç albüm sonra tekrar bak."
-    ]
+      "Bu dönemde henüz bir şey çalınmadı. Daha uzun bir dönem dene.",
+      "Burada henüz dinleme yok. Yıl görünümünde genelde daha fazlası olur."
+    ],
+    "period": {
+      "label": "Dönem",
+      "week": "Hafta",
+      "month": "Ay",
+      "year": "Yıl"
+    },
+    "totals": {
+      "listening": "Dinleme",
+      "plays": "Çalma",
+      "tracks": "Parça"
+    },
+    "topTracks": "En çok çalınan parçalar",
+    "topArtists": "En çok dinlenen sanatçılar",
+    "playCount_one": "{{formatted}} çalma",
+    "playCount_other": "{{formatted}} çalma"
   },
   "settings": {
     "title": "Ayarlar",

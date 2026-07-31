@@ -43,11 +43,24 @@
   "stats": {
     "title": "Stats",
     "empty": [
-      "Nothing to show yet. Play something and come back.",
-      "Stats need listening first.",
-      "No history yet. This fills in as you play.",
-      "Come back after a few records."
-    ]
+      "Nothing played in this period yet. Try a longer one.",
+      "No listening here yet. The year view usually has more."
+    ],
+    "period": {
+      "label": "Period",
+      "week": "Week",
+      "month": "Month",
+      "year": "Year"
+    },
+    "totals": {
+      "listening": "Listening",
+      "plays": "Plays",
+      "tracks": "Tracks"
+    },
+    "topTracks": "Top tracks",
+    "topArtists": "Top artists",
+    "playCount_one": "{{formatted}} play",
+    "playCount_other": "{{formatted}} plays"
   },
   "settings": {
     "title": "Settings",
