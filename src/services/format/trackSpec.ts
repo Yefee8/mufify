@@ -83,6 +83,22 @@ export function formatFileSize(bytes: number | null, locale: string): string | n
 }
 
 /**
+ * Containers that carry the samples unchanged.
+ *
+ * The audience for this app keeps FLAC rips, so "is this the real thing or a
+ * transcode someone renamed" is the first question they have about a file.
+ * Answering it needs no bitrate arithmetic — the container settles it.
+ */
+const LOSSLESS_CONTAINERS = ['flac', 'alac', 'wav', 'aiff', 'ape', 'wavpack'];
+
+/** Whether the container is lossless. Drives the one badge on the strip. */
+export function isLosslessContainer(container: string | null): boolean {
+  const name = container?.toLowerCase();
+  if (!name) return false;
+  return LOSSLESS_CONTAINERS.some((hint) => name.includes(hint));
+}
+
+/**
  * The strip, in reading order, with unknown fields dropped.
  *
  * Codec is omitted when it merely repeats the container — "FLAC · FLAC" is

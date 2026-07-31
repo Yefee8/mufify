@@ -9,10 +9,13 @@ import java.io.File
 /**
  * Reads tags and technical fields from one file with `MediaMetadataRetriever`.
  *
- * Every field is optional. Sample rate and bit depth are API 31+, and even
- * there the retriever returns null whenever the extractor has not populated
- * them — so `SpecStrip` renders whatever it got rather than treating absence
- * as an error.
+ * Every field is optional, and `SpecStrip` renders whatever it got rather
+ * than treating absence as an error.
+ *
+ * Sample rate, bit depth and channel count come from `AudioFormatReader`
+ * rather than from here: the retriever only reports the first two from API 31
+ * and has no key for the third, which left a hi-res library on an Android 10
+ * phone showing no rate and no depth at all.
  */
 object TagReader {
 
@@ -41,6 +44,11 @@ object TagReader {
       )
       val (packedDisc, track) = SpecMath.unpackTrackNumber(trackRaw)
 
+      // Sample rate, bit depth and channels come from the track format, not
+      // the retriever: the retriever only has the first two from API 31, and
+      // has no key for channels at all.
+      val format = AudioFormatReader.read(context, uriString)
+
       val artwork = ArtworkExtractor.write(
         retriever.embeddedPicture,
         artworkDirectory,
@@ -60,9 +68,9 @@ object TagReader {
         "year" to retriever.intOf(MediaMetadataRetriever.METADATA_KEY_YEAR),
         "durationMs" to durationMs,
         "bitrateKbps" to SpecMath.bitrateKbps(reportedBitrate, fileSize, durationMs ?: 0L),
-        "sampleRateHz" to sampleRate(retriever),
-        "bitDepth" to bitDepth(retriever),
-        "channels" to null,
+        "sampleRateHz" to (format.sampleRateHz ?: sampleRate(retriever)),
+        "bitDepth" to (format.bitDepth ?: bitDepth(retriever)),
+        "channels" to format.channels,
         "mimeType" to retriever.stringOf(MediaMetadataRetriever.METADATA_KEY_MIMETYPE),
         "artworkPath" to artwork.full,
         "artworkThumbPath" to artwork.thumb,
@@ -97,13 +105,17 @@ object TagReader {
     "error" to message,
   )
 
-  /** API 31+. Null below that, which the spec strip handles. */
+  /**
+   * API 31+, and only a fallback now — `AudioFormatReader` answers this at
+   * every API level. Kept because an extractor that refuses a file may still
+   * leave the retriever able to read it.
+   */
   private fun sampleRate(retriever: MediaMetadataRetriever): Int? =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
       retriever.intOf(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)
     else null
 
-  /** API 31+. */
+  /** API 31+. Fallback, as above. */
   private fun bitDepth(retriever: MediaMetadataRetriever): Int? =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
       retriever.intOf(MediaMetadataRetriever.METADATA_KEY_BITS_PER_SAMPLE)

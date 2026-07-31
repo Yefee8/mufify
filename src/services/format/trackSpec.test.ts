@@ -1,5 +1,6 @@
 import {
   formatBitDepth,
+  isLosslessContainer,
   formatBitrate,
   formatChannels,
   formatFileSize,
@@ -145,5 +146,25 @@ describe('specParts', () => {
         'en',
       ),
     ).toEqual(['MP3', '320 kbps', 'Stereo']);
+  });
+});
+
+describe('isLosslessContainer', () => {
+  it('recognises the containers this audience actually keeps', () => {
+    for (const container of ['FLAC', 'ALAC', 'WAV', 'AIFF', 'APE', 'WavPack']) {
+      expect(isLosslessContainer(container)).toBe(true);
+    }
+  });
+
+  it('does not claim lossy formats', () => {
+    for (const container of ['MP3', 'AAC', 'Opus', 'Vorbis', 'OGG', 'M4A']) {
+      expect(isLosslessContainer(container)).toBe(false);
+    }
+  });
+
+  it('says nothing when the container is unknown', () => {
+    // Stage two may not have reached the row. Absence is not "lossy".
+    expect(isLosslessContainer(null)).toBe(false);
+    expect(isLosslessContainer('')).toBe(false);
   });
 });

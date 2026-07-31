@@ -159,6 +159,13 @@ These are not preferences. Violating them is a bug.
   `expo-image` was `h-10 w-10`, drew at zero by zero, and collapsed the row — but only for tracks
   that *had* a cover, because the placeholder was a plain `View` and looked fine.
 - Spacing from the scale only. No arbitrary values like `p-[13px]`.
+- **Corners are soft.** The radius scale is five steps and stays five steps —
+  `xs` for list artwork, `sm` for buttons and inputs, `md` for cards, sheets and
+  large artwork, `full` for transport controls only. The values were raised from
+  the original hardware-panel reading because the app should feel rounded; that
+  is a change of value, not of system, and `tailwind.config.js` and
+  `src/theme/tokens.ts` must be raised together. Nothing becomes a pill except
+  the transport.
 - Contrast is a hard constraint, not a preference: ≥ 4.5:1 for body text in both themes, asserted
   in `tokens.test.ts`. On a filled indigo surface use `text-on-accent` and never white — white on
   the dark-theme indigo is 2.98:1 and fails.

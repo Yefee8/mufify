@@ -133,7 +133,8 @@
     "shuffle": {
       "on": "Shuffle on, {{algorithm}}",
       "off": "Shuffle off"
-    }
+    },
+    "lossless": "Lossless"
   },
   "common": {
     "cancel": "Cancel",

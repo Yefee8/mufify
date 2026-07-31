@@ -29,13 +29,15 @@ module.exports = {
       12: '48px',
       16: '64px',
     },
-    // Overridden: no rounded-lg/xl/2xl. Album art is sharp; only transport
-    // controls are circular.
+    // Overridden: still five steps, no rounded-lg/xl/2xl. The values are
+    // softer than the original hardware-panel reading — the app should feel
+    // rounded without anything becoming a pill. Only transport controls are
+    // circular. Keep in step with RADIUS in src/theme/tokens.ts.
     borderRadius: {
       none: '0px',
-      xs: '2px',
-      sm: '4px',
-      md: '8px',
+      xs: '6px',
+      sm: '10px',
+      md: '18px',
       full: '9999px',
     },
     // Overridden, not extended. Extending would leave Tailwind's default

@@ -14,21 +14,41 @@ object SpecMath {
    *
    * FLAC is variable bitrate and the container usually reports nothing, so the
    * honest number is `fileSize * 8 / duration`. A reported value is preferred
-   * when present and sane; anything absurd is treated as absent rather than
-   * displayed, because a wrong number on the spec strip is worse than a
-   * missing one.
+   * when it agrees with that — for constant-bitrate files it is the exact
+   * figure rather than an average over a container's overhead.
+   *
+   * But it is only preferred when it *agrees*. A reported value can be plainly
+   * wrong while still looking reasonable in isolation: a 5.1 MB file lasting
+   * 5:10 averages 138 kbps, and the retriever reported 32, which passed a
+   * "is it a plausible bitrate" check and rendered on the spec strip. The size
+   * and the duration are facts; the reported bitrate is a claim. When the
+   * claim contradicts the facts by more than a wide margin, the facts win.
    */
   fun bitrateKbps(reportedBitsPerSecond: Long?, fileSizeBytes: Long, durationMs: Long): Int? {
-    reportedBitsPerSecond?.let { reported ->
-      val kbps = (reported / 1000L).toInt()
-      if (kbps in 1..50_000) return kbps
-    }
+    val computed =
+      if (fileSizeBytes > 0L && durationMs > 0L) {
+        // bytes * 8 = bits; bits per millisecond is already kilobits per second.
+        ((fileSizeBytes * 8L) / durationMs).toInt().takeIf { it in PLAUSIBLE_KBPS }
+      } else {
+        null
+      }
 
-    if (fileSizeBytes <= 0L || durationMs <= 0L) return null
+    val reported = reportedBitsPerSecond?.let { (it / 1000L).toInt() }?.takeIf { it in PLAUSIBLE_KBPS }
 
-    val kbps = (fileSizeBytes * 8L * 1000L) / (durationMs * 1000L)
-    return if (kbps in 1..50_000) kbps.toInt() else null
+    if (reported == null) return computed
+    if (computed == null) return reported
+
+    // Generous: container overhead, embedded artwork and ID3 padding all make
+    // the file bigger than the audio, so the two legitimately differ. Only a
+    // disagreement past this is evidence the reported value is not describing
+    // this file.
+    val agrees = reported.toDouble() in (computed * MIN_AGREEMENT)..(computed * MAX_AGREEMENT)
+    return if (agrees) reported else computed
   }
+
+  private val PLAUSIBLE_KBPS = 1..50_000
+  private const val MIN_AGREEMENT = 0.5
+  private const val MAX_AGREEMENT = 2.0
 
   /**
    * MediaStore packs disc and track into `TRACK` as `disc * 1000 + track`

@@ -133,7 +133,8 @@
     "shuffle": {
       "on": "Karıştırma açık, {{algorithm}}",
       "off": "Karıştırma kapalı"
-    }
+    },
+    "lossless": "Kayıpsız"
   },
   "common": {
     "cancel": "Vazgeç",

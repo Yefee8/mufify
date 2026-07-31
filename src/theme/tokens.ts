@@ -54,11 +54,11 @@ export const SPACING = {
 export const RADIUS = {
   none: 0,
   /** Album art in a list row. */
-  xs: 2,
-  /** Large album art, buttons, inputs. */
-  sm: 4,
-  /** Sheets and cards. */
-  md: 8,
+  xs: 6,
+  /** Buttons, inputs, small controls. */
+  sm: 10,
+  /** Cards, sheets, large album art. */
+  md: 18,
   /** Transport controls only. */
   full: 9999,
 } as const;

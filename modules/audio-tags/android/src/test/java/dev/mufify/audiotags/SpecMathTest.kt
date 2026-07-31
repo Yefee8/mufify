@@ -32,6 +32,30 @@ class SpecMathTest {
   }
 
   @Test
+  fun `prefers the file size when the reported bitrate contradicts it`() {
+    // Found on device: a 5.1 MB file lasting 5:10 averages ~138 kbps and the
+    // retriever reported 32, which is a plausible bitrate in isolation and so
+    // passed the old range check straight onto the spec strip. The size and
+    // the duration are facts; the reported value is a claim.
+    assertEquals(138, SpecMath.bitrateKbps(32_000L, 5_347_737L, 310_000L))
+  }
+
+  @Test
+  fun `keeps a reported value that agrees with the file size`() {
+    // CBR files report the exact figure, which beats an average taken over
+    // container overhead — so agreement means the claim is kept.
+    assertEquals(320, SpecMath.bitrateKbps(320_000L, 7_400_000L, 185_000L))
+  }
+
+  @Test
+  fun `tolerates the overhead that legitimately inflates a file`() {
+    // Embedded artwork and ID3 padding make the file bigger than its audio,
+    // so the two always differ a little. That is not a contradiction.
+    // 5 MB over 180 s computes to ~222 kbps; a reported 192 is the truth.
+    assertEquals(192, SpecMath.bitrateKbps(192_000L, 5_000_000L, 180_000L))
+  }
+
+  @Test
   fun `gives up rather than dividing by zero`() {
     assertNull(SpecMath.bitrateKbps(null, 30_000_000L, 0L))
     assertNull(SpecMath.bitrateKbps(null, 0L, 180_000L))
