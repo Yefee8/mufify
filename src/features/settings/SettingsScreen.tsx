@@ -104,10 +104,11 @@ export function SettingsScreen() {
               value={shuffle}
               onChange={onShuffleChange}
               accessibilityLabel={t('settings.shuffle.label')}
+              perRow={3}
             />
           </SettingRow>
           {/* Says what each one does — the names alone do not, and the whole
-              point of offering three is that the user can tell them apart. */}
+              point of offering five is that the user can tell them apart. */}
           <Text className="font-body text-sm text-muted">
             {t(`settings.shuffle.${shuffle}Hint`)}
           </Text>
