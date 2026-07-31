@@ -90,17 +90,33 @@ export async function countTracks(): Promise<number> {
  * `useLiveQuery` lives here rather than in a feature hook so Drizzle stays
  * behind the src/db boundary, which ESLint enforces.
  */
-export function useTracks(): { tracks: TrackListItem[]; isLoading: boolean } {
+export function useTracks(search = ''): { tracks: TrackListItem[]; isLoading: boolean } {
+  const term = search.trim();
+  // `%` and `_` are LIKE wildcards. Unescaped, typing "%" matches everything
+  // and the list appears not to filter at all.
+  const pattern = `%${term.replace(/[\\%_]/gu, (char) => `\\${char}`)}%`;
+
   const query = db
     .select(listSelection)
     .from(tracks)
     .leftJoin(artists, eq(tracks.artistId, artists.id))
     .leftJoin(albums, eq(tracks.albumId, albums.id))
     .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
-    .where(eq(tracks.isMissing, 0))
+    .where(
+      term
+        ? and(
+            eq(tracks.isMissing, 0),
+            or(
+              sql`${tracks.title} LIKE ${pattern} ESCAPE '\\'`,
+              sql`${artists.name} LIKE ${pattern} ESCAPE '\\'`,
+              sql`${albums.name} LIKE ${pattern} ESCAPE '\\'`,
+            ),
+          )
+        : eq(tracks.isMissing, 0),
+    )
     .orderBy(asc(sql`${tracks.title} COLLATE NOCASE`));
 
-  const { data, updatedAt } = useLiveQuery(query);
+  const { data, updatedAt } = useLiveQuery(query, [term]);
 
   // `updatedAt` is undefined until the first result lands. Without it an empty
   // library and a library that has not been read yet are the same value, and

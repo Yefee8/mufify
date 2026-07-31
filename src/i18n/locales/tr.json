@@ -29,7 +29,11 @@
       "permissionBlocked": "Mufify için izin kapalı. Ses erişimine izin vermek üzere sistem ayarlarını aç.",
       "openSettings": "Ayarları aç",
       "retry": "Tekrar dene"
-    }
+    },
+    "search": "Ara",
+    "searchPlaceholder": "Parça, sanatçı, albüm",
+    "clearSearch": "Aramayı temizle",
+    "noResults": "“{{term}}” ile eşleşen bir şey yok."
   },
   "playlists": {
     "title": "Listeler",

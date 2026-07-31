@@ -29,7 +29,11 @@
       "permissionBlocked": "Permission is turned off for Mufify. Open system settings to allow audio access.",
       "openSettings": "Open settings",
       "retry": "Try again"
-    }
+    },
+    "search": "Search",
+    "searchPlaceholder": "Title, artist, album",
+    "clearSearch": "Clear search",
+    "noResults": "Nothing matches “{{term}}”."
   },
   "playlists": {
     "title": "Playlists",

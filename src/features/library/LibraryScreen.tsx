@@ -1,5 +1,5 @@
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
-import { Music, Plus } from 'lucide-react-native';
+import { Music, Plus, SearchX } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, Pressable, RefreshControl, Text, View } from 'react-native';
@@ -16,8 +16,10 @@ import { AddToPlaylistSheet } from '../playlists/components/AddToPlaylistSheet';
 import { usePlaybackControls } from '../player/hooks/usePlayback';
 import { toPlayable } from '../player/toPlayable';
 import { ScanBanner } from './components/ScanBanner';
+import { SearchField } from './components/SearchField';
 import { TrackListSkeleton } from './components/TrackListSkeleton';
 import { TrackRow } from './components/TrackRow';
+import { useDebounced } from './hooks/useDebounced';
 import { useTracks } from './hooks/useLibrary';
 import { useScan } from './hooks/useScan';
 
@@ -43,7 +45,9 @@ export function LibraryScreen() {
   const messages = useMessages('library.empty');
   const colors = useThemeColors();
 
-  const { tracks, isLoading } = useTracks();
+  const [search, setSearch] = useState('');
+  // The field stays instant; only the query waits.
+  const { tracks, isLoading } = useTracks(useDebounced(search));
   const { progress, isScanning, scanLibrary, addFolder, rescan, cancel } = useScan();
   const { playFrom } = usePlaybackControls();
   const [playlistTarget, setPlaylistTarget] = useState<number | null>(null);
@@ -108,6 +112,8 @@ export function LibraryScreen() {
         </Pressable>
       </View>
 
+      <SearchField value={search} onChange={setSearch} />
+
       {isScanning ? <ScanBanner progress={progress} onCancel={cancel} /> : null}
 
       {hasFailed ? (
@@ -155,7 +161,11 @@ export function LibraryScreen() {
             />
           }
           ListEmptyComponent={
-            hasFailed ? null : (
+            hasFailed ? null : search.trim() ? (
+              /* No hits is not an empty library — offering "Add music" here
+                 would answer a question the user did not ask. */
+              <EmptyState icon={SearchX} messages={[t('library.noResults', { term: search })]} />
+            ) : (
               <EmptyState
                 icon={Music}
                 messages={messages}
