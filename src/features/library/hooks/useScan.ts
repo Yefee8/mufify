@@ -10,6 +10,7 @@ import {
   saveEnumerated,
 } from '@/db/queries/scanning';
 import { permissionErrorFor } from '@/services/scanner/permission';
+import { isPickerDismissal } from '@/services/scanner/pickerError';
 import { PRIMARY_VOLUME_ROOT, treeUriToPath } from '@/services/scanner/treeUri';
 import {
   DEFAULT_SCAN_OPTIONS,
@@ -20,6 +21,12 @@ import {
 } from '@/services/scanner/scanner';
 
 const IDLE: ScanProgress = { phase: 'idle', total: 0, processed: 0 };
+
+/**
+ * Whether a scan may proceed, and if so whether this is the first time the app
+ * has ever been allowed to read the library.
+ */
+type PermissionOutcome = 'already-granted' | 'granted-now' | 'denied';
 
 /** Where music lands by default, and so always worth re-indexing. */
 const DEFAULT_MUSIC_PATH = `${PRIMARY_VOLUME_ROOT}/Music`;
@@ -102,32 +109,38 @@ export function useScan(): UseScanResult {
    * shows its empty state. That is indistinguishable from "you have no music"
    * and was exactly the bug: picking a folder appeared to do nothing at all.
    *
-   * Returns false when the scan must not proceed, having already put the right
-   * message on screen.
+   * Distinguishes "was already granted" from "granted just now" because the
+   * caller acts differently: a first grant means the library has never been
+   * swept, and something has to sweep it even if the user goes on to cancel
+   * whatever they were doing.
+   *
+   * Sets the failure state itself on a denial, so callers only decide whether
+   * to continue.
    */
-  const ensurePermission = useCallback(async (): Promise<boolean> => {
-    if (await AudioTags.hasAudioPermission()) return true;
+  const ensurePermission = useCallback(async (): Promise<PermissionOutcome> => {
+    if (await AudioTags.hasAudioPermission()) return 'already-granted';
 
     const error = permissionErrorFor(await AudioTags.requestAudioPermission());
-    if (error === null) return true;
+    if (error === null) return 'granted-now';
 
     setProgress({ phase: 'failed', total: 0, processed: 0, error });
-    return false;
+    return 'denied';
   }, []);
 
   const scanLibrary = useCallback(async () => {
-    if (!(await ensurePermission())) return;
+    if ((await ensurePermission()) === 'denied') return;
     await run();
   }, [ensurePermission, run]);
 
   const addFolder = useCallback(async () => {
-    try {
-      // Ask before opening the picker, not after. The tree the picker returns
-      // grants access to that tree only — the scan queries MediaStore, which
-      // needs the audio permission — so without it the pick is wasted work and
-      // the user has chosen a folder for nothing.
-      if (!(await ensurePermission())) return;
+    // Ask before opening the picker, not after. The tree the picker returns
+    // grants access to that tree only — the scan queries MediaStore, which
+    // needs the audio permission — so without it the pick is wasted work and
+    // the user has chosen a folder for nothing.
+    const permission = await ensurePermission();
+    if (permission === 'denied') return;
 
+    try {
       const directory = await Directory.pickDirectoryAsync();
       await addScanFolder(directory.uri);
 
@@ -138,9 +151,20 @@ export function useScan(): UseScanResult {
 
       await run();
     } catch (error) {
-      // A cancelled picker is not a failure — the user simply changed their
-      // mind, and the screen should look exactly as it did before.
-      if (isPickerDismissal(error)) return;
+      if (isPickerDismissal(error)) {
+        /*
+         * A cancelled picker is not a failure — the user changed their mind,
+         * and the screen should look as it did before. With one exception: if
+         * the permission was granted a moment ago, the automatic sweep that
+         * runs at launch has never had it, so the library has never actually
+         * been read. Cancelling the folder picker would then leave a permitted
+         * app sitting on an empty library until the next cold start. Adding a
+         * folder is a way to *add* to the library, never the only way to fill
+         * it.
+         */
+        if (permission === 'granted-now') await run();
+        return;
+      }
       setProgress({
         phase: 'failed',
         total: 0,
@@ -151,7 +175,7 @@ export function useScan(): UseScanResult {
   }, [ensurePermission, run]);
 
   const rescan = useCallback(async () => {
-    if (!(await ensurePermission())) return;
+    if ((await ensurePermission()) === 'denied') return;
 
     // Re-index first, then sweep. Without the re-index a file copied a minute
     // ago is still invisible to MediaStore and the sweep would find nothing,
@@ -232,7 +256,3 @@ async function requestMediaScanFor(treeUri: string): Promise<void> {
   }
 }
 
-function isPickerDismissal(error: unknown): boolean {
-  const message = error instanceof Error ? error.message.toLowerCase() : '';
-  return message.includes('cancel') || message.includes('dismiss');
-}
