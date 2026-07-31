@@ -2,9 +2,13 @@
 
 How music gets into the library. Two ways in, one pipeline.
 
-> Phase status: the module, the pipeline, the queries and the UI are written
-> and unit tested, and the end-to-end add-music flow now works on hardware.
-> Performance over a large library is still unmeasured — see
+> **Phase 2 is closed.** The module, pipeline, queries and UI are written and
+> unit tested; the automatic sweep, manual add, incremental rescan, artwork
+> extraction, tag reading and directory recursion are all verified on hardware.
+>
+> One item is carried forward rather than closed: frame timing over a large
+> library needs a real GPU and cannot be answered on an emulator. It is
+> recorded, with the recipe, under
 > [Still waiting on a real device](#still-waiting-on-a-real-device).
 
 ---
