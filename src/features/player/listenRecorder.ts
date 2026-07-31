@@ -10,9 +10,11 @@ import { getWeekStart } from '@/services/settings';
  * preferences. That keeps playback testable without a database and keeps the
  * layer direction pointing the right way.
  *
- * Failures are swallowed on purpose. Losing one statistics row is a smaller
- * harm than interrupting playback to complain about it, and the next track is
- * already loading by the time this runs.
+ * A failure here never reaches the user: losing one statistics row is a
+ * smaller harm than interrupting playback to complain about it, and the next
+ * track is already loading by the time this runs. It is still reported in
+ * development, because a write that fails silently in both is a write nobody
+ * finds out about until the statistics look wrong months later.
  */
 export function startListenRecording(): () => void {
   AudioEngine.setListenReporter((listen) => {
@@ -26,8 +28,8 @@ export function startListenRecording(): () => void {
         completed: listen.completed,
       },
       getWeekStart(),
-    ).catch(() => {
-      // See above: statistics must never be able to stop the music.
+    ).catch((error: unknown) => {
+      if (__DEV__) console.warn('Failed to record a listen:', error);
     });
   });
 

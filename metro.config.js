@@ -10,12 +10,13 @@ const config = getDefaultConfig(__dirname);
 // then turns the resolved file into a string — both halves are required.
 config.resolver.sourceExts.push('sql');
 
-// The local Expo module in modules/. Native side is autolinked; this is the
+// The local Expo modules in modules/. Native side is autolinked; this is the
 // JS side, so `import AudioTags from 'audio-tags'` resolves without a
 // relative path chain.
 config.resolver.extraNodeModules = {
   ...config.resolver.extraNodeModules,
   'audio-tags': path.resolve(__dirname, 'modules/audio-tags'),
+  'audio-focus': path.resolve(__dirname, 'modules/audio-focus'),
 };
 config.watchFolders = [...(config.watchFolders ?? []), path.resolve(__dirname, 'modules')];
 

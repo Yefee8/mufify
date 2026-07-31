@@ -1,3 +1,4 @@
+import AudioFocusEvents from 'audio-focus';
 import {
   createAudioPlayer,
   setAudioModeAsync,
@@ -59,6 +60,17 @@ class Engine {
   private lastTickAt: number | null = null;
 
   /**
+   * Set when a track has been handed to the player but is not open yet.
+   *
+   * `replace()` returns before the new source is ready, so calling `play()`
+   * straight after it is a race the player usually loses: the source swaps,
+   * nothing starts, and playback stops dead on the second track of every
+   * queue. The intent to play is recorded here and acted on when a status
+   * update says the file is actually loaded.
+   */
+  private playWhenReady = false;
+
+  /**
    * Claim the audio session.
    *
    * `doNotMix` is not a preference: the tech stack doc records that the
@@ -74,6 +86,20 @@ class Engine {
       playsInSilentMode: true,
       interruptionMode: 'doNotMix',
       shouldPlayInBackground: true,
+    });
+
+    /*
+     * Pause when the audio route changes to the speaker.
+     *
+     * Android broadcasts this just before it reroutes — headphones out,
+     * Bluetooth gone — and expects a media app to stop. Audio focus does not
+     * cover it: unplugging headphones takes focus from nobody, so expo-audio's
+     * focus handling never fires and the music would simply continue out loud.
+     * Registered once, with the session, and never removed: the engine is a
+     * singleton and this must hold for as long as the app can play anything.
+     */
+    AudioFocusEvents.addListener('audioBecomingNoisy', () => {
+      this.pause();
     });
   }
 
@@ -152,6 +178,8 @@ class Engine {
       await this.configure();
       await setIsAudioActiveAsync(true);
 
+      this.playWhenReady = autoPlay;
+
       if (this.player === null) {
         this.player = createAudioPlayer({ uri: track.uri }, { updateInterval: STATUS_INTERVAL_MS });
         this.player.addListener('playbackStatusUpdate', this.onStatus);
@@ -160,7 +188,10 @@ class Engine {
       }
 
       this.bindLockScreen(track);
-      if (autoPlay) this.player.play();
+
+      // A freshly constructed player is ready synchronously; a replaced source
+      // is not. Try now and let `onStatus` retry once it reports loaded.
+      this.startIfReady();
     } catch (error) {
       this.emit({
         phase: 'error',
@@ -190,7 +221,19 @@ class Engine {
     );
   }
 
+  /** Start playback once the source is actually open. Safe to call repeatedly. */
+  private startIfReady(): void {
+    if (!this.playWhenReady) return;
+    if (this.player === null || !this.player.isLoaded) return;
+
+    this.playWhenReady = false;
+    this.player.play();
+  }
+
   private onStatus = (status: AudioStatus): void => {
+    // The pending start from `loadIndex`, now that the file may be open.
+    if (status.isLoaded) this.startIfReady();
+
     // Clock the interval that just elapsed before anything else changes.
     if (status.playing) {
       this.accumulate();
@@ -220,10 +263,17 @@ class Engine {
   };
 
   play(): void {
-    this.player?.play();
+    // Pressing play on a track that is still opening has to be remembered,
+    // not dropped — otherwise the button does nothing and the user presses it
+    // again, which is how a double-start happens.
+    this.playWhenReady = true;
+    this.startIfReady();
   }
 
   pause(): void {
+    // Also cancels a start that has not happened yet, so pausing during load
+    // is not overridden a moment later when the file opens.
+    this.playWhenReady = false;
     this.player?.pause();
   }
 

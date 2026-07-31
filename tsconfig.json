@@ -9,7 +9,8 @@
     "paths": {
       "@/*": ["./src/*"],
       "@/assets/*": ["./assets/*"],
-      "audio-tags": ["./modules/audio-tags/index.ts"]
+      "audio-tags": ["./modules/audio-tags/index.ts"],
+      "audio-focus": ["./modules/audio-focus/index.ts"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "nativewind-env.d.ts"],
