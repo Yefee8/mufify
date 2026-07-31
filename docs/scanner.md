@@ -265,12 +265,25 @@ during active enrichment reached track 70 with the progress banner still
 reading "Reading tags…", so the promise in `AGENTS.md` that the user can always
 scroll during a scan holds.
 
-One rough edge, cosmetic and self-correcting: while stage two is writing, the
-live query re-fires on every batch and FlashList re-measures against a list
-whose identity keeps changing, which can leave a gap above the first visible
-row. It settles as soon as enrichment finishes and only happens on a first-ever
-scan. Fixing it means throttling the library query during a scan, which is more
-machinery than the symptom currently justifies.
+A blank band used to appear above the first row during "Reading tags…", and
+the cause was worth writing down because two plausible theories were both
+wrong. It was not FlashList's `maintainVisibleContentPosition`, and it was not
+the churn of the live query re-firing per batch — disabling one and throttling
+the other changed nothing.
+
+**A virtualized list needs a bounded parent.** The `FlashList` was a bare child
+of `Screen`'s flex column, so it kept the height it measured on first layout;
+mounting the scan banner above it shrank the space available without shrinking
+the list, and the difference showed as empty space. One `flex-1` wrapper fixes
+it. The queue and playlist-detail screens had the same shape and were fixed
+with it.
+
+Two changes went in alongside, both genuine and both small. The library query
+is throttled to 500 ms, because stage two writes twenty times a minute and
+nobody reads titles that fast. And `TrackRow` compares by value rather than by
+reference: a live query hands back fresh objects on every run, so the default
+memo check failed for every visible row on every batch even when nothing it
+draws had changed.
 
 ### The large-library measurement, next time the device is here
 

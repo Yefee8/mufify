@@ -2,6 +2,7 @@ import { and, asc, count, eq, like, or, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 
 import { db } from '../client';
+import { useThrottledData } from '../useThrottledData';
 import { albums, artists, trackStats, tracks, type NewTrack } from '../schema';
 
 /** A track with its artist and album names resolved, ready for a list row. */
@@ -121,7 +122,7 @@ export function useTracks(search = ''): { tracks: TrackListItem[]; isLoading: bo
   // `updatedAt` is undefined until the first result lands. Without it an empty
   // library and a library that has not been read yet are the same value, and
   // the screen flashes its empty state before the rows arrive.
-  return { tracks: data, isLoading: updatedAt === undefined };
+  return { tracks: useThrottledData(data), isLoading: updatedAt === undefined };
 }
 
 /**

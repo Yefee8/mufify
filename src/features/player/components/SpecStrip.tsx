@@ -31,25 +31,34 @@ export function SpecStrip({ trackId }: SpecStripProps) {
   const lossless = isLosslessContainer(spec.container);
 
   return (
-    <View className="flex-row flex-wrap items-center gap-2">
+    <View className="gap-2">
       {/*
-        The one badge on the strip. "Is this the real thing or a transcode
-        someone renamed" is the first question this audience has about a file,
-        and the container answers it without any bitrate arithmetic.
+        The badge gets its own line rather than sharing one with the specs.
+        Sitting inline it read as the first item in the list — "Lossless, FLAC,
+        44.1 kHz" — when it is a verdict *about* that list, not a member of it.
+        Above, it labels what follows.
+
+        "Is this the real thing or a transcode someone renamed" is the first
+        question this audience has about a file, and the container answers it
+        without any bitrate arithmetic.
       */}
       {lossless ? (
-        <View className="rounded-xs border border-accent px-2 py-1">
-          <Text className="font-mono-medium text-sm text-accent">{t('player.lossless')}</Text>
+        <View className="flex-row">
+          <View className="rounded-xs border border-accent px-2 py-1">
+            <Text className="font-mono-medium text-sm text-accent">{t('player.lossless')}</Text>
+          </View>
         </View>
       ) : null}
 
-      {parts.map((part, index) => (
-        <View key={part} className="flex-row items-center gap-2">
-          {/* A separator between, never leading — mono so the strip aligns. */}
-          {index > 0 ? <Text className="font-mono text-sm text-muted">·</Text> : null}
-          <Text className="font-mono text-sm text-muted">{part}</Text>
-        </View>
-      ))}
+      <View className="flex-row flex-wrap items-center gap-2">
+        {parts.map((part, index) => (
+          <View key={part} className="flex-row items-center gap-2">
+            {/* A separator between, never leading — mono so the strip aligns. */}
+            {index > 0 ? <Text className="font-mono text-sm text-muted">·</Text> : null}
+            <Text className="font-mono text-sm text-muted">{part}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }

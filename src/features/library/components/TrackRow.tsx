@@ -24,7 +24,7 @@ export interface TrackRowProps {
  * visible row on each parent render is the difference between a list that
  * scrolls and one that does not.
  */
-export const TrackRow = memo(function TrackRow({
+const TrackRowComponent = function TrackRow({
   track,
   locale,
   onPress,
@@ -84,4 +84,28 @@ export const TrackRow = memo(function TrackRow({
       </Text>
     </Pressable>
   );
-});
+};
+
+/**
+ * Compared by value, not by reference.
+ *
+ * A live query hands back fresh objects every time it re-runs, so the default
+ * reference check fails for every visible row on every scan batch even though
+ * nothing the row draws has changed. Comparing the six fields it actually
+ * renders keeps those re-renders at zero.
+ */
+function isSameRow(previous: TrackRowProps, next: TrackRowProps): boolean {
+  return (
+    previous.locale === next.locale &&
+    previous.onPress === next.onPress &&
+    previous.onLongPress === next.onLongPress &&
+    previous.track.id === next.track.id &&
+    previous.track.title === next.track.title &&
+    previous.track.artistName === next.track.artistName &&
+    previous.track.albumName === next.track.albumName &&
+    previous.track.durationMs === next.track.durationMs &&
+    previous.track.artworkPath === next.track.artworkPath
+  );
+}
+
+export const TrackRow = memo(TrackRowComponent, isSameRow);

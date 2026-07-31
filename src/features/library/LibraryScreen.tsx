@@ -138,44 +138,53 @@ export function LibraryScreen() {
         />
       ) : null}
 
-      {isLoading ? (
-        <TrackListSkeleton />
-      ) : (
-        <FlashList
-          data={tracks}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          /*
-            Pull to refresh re-indexes and sweeps. Without it a user who has
-            just copied files in has no way to make the app look again short of
-            restarting it — and Android's own scanner may not have noticed yet
-            either.
-          */
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={rescan}
-              tintColor={colors.signal}
-              colors={[colors.signal]}
-              progressBackgroundColor={colors.panel}
-            />
-          }
-          ListEmptyComponent={
-            hasFailed ? null : search.trim() ? (
-              /* No hits is not an empty library — offering "Add music" here
-                 would answer a question the user did not ask. */
-              <EmptyState icon={SearchX} messages={[t('library.noResults', { term: search })]} />
-            ) : (
-              <EmptyState
-                icon={Music}
-                messages={messages}
-                actionLabel={t('library.emptyAction')}
-                onAction={addFolder}
+      {/*
+        The list owns whatever height is left, explicitly. Without a bounded
+        flex parent a virtualized list keeps the height it first measured, so
+        mounting the scan banner above it shrank the space without shrinking
+        the list — which is where the blank band above the first row during
+        "Reading tags…" came from.
+      */}
+      <View className="flex-1">
+        {isLoading ? (
+          <TrackListSkeleton />
+        ) : (
+            <FlashList
+            data={tracks}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            /*
+              Pull to refresh re-indexes and sweeps. Without it a user who has
+              just copied files in has no way to make the app look again short of
+              restarting it — and Android's own scanner may not have noticed yet
+              either.
+            */
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={rescan}
+                tintColor={colors.signal}
+                colors={[colors.signal]}
+                progressBackgroundColor={colors.panel}
               />
-            )
-          }
-        />
-      )}
+            }
+            ListEmptyComponent={
+              hasFailed ? null : search.trim() ? (
+                /* No hits is not an empty library — offering "Add music" here
+                   would answer a question the user did not ask. */
+                <EmptyState icon={SearchX} messages={[t('library.noResults', { term: search })]} />
+              ) : (
+                <EmptyState
+                  icon={Music}
+                  messages={messages}
+                  actionLabel={t('library.emptyAction')}
+                  onAction={addFolder}
+                />
+              )
+              }
+          />
+        )}
+      </View>
 
       <AddToPlaylistSheet trackId={playlistTarget} onClose={closePlaylistSheet} />
     </Screen>

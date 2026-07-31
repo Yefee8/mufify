@@ -93,11 +93,14 @@ export function QueueScreen() {
         </Text>
       </View>
 
-      {items.length === 0 ? (
-        <EmptyState icon={Music} messages={[t('queue.empty')]} />
-      ) : (
-        <FlashList data={items} renderItem={renderItem} keyExtractor={keyExtractor} />
-      )}
+      {/* Bounded, so the list re-lays out when the rows above it change. */}
+      <View className="flex-1">
+        {items.length === 0 ? (
+          <EmptyState icon={Music} messages={[t('queue.empty')]} />
+        ) : (
+          <FlashList data={items} renderItem={renderItem} keyExtractor={keyExtractor} />
+        )}
+      </View>
     </SafeAreaView>
   );
 }

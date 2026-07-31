@@ -137,11 +137,14 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
         ) : null}
       </View>
 
-      {entries.length === 0 ? (
-        <EmptyState icon={ListMusic} messages={messages} />
-      ) : (
-        <FlashList data={entries} renderItem={renderItem} keyExtractor={keyExtractor} />
-      )}
+      {/* Bounded, so the list re-lays out when the rows above it change. */}
+      <View className="flex-1">
+        {entries.length === 0 ? (
+          <EmptyState icon={ListMusic} messages={messages} />
+        ) : (
+          <FlashList data={entries} renderItem={renderItem} keyExtractor={keyExtractor} />
+        )}
+      </View>
 
       <NamePlaylistDialog
         visible={renaming}
