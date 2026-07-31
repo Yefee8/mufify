@@ -1,9 +1,11 @@
 package dev.mufify.audiotags
 
+import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.database.Cursor
 import android.os.Build
+import android.os.Bundle
 import android.provider.MediaStore
 
 /**
@@ -77,14 +79,43 @@ object MediaStoreScanner {
     minDurationMs: Int,
   ): List<Map<String, Any?>> {
     val (where, args) = selection(minDurationMs)
-    // Ordered by _ID so paging stays stable while a scan is in flight.
-    val order = "${MediaStore.Audio.Media._ID} ASC LIMIT $limit OFFSET $offset"
-
     val results = mutableListOf<Map<String, Any?>>()
-    context.contentResolver.query(collection(), projection(), where, args, order)?.use { cursor ->
+
+    pagedCursor(context, where, args, limit, offset)?.use { cursor ->
       while (cursor.moveToNext()) results.add(readRow(cursor))
     }
     return results
+  }
+
+  /**
+   * Paging changed shape in API 30.
+   *
+   * Appending `LIMIT ... OFFSET ...` to the sort order is the old idiom, and
+   * from Android 11 the provider validates that argument and rejects it with
+   * `IllegalArgumentException: Invalid token LIMIT`. The Bundle form is the
+   * supported replacement, so both paths exist — one per era.
+   *
+   * Ordered by `_ID` either way, so paging stays stable while a scan is in
+   * flight and a file added mid-scan cannot shift rows under the cursor.
+   */
+  private fun pagedCursor(
+    context: Context,
+    where: String,
+    args: Array<String>,
+    limit: Int,
+    offset: Int,
+  ) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+    val queryArgs = Bundle().apply {
+      putString(ContentResolver.QUERY_ARG_SQL_SELECTION, where)
+      putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, args)
+      putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, "${MediaStore.Audio.Media._ID} ASC")
+      putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
+      putInt(ContentResolver.QUERY_ARG_OFFSET, offset)
+    }
+    context.contentResolver.query(collection(), projection(), queryArgs, null)
+  } else {
+    val order = "${MediaStore.Audio.Media._ID} ASC LIMIT $limit OFFSET $offset"
+    context.contentResolver.query(collection(), projection(), where, args, order)
   }
 
   private fun readRow(cursor: Cursor): Map<String, Any?> {

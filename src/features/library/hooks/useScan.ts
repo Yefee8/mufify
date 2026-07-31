@@ -1,7 +1,6 @@
 import AudioTags from 'audio-tags';
 import { Directory, Paths } from 'expo-file-system';
-import { InteractionManager } from 'react-native';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   addScanFolder,
@@ -59,10 +58,12 @@ export function useScan(): UseScanResult {
       saveEnumerated,
       saveEnriched,
       listUnenrichedUris,
-      // Stage two runs behind the frame, so a scan never costs a dropped one.
+      // Hand the frame back between batches so scrolling never stutters.
+      // `requestIdleCallback` rather than InteractionManager, which RN 0.86
+      // deprecates and warns about at runtime.
       yieldToUi: () =>
         new Promise<void>((resolve) => {
-          InteractionManager.runAfterInteractions(() => resolve());
+          requestIdleCallback(() => resolve(), { timeout: 250 });
         }),
     }),
     [],
@@ -109,6 +110,30 @@ export function useScan(): UseScanResult {
   const cancel = useCallback(() => {
     cancelled.current = true;
   }, []);
+
+  /*
+   * The automatic sweep. Starts itself once per app session, behind the first
+   * paint, so the user never waits on it — and because the scan is
+   * incremental, an unchanged library costs one MediaStore count and nothing
+   * else. A missing permission is not surfaced here: the automatic path stays
+   * quiet and the empty state does the asking.
+   */
+  const swept = useRef(false);
+  useEffect(() => {
+    if (swept.current) return;
+    swept.current = true;
+
+    const handle = requestIdleCallback(
+      () => {
+        void AudioTags.hasAudioPermission().then((granted) => {
+          if (granted) void run();
+        });
+      },
+      { timeout: 1_000 },
+    );
+
+    return () => cancelIdleCallback(handle);
+  }, [run]);
 
   return {
     progress,
