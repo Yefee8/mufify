@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens. This file and `tokens.ts` are the only places a colour value
+ * is allowed to exist. Components use semantic classes (`bg-surface`,
+ * `text-muted`) and never a raw value.
+ *
+ * Both themes are defined here as CSS variables, so a component writes
+ * `bg-surface` exactly once and the value flips with the theme. There are
+ * deliberately no `dark:` colour variants in components — see docs/theming.md
+ * for why this departs from the letter of AGENTS.md while keeping its intent.
+ *
+ * Values are space-separated RGB channels so Tailwind can apply opacity
+ * modifiers (`bg-accent/20`).
+ *
+ * Dark is the primary theme; light is derived from it. Every pair below was
+ * contrast-checked against WCAG AA (4.5:1 for body text).
+ */
+
+@layer base {
+  /* Light theme. Warm off-white, with a darker step of the same indigo. */
+  :root {
+    /* chassis — the enclosure, the base background. */
+    --color-chassis: 246 244 241;
+    /* panel — the faceplate, one step up. Elevation is surface value, not shadow. */
+    --color-panel: 255 255 255;
+    /* etch — hairline rules. Decorative only; never carries state. */
+    --color-etch: 223 218 210;
+    /* label — primary text. 16.33:1 on chassis. */
+    --color-label: 21 23 28;
+    /* legend — secondary text. 5.64:1 on chassis. */
+    --color-legend: 92 97 110;
+    /* signal — indigo. Marks what is playing, selected, active. Nothing else. */
+    --color-signal: 75 69 206;
+    /* on-signal — foreground on filled indigo. White clears 6.90:1 here. */
+    --color-on-signal: 255 255 255;
+  }
+
+  /* Dark theme — the primary one. Near-black with a slight cool cast. */
+  .dark:root {
+    --color-chassis: 10 12 17;
+    --color-panel: 21 25 34;
+    --color-etch: 42 47 60;
+    /* 16.85:1 on chassis. */
+    --color-label: 236 238 243;
+    /* 7.46:1 on chassis. */
+    --color-legend: 152 160 179;
+    /* 6.57:1 on chassis. */
+    --color-signal: 124 140 255;
+    /*
+     * Dark text on the glow. White on this indigo is only 2.98:1 and fails;
+     * chassis on it is 6.57:1. Never swap this for white in dark mode.
+     */
+    --color-on-signal: 10 12 17;
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "audio-focus",
+  "version": "0.1.0",
+  "description": "Audio routing events Android broadcasts but React Native does not surface.",
+  "main": "index.ts",
+  "private": true
+}

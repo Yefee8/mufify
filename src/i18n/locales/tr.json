@@ -1,0 +1,196 @@
+{
+  "tabs": {
+    "library": "Kitaplık",
+    "playlists": "Listeler",
+    "stats": "İstatistik",
+    "settings": "Ayarlar"
+  },
+  "library": {
+    "title": "Kitaplık",
+    "empty": [
+      "Henüz müzik yok. Taranacak bir klasör seç.",
+      "Burası şimdilik boş. Bir klasör göster, gerisi kendiliğinden gelir.",
+      "Kitaplığın tek bir klasör uzağında.",
+      "Müziğin nerede duruyorsa, oraya bak diyelim."
+    ],
+    "emptyAction": "Müzik ekle",
+    "addMusic": "Müzik ekle",
+    "rescan": "Yeniden tara",
+    "trackCount_one": "{{count}} parça",
+    "trackCount_other": "{{count}} parça",
+    "scanning": {
+      "enumerating": "Dosyalar bulunuyor…",
+      "enriching": "Etiketler okunuyor…",
+      "cancel": "Durdur"
+    },
+    "scanError": {
+      "permission": "Mufify'ın bu cihazdaki sesleri okuması için izin gerekiyor.",
+      "generic": "Tarama bitmeden durdu.",
+      "permissionBlocked": "Mufify için izin kapalı. Ses erişimine izin vermek üzere sistem ayarlarını aç.",
+      "openSettings": "Ayarları aç",
+      "retry": "Tekrar dene"
+    },
+    "search": "Ara",
+    "searchPlaceholder": "Parça, sanatçı, albüm",
+    "clearSearch": "Aramayı temizle",
+    "noResults": "“{{term}}” ile eşleşen bir şey yok."
+  },
+  "playlists": {
+    "title": "Listeler",
+    "create": "Yeni liste",
+    "rename": "Yeniden adlandır",
+    "delete": "Listeyi sil",
+    "playAll": "Tümünü çal",
+    "addTo": "Listeye ekle",
+    "nameLabel": "Liste adı",
+    "namePlaceholder": "Bir ad ver",
+    "removeTrack": "{{title}} parçasını kaldır",
+    "count_one": "{{count}} liste",
+    "count_other": "{{count}} liste",
+    "trackCount_one": "{{count}} parça",
+    "trackCount_other": "{{count}} parça",
+    "empty": [
+      "Henüz liste yok. Bir tane oluştur ve doldurmaya başla.",
+      "Burası boş. Liste oluşturmak tek dokunuş."
+    ],
+    "detailEmpty": [
+      "Burada henüz bir şey yok. Kitaplıktan parça ekle.",
+      "Boş bir liste. Bir parçaya uzun bas ve buraya koy."
+    ],
+    "addCount_one": "{{count}} parçayı bir listeye ekle",
+    "addCount_other": "{{count}} parçayı bir listeye ekle",
+    "shuffleAll": "Karıştır",
+    "addTracks": "Parça ekle",
+    "reorder": "{{title}} sırasını değiştir",
+    "addSelected_zero": "Birkaç parça seç",
+    "addSelected_one": "{{count}} parça ekle",
+    "addSelected_other": "{{count}} parça ekle"
+  },
+  "stats": {
+    "title": "İstatistik",
+    "empty": [
+      "Bu dönemde henüz bir şey çalınmadı. Daha uzun bir dönem dene.",
+      "Burada henüz dinleme yok. Yıl görünümünde genelde daha fazlası olur."
+    ],
+    "period": {
+      "label": "Dönem",
+      "week": "Hafta",
+      "month": "Ay",
+      "year": "Yıl"
+    },
+    "totals": {
+      "listening": "Dinleme",
+      "plays": "Çalma",
+      "tracks": "Parça"
+    },
+    "topTracks": "En çok çalınan parçalar",
+    "topArtists": "En çok dinlenen sanatçılar",
+    "playCount_one": "{{formatted}} çalma",
+    "playCount_other": "{{formatted}} çalma"
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "appearance": {
+      "title": "Görünüm",
+      "theme": "Tema",
+      "system": "Sistem",
+      "light": "Açık",
+      "dark": "Koyu"
+    },
+    "language": {
+      "title": "Dil",
+      "label": "Uygulama dili",
+      "system": "Sistem",
+      "en": "English",
+      "tr": "Türkçe"
+    },
+    "folders": {
+      "title": "Müzik klasörleri",
+      "empty": "Eklenmiş klasör yok. Mufify yine de Android’in indekslediği her şeyi tarar.",
+      "remove": "{{folder}} klasörünü kaldır",
+      "removeNote": "Klasörü kaldırmak yeniden taranmasını durdurur. Parçaların kalır."
+    },
+    "shuffle": {
+      "title": "Karıştırma",
+      "label": "Algoritma",
+      "pure": "Saf",
+      "balanced": "Dengeli",
+      "discovery": "Keşif",
+      "favorites": "Favoriler",
+      "album": "Albüme göre",
+      "pureHint": "Gerçekten rastgele. Kümelenir, çünkü rastgelelik böyledir.",
+      "balancedHint": "Her sanatçıyı kuyruğa yayar.",
+      "discoveryHint": "En az çaldığın parçaları öne alır.",
+      "favoritesHint": "En çok çaldıklarını ve favorilediklerini öne alır.",
+      "albumHint": "Albümleri karıştırır, albümün içini değil. Her biri sırasıyla çalar."
+    }
+  },
+  "player": {
+    "title": "Çalıyor",
+    "open": "Oynatıcıyı aç",
+    "close": "Oynatıcıyı kapat",
+    "play": "Çal",
+    "pause": "Duraklat",
+    "next": "Sonraki parça",
+    "previous": "Önceki parça",
+    "seek": "İleri sar",
+    "unknownArtist": "Bilinmeyen sanatçı",
+    "favorite": "Favorilere ekle",
+    "unfavorite": "Favorilerden çıkar",
+    "empty": "Çalan bir şey yok. Kitaplıktan bir parça seç.",
+    "error": "Bu parça çalınamadı.",
+    "repeat": {
+      "off": "Tekrar kapalı",
+      "all": "Tümünü tekrarla",
+      "one": "Parçayı tekrarla"
+    },
+    "shuffle": {
+      "on": "Karıştırma açık, {{algorithm}}",
+      "off": "Karıştırma kapalı"
+    },
+    "lossless": "Kayıpsız"
+  },
+  "common": {
+    "cancel": "Vazgeç",
+    "save": "Kaydet",
+    "back": "Geri",
+    "close": "Kapat"
+  },
+  "queue": {
+    "title": "Sıra",
+    "close": "Sırayı kapat",
+    "clear": "Sırayı temizle",
+    "remove": "{{title}} parçasını sıradan çıkar",
+    "empty": "Sırada bir şey yok. Kitaplıktan bir şey çal.",
+    "remaining_one": "{{count}} parça kaldı",
+    "remaining_other": "{{count}} parça kaldı"
+  },
+  "selection": {
+    "count_zero": "Parça seç",
+    "count_one": "{{count}} seçildi",
+    "count_other": "{{count}} seçildi",
+    "all": "Tümünü seç",
+    "none": "Seçimi temizle",
+    "cancel": "Seçimden çık",
+    "addToQueue": "Sıraya ekle",
+    "addToPlaylist": "Listeye ekle"
+  },
+  "track": {
+    "playNext": "Sıradaki çal",
+    "select": "Seç",
+    "info": "Parça bilgisi",
+    "field": {
+      "title": "Parça",
+      "artist": "Sanatçı",
+      "album": "Albüm",
+      "duration": "Süre",
+      "codec": "Kodek",
+      "container": "Kapsayıcı",
+      "bitrate": "Bit hızı",
+      "sampleRate": "Örnekleme",
+      "bitDepth": "Bit derinliği",
+      "channels": "Kanal",
+      "fileSize": "Dosya boyutu"
+    }
+  }
+}

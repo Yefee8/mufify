@@ -1,0 +1,196 @@
+{
+  "tabs": {
+    "library": "Library",
+    "playlists": "Playlists",
+    "stats": "Stats",
+    "settings": "Settings"
+  },
+  "library": {
+    "title": "Library",
+    "empty": [
+      "No music found. Choose a folder to scan.",
+      "Nothing here yet. Point it at a folder and it fills up.",
+      "Your library is one folder away.",
+      "Empty for now. Tell it where the music lives."
+    ],
+    "emptyAction": "Add music",
+    "addMusic": "Add music",
+    "rescan": "Rescan",
+    "trackCount_one": "{{count}} track",
+    "trackCount_other": "{{count}} tracks",
+    "scanning": {
+      "enumerating": "Finding files…",
+      "enriching": "Reading tags…",
+      "cancel": "Stop"
+    },
+    "scanError": {
+      "permission": "Mufify needs permission to read audio on this device.",
+      "generic": "The scan stopped before it finished.",
+      "permissionBlocked": "Permission is turned off for Mufify. Open system settings to allow audio access.",
+      "openSettings": "Open settings",
+      "retry": "Try again"
+    },
+    "search": "Search",
+    "searchPlaceholder": "Title, artist, album",
+    "clearSearch": "Clear search",
+    "noResults": "Nothing matches “{{term}}”."
+  },
+  "playlists": {
+    "title": "Playlists",
+    "create": "New playlist",
+    "rename": "Rename",
+    "delete": "Delete playlist",
+    "playAll": "Play all",
+    "addTo": "Add to playlist",
+    "nameLabel": "Playlist name",
+    "namePlaceholder": "Name it",
+    "removeTrack": "Remove {{title}}",
+    "count_one": "{{count}} playlist",
+    "count_other": "{{count}} playlists",
+    "trackCount_one": "{{count}} track",
+    "trackCount_other": "{{count}} tracks",
+    "empty": [
+      "No playlists yet. Make one and start filling it.",
+      "Nothing here. A playlist is one button away."
+    ],
+    "detailEmpty": [
+      "Nothing in here yet. Add tracks from the library.",
+      "An empty playlist. Long-press a track to put it here."
+    ],
+    "addCount_one": "Add {{count}} track to a playlist",
+    "addCount_other": "Add {{count}} tracks to a playlist",
+    "shuffleAll": "Shuffle",
+    "addTracks": "Add tracks",
+    "reorder": "Reorder {{title}}",
+    "addSelected_zero": "Pick some tracks",
+    "addSelected_one": "Add {{count}} track",
+    "addSelected_other": "Add {{count}} tracks"
+  },
+  "stats": {
+    "title": "Stats",
+    "empty": [
+      "Nothing played in this period yet. Try a longer one.",
+      "No listening here yet. The year view usually has more."
+    ],
+    "period": {
+      "label": "Period",
+      "week": "Week",
+      "month": "Month",
+      "year": "Year"
+    },
+    "totals": {
+      "listening": "Listening",
+      "plays": "Plays",
+      "tracks": "Tracks"
+    },
+    "topTracks": "Top tracks",
+    "topArtists": "Top artists",
+    "playCount_one": "{{formatted}} play",
+    "playCount_other": "{{formatted}} plays"
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": {
+      "title": "Appearance",
+      "theme": "Theme",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "language": {
+      "title": "Language",
+      "label": "App language",
+      "system": "System",
+      "en": "English",
+      "tr": "Türkçe"
+    },
+    "folders": {
+      "title": "Music folders",
+      "empty": "No folders added. Mufify still scans everything Android has indexed.",
+      "remove": "Remove {{folder}}",
+      "removeNote": "Removing a folder stops re-indexing it. Your tracks stay."
+    },
+    "shuffle": {
+      "title": "Shuffle",
+      "label": "Algorithm",
+      "pure": "Pure",
+      "balanced": "Balanced",
+      "discovery": "Discovery",
+      "favorites": "Favourites",
+      "album": "By album",
+      "pureHint": "Truly random. Clusters, because randomness does.",
+      "balancedHint": "Spreads each artist across the queue.",
+      "discoveryHint": "Favours tracks you have played least.",
+      "favoritesHint": "Favours what you play most, and what you have hearted.",
+      "albumHint": "Shuffles the albums, never the album. Each one plays in order."
+    }
+  },
+  "player": {
+    "title": "Now playing",
+    "open": "Open the player",
+    "close": "Close the player",
+    "play": "Play",
+    "pause": "Pause",
+    "next": "Next track",
+    "previous": "Previous track",
+    "seek": "Seek",
+    "unknownArtist": "Unknown artist",
+    "favorite": "Add to favourites",
+    "unfavorite": "Remove from favourites",
+    "empty": "Nothing playing. Pick a track from the library.",
+    "error": "This track would not play.",
+    "repeat": {
+      "off": "Repeat off",
+      "all": "Repeat all",
+      "one": "Repeat one"
+    },
+    "shuffle": {
+      "on": "Shuffle on, {{algorithm}}",
+      "off": "Shuffle off"
+    },
+    "lossless": "Lossless"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "back": "Back",
+    "close": "Close"
+  },
+  "queue": {
+    "title": "Queue",
+    "close": "Close the queue",
+    "clear": "Clear queue",
+    "remove": "Remove {{title}} from the queue",
+    "empty": "Nothing queued. Play something from the library.",
+    "remaining_one": "{{count}} track left",
+    "remaining_other": "{{count}} tracks left"
+  },
+  "selection": {
+    "count_zero": "Select tracks",
+    "count_one": "{{count}} selected",
+    "count_other": "{{count}} selected",
+    "all": "Select all",
+    "none": "Clear selection",
+    "cancel": "Leave selection",
+    "addToQueue": "Add to queue",
+    "addToPlaylist": "Add to playlist"
+  },
+  "track": {
+    "playNext": "Play next",
+    "select": "Select",
+    "info": "Track info",
+    "field": {
+      "title": "Title",
+      "artist": "Artist",
+      "album": "Album",
+      "duration": "Length",
+      "codec": "Codec",
+      "container": "Container",
+      "bitrate": "Bitrate",
+      "sampleRate": "Sample rate",
+      "bitDepth": "Bit depth",
+      "channels": "Channels",
+      "fileSize": "File size"
+    }
+  }
+}

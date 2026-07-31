@@ -1,0 +1,146 @@
+package dev.mufify.audiotags
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * Plain JVM tests — no device, no emulator. Run with:
+ *   cd android && ./gradlew :audio-tags:testDebugUnitTest
+ */
+class SpecMathTest {
+
+  @Test
+  fun `prefers a sane reported bitrate`() {
+    // 1,411 kbps CD-quality PCM, reported in bits per second.
+    assertEquals(1411, SpecMath.bitrateKbps(1_411_000L, 0L, 0L))
+  }
+
+  @Test
+  fun `computes the average when nothing is reported`() {
+    // 30 MB over 180 s -> 30e6 * 8 / 180 = ~1,333 kbps.
+    assertEquals(1333, SpecMath.bitrateKbps(null, 30_000_000L, 180_000L))
+  }
+
+  @Test
+  fun `falls back when the reported value is absurd`() {
+    // A wrong number on the spec strip is worse than a missing one.
+    assertEquals(1333, SpecMath.bitrateKbps(999_999_999_999L, 30_000_000L, 180_000L))
+    assertEquals(1333, SpecMath.bitrateKbps(0L, 30_000_000L, 180_000L))
+  }
+
+  @Test
+  fun `prefers the file size when the reported bitrate contradicts it`() {
+    // Found on device: a 5.1 MB file lasting 5:10 averages ~138 kbps and the
+    // retriever reported 32, which is a plausible bitrate in isolation and so
+    // passed the old range check straight onto the spec strip. The size and
+    // the duration are facts; the reported value is a claim.
+    assertEquals(138, SpecMath.bitrateKbps(32_000L, 5_347_737L, 310_000L))
+  }
+
+  @Test
+  fun `keeps a reported value that agrees with the file size`() {
+    // CBR files report the exact figure, which beats an average taken over
+    // container overhead — so agreement means the claim is kept.
+    assertEquals(320, SpecMath.bitrateKbps(320_000L, 7_400_000L, 185_000L))
+  }
+
+  @Test
+  fun `tolerates the overhead that legitimately inflates a file`() {
+    // Embedded artwork and ID3 padding make the file bigger than its audio,
+    // so the two always differ a little. That is not a contradiction.
+    // 5 MB over 180 s computes to ~222 kbps; a reported 192 is the truth.
+    assertEquals(192, SpecMath.bitrateKbps(192_000L, 5_000_000L, 180_000L))
+  }
+
+  @Test
+  fun `gives up rather than dividing by zero`() {
+    assertNull(SpecMath.bitrateKbps(null, 30_000_000L, 0L))
+    assertNull(SpecMath.bitrateKbps(null, 0L, 180_000L))
+    assertNull(SpecMath.bitrateKbps(null, -1L, -1L))
+  }
+
+  @Test
+  fun `reads a bare track number as having no disc`() {
+    // 7 is track 7, not disc 0 track 7.
+    assertEquals(null to 7, SpecMath.unpackTrackNumber(7))
+  }
+
+  @Test
+  fun `unpacks the disc-times-1000 encoding`() {
+    assertEquals(1 to 5, SpecMath.unpackTrackNumber(1005))
+    assertEquals(2 to 11, SpecMath.unpackTrackNumber(2011))
+    assertEquals(12 to 3, SpecMath.unpackTrackNumber(12003))
+  }
+
+  @Test
+  fun `treats a disc with no track as track-unknown`() {
+    assertEquals(3 to null, SpecMath.unpackTrackNumber(3000))
+  }
+
+  @Test
+  fun `treats missing or nonsense track numbers as unknown`() {
+    assertEquals(null to null, SpecMath.unpackTrackNumber(null))
+    assertEquals(null to null, SpecMath.unpackTrackNumber(0))
+    assertEquals(null to null, SpecMath.unpackTrackNumber(-4))
+  }
+
+  @Test
+  fun `halves until the longest edge is within the target`() {
+    assertEquals(1, SpecMath.inSampleSize(500, 500, 512))
+    assertEquals(2, SpecMath.inSampleSize(1024, 1024, 512))
+    assertEquals(4, SpecMath.inSampleSize(3000, 3000, 512))
+    assertEquals(8, SpecMath.inSampleSize(4096, 4096, 512))
+  }
+
+  @Test
+  fun `measures the longest edge on a non-square picture`() {
+    assertEquals(4, SpecMath.inSampleSize(3000, 200, 512))
+  }
+
+  @Test
+  fun `never returns a sample size below one`() {
+    assertEquals(1, SpecMath.inSampleSize(0, 0, 512))
+    assertEquals(1, SpecMath.inSampleSize(100, 100, 0))
+  }
+
+  @Test
+  fun `separates lossless from lossy`() {
+    assertTrue(SpecMath.isLossless("audio/flac"))
+    assertTrue(SpecMath.isLossless("audio/x-wav"))
+    assertTrue(SpecMath.isLossless("AUDIO/FLAC"))
+    assertFalse(SpecMath.isLossless("audio/mpeg"))
+    assertFalse(SpecMath.isLossless("audio/mp4"))
+    assertFalse(SpecMath.isLossless(null))
+  }
+
+  @Test
+  fun `parses a bare position`() {
+    assertEquals(3, SpecMath.parsePosition("3"))
+    assertEquals(12, SpecMath.parsePosition(" 12 "))
+  }
+
+  @Test
+  fun `parses the position-of-total form tags actually use`() {
+    // ID3's TRCK is written "3/12" far more often than "3". Parsing this as a
+    // plain integer returns null and silently loses every track number —
+    // which is exactly what happened on device before this existed.
+    assertEquals(3, SpecMath.parsePosition("3/12"))
+    assertEquals(1, SpecMath.parsePosition("1/1"))
+    assertEquals(11, SpecMath.parsePosition("11 / 14"))
+  }
+
+  @Test
+  fun `treats missing or nonsense positions as unknown`() {
+    assertNull(SpecMath.parsePosition(null))
+    assertNull(SpecMath.parsePosition(""))
+    assertNull(SpecMath.parsePosition("   "))
+    assertNull(SpecMath.parsePosition("0"))
+    assertNull(SpecMath.parsePosition("0/12"))
+    assertNull(SpecMath.parsePosition("-2"))
+    assertNull(SpecMath.parsePosition("side A"))
+    assertNull(SpecMath.parsePosition("/12"))
+  }
+}

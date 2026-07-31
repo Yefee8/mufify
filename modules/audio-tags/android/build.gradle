@@ -1,0 +1,24 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'dev.mufify.audiotags'
+version = '0.1.0'
+
+android {
+  namespace "dev.mufify.audiotags"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+// SpecMath is pure arithmetic with no Android imports, so it runs as a plain
+// JVM test — no device. `./gradlew :audio-tags:testDebugUnitTest`
+dependencies {
+  testImplementation 'junit:junit:4.13.2'
+}

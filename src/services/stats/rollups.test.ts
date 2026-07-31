@@ -1,0 +1,189 @@
+import { classifyListen } from './playCounting';
+import { periodKeys } from './periodKeys';
+import {
+  foldDeltas,
+  rollupDeltas,
+  rollupKey,
+  type ListenSubject,
+  type RollupDelta,
+} from './rollups';
+
+/** One recorded listen, as `play_events` would hold it. */
+interface Event {
+  subject: ListenSubject;
+  startedAt: Date;
+  msPlayed: number;
+  durationMs: number;
+}
+
+function contributionOf(event: Event) {
+  return {
+    subject: event.subject,
+    keys: periodKeys(event.startedAt, 'monday'),
+    msPlayed: event.msPlayed,
+    countsAsPlay: classifyListen(event.msPlayed, event.durationMs) === 'play',
+  };
+}
+
+/**
+ * The brute force half of the comparison: recompute every cell from scratch,
+ * the way a slow report would, with no incremental state at all.
+ */
+function recount(events: readonly Event[]): Map<string, RollupDelta> {
+  const all = events.flatMap((event) => rollupDeltas(contributionOf(event)));
+  return new Map(foldDeltas(all).map((delta) => [rollupKey(delta), delta]));
+}
+
+/**
+ * The incremental half: apply events one at a time into a running table, the
+ * way `recordListen` does on each play.
+ */
+function incremental(events: readonly Event[]): Map<string, RollupDelta> {
+  const table = new Map<string, RollupDelta>();
+
+  for (const event of events) {
+    for (const delta of rollupDeltas(contributionOf(event))) {
+      const key = rollupKey(delta);
+      const existing = table.get(key);
+      if (existing) {
+        existing.playCount += delta.playCount;
+        existing.msPlayed += delta.msPlayed;
+      } else {
+        table.set(key, { ...delta });
+      }
+    }
+  }
+
+  return table;
+}
+
+function makeEvents(count: number, seed = 1): Event[] {
+  let state = seed >>> 0;
+  const next = (max: number) => {
+    state = (state * 1_664_525 + 1_013_904_223) >>> 0;
+    return state % max;
+  };
+
+  return Array.from({ length: count }, () => {
+    const durationMs = 60_000 + next(240_000);
+    return {
+      subject: {
+        trackId: 1 + next(40),
+        // Nulls on purpose: untagged files are common and must not become
+        // entity 0 or be silently counted against some other artist.
+        artistId: next(5) === 0 ? null : 1 + next(12),
+        albumId: next(7) === 0 ? null : 1 + next(9),
+        playlistId: next(3) === 0 ? 1 + next(4) : null,
+      },
+      // Spread across a year so week, month and year keys all vary.
+      startedAt: new Date(Date.UTC(2026, next(12), 1 + next(28), next(24), next(60))),
+      msPlayed: next(durationMs + 1),
+      durationMs,
+    };
+  });
+}
+
+describe('rollup correctness', () => {
+  it('matches a brute-force recount over play_events', () => {
+    // The property AGENTS.md asks for. An incremental rollup that drifts from
+    // the events it summarises gives numbers that are wrong but plausible,
+    // which is the worst kind.
+    for (const seed of [1, 2, 3, 7, 99]) {
+      const events = makeEvents(300, seed);
+      const fromScratch = recount(events);
+      const running = incremental(events);
+
+      expect(running.size).toBe(fromScratch.size);
+      for (const [key, expected] of fromScratch) {
+        expect(running.get(key)).toEqual(expected);
+      }
+    }
+  });
+
+  it('is order-independent', () => {
+    // Rollups are sums, so replaying history in a different order — a restore,
+    // a backfill — must reach the same totals.
+    const events = makeEvents(120, 5);
+    const reversed = [...events].reverse();
+    expect(incremental(reversed)).toEqual(incremental(events));
+  });
+
+  it('totals listening time across a period equal to the sum of the events', () => {
+    const events = makeEvents(200, 11);
+    const table = incremental(events);
+
+    const yearTrackMs = [...table.values()]
+      .filter((d) => d.periodType === 'year' && d.entityType === 'track')
+      .reduce((sum, d) => sum + d.msPlayed, 0);
+
+    expect(yearTrackMs).toBe(events.reduce((sum, e) => sum + e.msPlayed, 0));
+  });
+});
+
+describe('rollupDeltas', () => {
+  const keys = periodKeys(new Date(Date.UTC(2026, 6, 15, 12)), 'monday');
+
+  it('writes one cell per period per entity', () => {
+    const deltas = rollupDeltas({
+      subject: { trackId: 1, artistId: 2, albumId: 3, playlistId: 4 },
+      keys,
+      msPlayed: 1000,
+      countsAsPlay: true,
+    });
+
+    // 3 periods x 4 entities.
+    expect(deltas).toHaveLength(12);
+    expect(new Set(deltas.map((d) => d.periodType))).toEqual(new Set(['week', 'month', 'year']));
+    expect(new Set(deltas.map((d) => d.entityType))).toEqual(
+      new Set(['track', 'artist', 'album', 'playlist']),
+    );
+  });
+
+  it('skips null entities rather than counting them as id 0', () => {
+    const deltas = rollupDeltas({
+      subject: { trackId: 1, artistId: null, albumId: null, playlistId: null },
+      keys,
+      msPlayed: 1000,
+      countsAsPlay: true,
+    });
+
+    expect(deltas).toHaveLength(3);
+    expect(deltas.every((d) => d.entityType === 'track')).toBe(true);
+  });
+
+  it('records milliseconds but no play for a skip or partial', () => {
+    // The play/skip/partial rule, carried into the rollups: listening time
+    // stays honest while the counters do not reward abandoning a track.
+    const deltas = rollupDeltas({
+      subject: { trackId: 1, artistId: 2, albumId: null },
+      keys,
+      msPlayed: 4000,
+      countsAsPlay: false,
+    });
+
+    expect(deltas.every((d) => d.playCount === 0)).toBe(true);
+    expect(deltas.every((d) => d.msPlayed === 4000)).toBe(true);
+  });
+});
+
+describe('foldDeltas', () => {
+  it('sums cells that repeat and leaves distinct ones alone', () => {
+    const keys = periodKeys(new Date(Date.UTC(2026, 0, 5, 9)), 'monday');
+    const one = rollupDeltas({
+      subject: { trackId: 1, artistId: 2, albumId: null },
+      keys,
+      msPlayed: 500,
+      countsAsPlay: true,
+    });
+    const two = rollupDeltas({
+      subject: { trackId: 1, artistId: 2, albumId: null },
+      keys,
+      msPlayed: 700,
+      countsAsPlay: false,
+    });
+
+    const folded = foldDeltas([...one, ...two]);
+    expect(folded).toHaveLength(one.length);
+    expect(folded.every((d) => d.msPlayed === 1200 && d.playCount === 1)).toBe(true);
+  });
+});

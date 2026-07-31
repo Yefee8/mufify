@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "Mufify",
+    "slug": "mufify",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "mufify",
+    "userInterfaceStyle": "automatic",
+    "platforms": [
+      "android"
+    ],
+    "icon": "./assets/images/icon.png",
+    "android": {
+      "package": "dev.mufify.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0C11",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0A0C11",
+          "dark": {
+            "backgroundColor": "#0A0C11"
+          },
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      "expo-localization",
+      "expo-sqlite",
+      [
+        "expo-audio",
+        {
+          "recordAudioAndroid": false
+        }
+      ],
+      "./plugins/withOfflineOnly"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
