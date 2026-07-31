@@ -133,17 +133,37 @@ cd android && ./gradlew :audio-tags:testDebugUnitTest   # 12 Kotlin tests, no de
 a plain JVM test: the FLAC bitrate fallback, MediaStore's `disc * 1000 + track`
 packing, subsampling, and the lossless split.
 
-### What is not yet proven
+### Verified on device
 
-`MediaMetadataRetriever`, the MediaStore cursor and `BitmapFactory` are Android
-APIs — the unit tests exercise the arithmetic around them, not the calls
-themselves. Still to verify on a real device with real files:
+Emulator, API 35, with three generated files pushed to `/sdcard/Music/` — a
+real FLAC and two WAVs, one of them deliberately under the duration floor.
 
-- a MediaStore sweep over 500+ files without dropping frames
-- artwork actually written at 512/128 and referenced by path
-- sample rate and bit depth present on API 31+, absent and handled below it
-- a rescan of unchanged files completing near-instantly
-- the SAF picker returning a usable tree URI, and files under it being readable
+| Check | Result |
+|---|---|
+| MediaStore cursor returns rows | 2 of 3 — the 4-second file was filtered by the duration floor, as intended |
+| `IS_MUSIC` selection | ringtones and alarms excluded |
+| Paging via the Bundle API | works on API 30+ after the `Invalid token LIMIT` fix |
+| Stage two opens files | both rows reached `last_scanned_at` |
+| Container and codec mapping | `audio/flac` → `FLAC`, `audio/x-wav` → `WAV` |
+| Sample rate and bit depth | 44,100 Hz / 16-bit on both — the API 31+ path |
+| Bitrate | WAV computed as **1,411 kbps**, which is exactly CD-quality PCM; FLAC as 143 kbps from its real compressed size |
+| Permission gate | with the permission revoked the sweep stays silent and the empty state shows |
+| Error state | a thrown native call surfaces as one plain sentence plus the raw detail, with a retry |
+| SAF picker | `ACTION_OPEN_DOCUMENT_TREE` fires and DocumentsUI opens |
+
+### Still waiting on a real device
+
+- **artwork extraction** — the generated test files carry no embedded picture,
+  so `ArtworkExtractor` has never actually written a JPEG. The path returns
+  null correctly, which is not the same as proving the happy path.
+- **a sweep over 500+ real files without dropping frames** — three files prove
+  correctness, not performance.
+- **incremental rescan speed** on a library large enough for it to matter.
+- **completing a SAF pick** — the picker opens, but nothing has been selected
+  and walked. See `docs/adr/006-manual-add-is-first-class.md`, which records
+  that tree-walking is not designed yet.
+- **files with real tags** — the test files have no artist, album or genre, so
+  the tag-reading path is exercised but never sees populated values.
 
 ---
 
