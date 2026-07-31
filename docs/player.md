@@ -101,13 +101,35 @@ See the table in `docs/scanner.md` for the scanner's equivalent. For playback:
 |---|---|
 | Queue arithmetic | unit tested, no device |
 | Duration formatting | unit tested, including non-ASCII digits |
-| Track plays from the library list | verified on the Pixel_7 AVD, API 35 |
+| Track plays from the library list | verified, Pixel_7 AVD, API 35 |
 | Mini player and Now Playing transport | verified on the AVD |
-| **Background playback surviving screen-off for 10+ minutes** | **not verified — needs a physical device** |
-| **Lock screen controls driving the engine** | **not verified — needs a physical device** |
-| **Audio focus: pause on call, duck on notification, pause on unplug** | **not verified — needs a physical device** |
+| Auto-advance at end of track | verified — 12 consecutive tracks, indexes 5→16 of a 528-track queue |
+| Background playback past the 3-minute cliff | verified — app backgrounded, still playing at 3:30, `isForeground=true` with `types=0x2` |
+| Media-button controls driving the engine | verified — `KEYCODE_MEDIA_PAUSE`/`PLAY` moved the session PLAYING→PAUSED→PLAYING |
+| Listen recording | verified — 27 `play_events`, 15 `track_stats` rows, correctly classified |
+| Becoming-noisy receiver registered | verified — `dumpsys activity broadcasts` lists the filter under this package |
+| **Actual headphone unplug pausing playback** | **not verified — the broadcast is protected, so it cannot be simulated** |
+| **Pause on an incoming call** | **not verified — needs a real call** |
+| **Lock screen surface itself** | **not verified — the controls respond, but nobody has looked at a locked screen** |
 
-The last three are the ones that matter most and the ones an emulator cannot
-answer. `AGENTS.md` is explicit that anything about audio must be verified on
-real hardware, and emulator audio says nothing true about a foreground service
-surviving a screen-off.
+The background-playback result is the important one: the tech stack doc warns
+that Android stops background audio after roughly three minutes without
+`setActiveForLockScreen`, and sampling every 30 seconds showed playback
+continuing straight through that mark.
+
+What remains needs real hardware, and `AGENTS.md` is explicit that audio
+claims require it. Two of the three cannot be faked at all: `adb` cannot send
+`ACTION_AUDIO_BECOMING_NOISY` because it is a protected broadcast, and there is
+no call to receive. The receiver being registered proves the wiring, not the
+behaviour.
+
+## A note on diagnosing playback
+
+`dumpsys media_session` lies about this app. It reported `state=NONE` with a
+stale track title while playback was in fact advancing correctly, because
+`setActiveForLockScreen` rebuilds the session on every track change and the
+dump catches it mid-swap. It cost an hour of chasing a bug that was not there.
+
+The engine's own status stream is the reliable evidence. `dumpsys` is good for
+answering "is a foreground service running" and "did a media button arrive",
+and bad for "what is playing right now".
