@@ -1,6 +1,6 @@
 import { Music, Plus } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -22,7 +22,7 @@ export function LibraryScreen() {
   const colors = useThemeColors();
 
   const trackCount = useTrackCount();
-  const { progress, isScanning, scanLibrary, addFolder, cancel } = useScan();
+  const { progress, isScanning, scanLibrary, addFolder, rescan, cancel } = useScan();
 
   const ratio = progress.total > 0 ? progress.processed / progress.total : 0;
   const hasFailed = !isScanning && progress.phase === 'failed';
@@ -57,55 +57,74 @@ export function LibraryScreen() {
         </Pressable>
       </View>
 
-      {isScanning ? (
-        <View className="gap-3 px-6">
-          <View className="flex-row items-center justify-between">
-            <Text className="font-body text-sm text-muted">
-              {progress.phase === 'enumerating'
-                ? t('library.scanning.enumerating')
-                : t('library.scanning.enriching')}
-            </Text>
-            <Pressable
-              onPress={cancel}
-              accessibilityRole="button"
-              accessibilityLabel={t('library.scanning.cancel')}
-              className="min-h-11 justify-center"
-            >
-              <Text className="font-body-medium text-sm text-accent">
-                {t('library.scanning.cancel')}
+      {/*
+        Pull to refresh re-indexes and sweeps. Without it, a user who has just
+        copied files in has no way to make the app look again short of
+        restarting it — and Android's own scanner may not have noticed yet
+        either. Phase 4 moves this onto the FlashList.
+      */}
+      <ScrollView
+        contentContainerClassName="grow"
+        refreshControl={
+          <RefreshControl
+            refreshing={isScanning}
+            onRefresh={rescan}
+            tintColor={colors.signal}
+            colors={[colors.signal]}
+            progressBackgroundColor={colors.panel}
+          />
+        }
+      >
+        {isScanning ? (
+          <View className="gap-3 px-6">
+            <View className="flex-row items-center justify-between">
+              <Text className="font-body text-sm text-muted">
+                {progress.phase === 'enumerating'
+                  ? t('library.scanning.enumerating')
+                  : t('library.scanning.enriching')}
               </Text>
-            </Pressable>
+              <Pressable
+                onPress={cancel}
+                accessibilityRole="button"
+                accessibilityLabel={t('library.scanning.cancel')}
+                className="min-h-11 justify-center"
+              >
+                <Text className="font-body-medium text-sm text-accent">
+                  {t('library.scanning.cancel')}
+                </Text>
+              </Pressable>
+            </View>
+
+            <ProgressBar value={ratio} accessibilityLabel={t('library.scanning.enumerating')} />
+
+            <Text className="font-mono text-sm text-muted">
+              {progress.processed} / {progress.total}
+            </Text>
           </View>
+        ) : null}
 
-          <ProgressBar value={ratio} accessibilityLabel={t('library.scanning.enumerating')} />
+        {hasFailed ? (
+          <ErrorState
+            message={
+              progress.error === 'permission-denied'
+                ? t('library.scanError.permission')
+                : t('library.scanError.generic')
+            }
+            detail={progress.error === 'permission-denied' ? null : progress.error}
+            retryLabel={t('library.scanError.retry')}
+            onRetry={scanLibrary}
+          />
+        ) : null}
 
-          <Text className="font-mono text-sm text-muted">
-            {progress.processed} / {progress.total}
-          </Text>
-        </View>
-      ) : null}
-
-      {hasFailed ? (
-        <ErrorState
-          message={
-            progress.error === 'permission-denied'
-              ? t('library.scanError.permission')
-              : t('library.scanError.generic')
-          }
-          detail={progress.error === 'permission-denied' ? null : progress.error}
-          retryLabel={t('library.scanError.retry')}
-          onRetry={scanLibrary}
-        />
-      ) : null}
-
-      {isEmpty ? (
-        <EmptyState
-          icon={Music}
-          messages={messages}
-          actionLabel={t('library.emptyAction')}
-          onAction={addFolder}
-        />
-      ) : null}
+        {isEmpty ? (
+          <EmptyState
+            icon={Music}
+            messages={messages}
+            actionLabel={t('library.emptyAction')}
+            onAction={addFolder}
+          />
+        ) : null}
+      </ScrollView>
     </Screen>
   );
 }

@@ -91,4 +91,32 @@ class SpecMathTest {
     assertFalse(SpecMath.isLossless("audio/mp4"))
     assertFalse(SpecMath.isLossless(null))
   }
+
+  @Test
+  fun `parses a bare position`() {
+    assertEquals(3, SpecMath.parsePosition("3"))
+    assertEquals(12, SpecMath.parsePosition(" 12 "))
+  }
+
+  @Test
+  fun `parses the position-of-total form tags actually use`() {
+    // ID3's TRCK is written "3/12" far more often than "3". Parsing this as a
+    // plain integer returns null and silently loses every track number —
+    // which is exactly what happened on device before this existed.
+    assertEquals(3, SpecMath.parsePosition("3/12"))
+    assertEquals(1, SpecMath.parsePosition("1/1"))
+    assertEquals(11, SpecMath.parsePosition("11 / 14"))
+  }
+
+  @Test
+  fun `treats missing or nonsense positions as unknown`() {
+    assertNull(SpecMath.parsePosition(null))
+    assertNull(SpecMath.parsePosition(""))
+    assertNull(SpecMath.parsePosition("   "))
+    assertNull(SpecMath.parsePosition("0"))
+    assertNull(SpecMath.parsePosition("0/12"))
+    assertNull(SpecMath.parsePosition("-2"))
+    assertNull(SpecMath.parsePosition("side A"))
+    assertNull(SpecMath.parsePosition("/12"))
+  }
 }

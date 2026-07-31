@@ -4,10 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   addScanFolder,
+  listScanFolders,
   listUnenrichedUris,
   saveEnriched,
   saveEnumerated,
 } from '@/db/queries/scanning';
+import { PRIMARY_VOLUME_ROOT, treeUriToPath } from '@/services/scanner/treeUri';
 import {
   DEFAULT_SCAN_OPTIONS,
   enrichLibrary,
@@ -17,6 +19,9 @@ import {
 } from '@/services/scanner/scanner';
 
 const IDLE: ScanProgress = { phase: 'idle', total: 0, processed: 0 };
+
+/** Where music lands by default, and so always worth re-indexing. */
+const DEFAULT_MUSIC_PATH = `${PRIMARY_VOLUME_ROOT}/Music`;
 
 /** Where extracted artwork lives. Cache, not documents — it is rebuildable. */
 function artworkDirectory(): string {
@@ -33,6 +38,12 @@ export interface UseScanResult {
   scanLibrary: () => Promise<void>;
   /** Opens the system folder picker, then scans what was chosen. */
   addFolder: () => Promise<void>;
+  /**
+   * Re-index the known folders and sweep again. This is the pull-to-refresh
+   * path: a user who has just copied files in should not have to restart the
+   * app, or wait for the system scanner to notice on its own.
+   */
+  rescan: () => Promise<void>;
   cancel: () => void;
 }
 
@@ -93,6 +104,12 @@ export function useScan(): UseScanResult {
     try {
       const directory = await Directory.pickDirectoryAsync();
       await addScanFolder(directory.uri);
+
+      // Index the folder rather than walking it — see ADR 007. A tree walk
+      // would put SAF document URIs in `tracks.file_uri` alongside MediaStore
+      // ones, and every consumer would then have to know which it was holding.
+      await requestMediaScanFor(directory.uri);
+
       await run();
     } catch (error) {
       // A cancelled picker is not a failure — the user simply changed their
@@ -105,6 +122,35 @@ export function useScan(): UseScanResult {
         error: error instanceof Error ? error.message : String(error),
       });
     }
+  }, [run]);
+
+  const rescan = useCallback(async () => {
+    const granted = await AudioTags.hasAudioPermission();
+    if (!granted) {
+      setProgress({ phase: 'failed', total: 0, processed: 0, error: 'permission-denied' });
+      return;
+    }
+
+    // Re-index first, then sweep. Without the re-index a file copied a minute
+    // ago is still invisible to MediaStore and the sweep would find nothing,
+    // which reads as "the app is broken" rather than "Android has not looked
+    // yet". See ADR 007.
+    const folders = await listScanFolders();
+    const paths = folders
+      .map((folder) => treeUriToPath(folder.uri))
+      .filter((path): path is string => path !== null);
+
+    // Always re-index the standard music location, whether or not it was
+    // explicitly added — it is where files land by default.
+    const targets = [...new Set([...paths, DEFAULT_MUSIC_PATH])];
+
+    try {
+      await AudioTags.requestMediaScan(targets);
+    } catch {
+      // Best-effort. The sweep below still runs on whatever is indexed.
+    }
+
+    await run();
   }, [run]);
 
   const cancel = useCallback(() => {
@@ -140,8 +186,28 @@ export function useScan(): UseScanResult {
     isScanning: progress.phase === 'enumerating' || progress.phase === 'enriching',
     scanLibrary,
     addFolder,
+    rescan,
     cancel,
   };
+}
+
+/**
+ * Point the system scanner at a picked folder.
+ *
+ * The picker hands back a SAF tree URI, which the scanner cannot take — it
+ * wants filesystem paths. The common shapes are convertible; the ones that are
+ * not simply fall through, and the user still gets the normal MediaStore
+ * sweep rather than an error about something they cannot fix.
+ */
+async function requestMediaScanFor(treeUri: string): Promise<void> {
+  const path = treeUriToPath(treeUri);
+  if (!path) return;
+
+  try {
+    await AudioTags.requestMediaScan([path]);
+  } catch {
+    // Indexing is best-effort; the sweep below still runs.
+  }
 }
 
 function isPickerDismissal(error: unknown): boolean {

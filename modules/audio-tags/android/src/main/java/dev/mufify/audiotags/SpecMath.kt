@@ -48,6 +48,21 @@ object SpecMath {
   }
 
   /**
+   * Parse a track or disc number as tags actually write them.
+   *
+   * `METADATA_KEY_CD_TRACK_NUMBER` very often comes back as `"3/12"` — the
+   * position and the total, exactly as ID3's TRCK frame stores it. A plain
+   * integer parse returns null for that, which silently drops the track number
+   * on most real files. Found on device: two tagged MP3s, both with a null
+   * `track_no`.
+   */
+  fun parsePosition(raw: String?): Int? {
+    val head = raw?.trim()?.substringBefore('/')?.trim() ?: return null
+    val value = head.toIntOrNull() ?: return null
+    return if (value > 0) value else null
+  }
+
+  /**
    * Power-of-two subsampling factor for `BitmapFactory`, so a multi-megapixel
    * cover is never fully decoded just to be shrunk.
    */

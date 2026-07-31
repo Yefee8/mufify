@@ -1,6 +1,8 @@
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import { db } from '../client';
+import { needsRescan } from '@/services/scanner/trackMapping';
+
 import { albums, artists, scanFolders, tracks } from '../schema';
 
 /**
@@ -69,13 +71,22 @@ async function albumIdFor(name: string | null, artistId: number | null): Promise
 }
 
 /**
- * Stage one write. One transaction per batch — the tech stack calls for ~500
- * rows at a time so a scan does not fsync per track.
+ * Stage one write.
+ *
+ * Rows whose `(fileSize, dateModified)` already match what is stored are
+ * skipped outright — that pair is the incremental rescan key. Without this
+ * check every launch rewrote every row: five queries per track, so ~2,600 for
+ * a 500-track library and ~50,000 for a 10,000-track one, all to write back
+ * values that had not changed.
  */
 export async function saveEnumerated(rows: EnumeratedRow[]): Promise<void> {
   if (rows.length === 0) return;
 
+  const existing = await existingFingerprints(rows.map((row) => row.fileUri));
+
   for (const row of rows) {
+    if (!needsRescan(existing.get(row.fileUri) ?? null, row)) continue;
+
     const artistId = await artistIdFor(row.artistName);
     const albumId = await albumIdFor(row.albumName, artistId);
 
@@ -110,6 +121,31 @@ export async function saveEnumerated(rows: EnumeratedRow[]): Promise<void> {
         },
       });
   }
+}
+
+/**
+ * The stored `(fileSize, dateModified)` for a batch of URIs, in one query.
+ *
+ * One `IN` lookup per batch rather than one per row — the point of skipping
+ * unchanged files is lost if finding out costs a query each.
+ */
+async function existingFingerprints(
+  fileUris: string[],
+): Promise<Map<string, { fileSize: number | null; dateModified: number }>> {
+  if (fileUris.length === 0) return new Map();
+
+  const rows = await db
+    .select({
+      fileUri: tracks.fileUri,
+      fileSize: tracks.fileSize,
+      dateModified: tracks.dateModified,
+    })
+    .from(tracks)
+    .where(inArray(tracks.fileUri, fileUris));
+
+  return new Map(
+    rows.map((row) => [row.fileUri, { fileSize: row.fileSize, dateModified: row.dateModified }]),
+  );
 }
 
 export interface EnrichedRow {

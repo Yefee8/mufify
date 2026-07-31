@@ -2,8 +2,10 @@ package dev.mufify.audiotags
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.media.MediaScannerConnection
 import android.os.Build
 import androidx.core.content.ContextCompat
+import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
@@ -42,6 +44,37 @@ class AudioTagsModule : Module() {
       val minDuration = (options["minDurationMs"] as? Number)?.toInt() ?: 0
 
       MediaStoreScanner.query(context, limit, offset, minDuration)
+    }
+
+    /**
+     * Ask the platform to index these paths, and wait for it.
+     *
+     * MediaStore only knows about files its scanner has visited. A file copied
+     * over USB, restored from a backup, or written by another app can sit on
+     * disk for minutes — sometimes until reboot — before it appears in a
+     * query. Every music player hits this, and the fix is to ask directly
+     * rather than to wait and hope.
+     *
+     * Returns the URIs the scanner produced, so the caller can tell the
+     * difference between "indexed, nothing new" and "the platform refused".
+     */
+    AsyncFunction("requestMediaScan") { paths: List<String>, promise: Promise ->
+      if (paths.isEmpty()) {
+        promise.resolve(emptyList<String>())
+        return@AsyncFunction
+      }
+
+      val scanned = mutableListOf<String>()
+      var remaining = paths.size
+
+      MediaScannerConnection.scanFile(context, paths.toTypedArray(), null) { _, uri ->
+        synchronized(scanned) {
+          if (uri != null) scanned.add(uri.toString())
+          remaining -= 1
+          // The callback fires once per path; resolve on the last one.
+          if (remaining == 0) promise.resolve(scanned.toList())
+        }
+      }
     }
 
     AsyncFunction("readTags") { uris: List<String>, options: Map<String, Any?> ->

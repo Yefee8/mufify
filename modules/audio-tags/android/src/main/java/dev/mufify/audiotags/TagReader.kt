@@ -32,9 +32,14 @@ object TagReader {
       val fileSize = fileSizeOf(context, uriString)
       val reportedBitrate = retriever.longOf(MediaMetadataRetriever.METADATA_KEY_BITRATE)
 
-      val (disc, track) = SpecMath.unpackTrackNumber(
-        retriever.intOf(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER),
+      // Tags write this as "3" or as "3/12"; both have to work.
+      val trackRaw = SpecMath.parsePosition(
+        retriever.stringOf(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER),
       )
+      val discRaw = SpecMath.parsePosition(
+        retriever.stringOf(MediaMetadataRetriever.METADATA_KEY_DISC_NUMBER),
+      )
+      val (packedDisc, track) = SpecMath.unpackTrackNumber(trackRaw)
 
       val artwork = ArtworkExtractor.write(
         retriever.embeddedPicture,
@@ -51,7 +56,7 @@ object TagReader {
         "albumArtist" to retriever.stringOf(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST),
         "genre" to retriever.stringOf(MediaMetadataRetriever.METADATA_KEY_GENRE),
         "trackNumberRaw" to track,
-        "discNumber" to disc,
+        "discNumber" to (discRaw ?: packedDisc),
         "year" to retriever.intOf(MediaMetadataRetriever.METADATA_KEY_YEAR),
         "durationMs" to durationMs,
         "bitrateKbps" to SpecMath.bitrateKbps(reportedBitrate, fileSize, durationMs ?: 0L),
