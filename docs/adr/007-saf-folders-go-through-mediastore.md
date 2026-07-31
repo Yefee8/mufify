@@ -56,3 +56,31 @@ Converting a SAF tree URI to filesystem paths is not always possible on modern
 Android. Where it fails, `addFolder` still runs the normal sweep — the user
 gets whatever MediaStore already knows, rather than an error for something they
 cannot act on.
+
+`requestMediaScan` no longer resolves strictly on the last callback. The
+callback is not guaranteed to fire once per path — a path that does not exist,
+or a directory the provider declines to walk, can be dropped — and a dropped
+one left the promise unsettled forever. Since `addFolder` awaits it *before*
+starting the scan, that was a frozen screen with no error state to show. It now
+settles on whatever has arrived after ten seconds.
+
+## Status — what the device has since shown
+
+**The premise that `adb push` auto-indexes is wrong**, at least on this phone.
+520 FLAC files pushed to `/sdcard/Music/bulk` on a Mi 9T (API 29) were present
+on disk (56 MB, confirmed by `ls`) and had **zero** rows in MediaStore. That is
+the "copied files not indexed yet" case this ADR was written to fix, occurring
+naturally rather than needing to be simulated — which also means the scenario
+docs/scanner.md listed as unproven no longer needs a contrived MTP setup to
+reproduce.
+
+**Karar bekliyor / decision pending:** whether
+`MediaScannerConnection.scanFile()` on a *directory* path recurses into it. The
+whole rescan path depends on this — `requestMediaScan` is handed
+`/storage/emulated/0/Music`, not the individual files under it. Android 10+
+routes `scanFile` through `MediaStore.scanFile`, which is documented to handle
+directories, but that is inference, not measurement. If it turns out not to
+recurse, the fix is to enumerate the directory and pass file paths, which is
+itself constrained by scoped storage — `File.listFiles()` on shared storage is
+restricted without a legacy-storage opt-out. Do not treat the rescan path as
+proven until this is measured on hardware.

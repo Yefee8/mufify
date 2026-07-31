@@ -3,8 +3,9 @@
 How music gets into the library. Two ways in, one pipeline.
 
 > Phase status: the module, the pipeline, the queries and the UI are written
-> and unit tested. `MediaMetadataRetriever` and the MediaStore cursor need a
-> real device — see [What is not yet proven](#what-is-not-yet-proven).
+> and unit tested, and the end-to-end add-music flow now works on hardware.
+> Performance over a large library is still unmeasured — see
+> [Still waiting on a real device](#still-waiting-on-a-real-device).
 
 ---
 
@@ -12,6 +13,12 @@ How music gets into the library. Two ways in, one pipeline.
 
 **Automatic.** A MediaStore sweep runs in the background. It costs nothing and
 covers the common case: music the system already indexed.
+
+Both paths need the audio permission first, and the app **asks** for it rather
+than assuming it — see `docs/adr/008-permission-is-asked-not-assumed.md`.
+Without the grant a MediaStore query does not fail, it returns nothing, so a
+scan without permission looks exactly like a device with no music on it. That
+distinction is the whole reason the request exists.
 
 **Manual — `Add music`.** Opens the system folder picker (SAF) and scans what
 was chosen. This is **not** a fallback for when the automatic scan
@@ -125,15 +132,41 @@ it is what lets paging, batching, cancellation, the empty library, an
 unreadable file and a thrown native call all be tested on a laptop.
 
 ```bash
-npm test -- scanner                              # 39 pipeline + mapping tests
+npm test -- scanner                              # pipeline, mapping, tree URI, permission
 cd android && ./gradlew :audio-tags:testDebugUnitTest   # 12 Kotlin tests, no device
 ```
+
+`permissionErrorFor` is a pure function in `src/services/scanner/permission.ts`
+rather than a branch inside `useScan`, so the granted / denied / permanently-
+denied split is unit tested. It is a three-line function and it still earns a
+module: it encodes the distinction whose absence caused the add-music bug.
 
 `SpecMath` on the Kotlin side has no Android imports specifically so it runs as
 a plain JVM test: the FLAC bitrate fallback, MediaStore's `disc * 1000 + track`
 packing, subsampling, and the lossless split.
 
-### Verified on device
+### Verified on a physical device
+
+Mi 9T (`davinci`), **API 29**, debug build over Metro. API 29 matters: it takes
+the pre-API-30 branch in `pagedCursor`, so this run exercised the legacy
+`LIMIT … OFFSET` sort-order paging rather than the Bundle form, and scoped
+storage is in effect.
+
+| Check | Result |
+|---|---|
+| Permission is requested, not assumed | `dumpsys package` went from `granted=false` to `granted=true` after the in-app prompt |
+| Add music end to end | library went from **0 parça** to **14 parça** — the flow that previously returned to the empty state |
+| Empty result is now unambiguous | with the permission absent the same build scanned clean and found nothing, matching `content query` returning rows for the shell |
+| Legacy paging path (API 29) | enumerated without an `Invalid token LIMIT` throw |
+| Turkish UI at real density | header, count and empty state all render without clipping |
+
+**The bug this closes.** Picking a folder appeared to do nothing: the picker
+closed, the screen changed briefly, and the library returned to empty. Nothing
+was broken in the picker or the pipeline — the app had simply never asked for
+the permission, and an unpermitted MediaStore query returns zero rows without
+raising. Full write-up in ADR 008.
+
+### Previously verified on the emulator
 
 Emulator, API 35, with three generated files pushed to `/sdcard/Music/` — a
 real FLAC and two WAVs, one of them deliberately under the duration floor.
@@ -153,17 +186,41 @@ real FLAC and two WAVs, one of them deliberately under the duration floor.
 
 ### Still waiting on a real device
 
+- **a sweep over 500+ real files without dropping frames** — still the last
+  open item for Phase 2. The earlier emulator number was worthless: headless
+  swiftshader has no relationship to a real compositor. 520 FLAC files are
+  staged at `/sdcard/Music/bulk` on the Mi 9T and frame stats have been reset;
+  the measurement needs `adb shell dumpsys gfxinfo dev.mufify.app framestats`
+  taken across a scan of them.
+- **whether `MediaScannerConnection.scanFile()` recurses into a directory** —
+  the rescan path hands it `/storage/emulated/0/Music`, so everything depends
+  on this and it is inferred rather than measured. See the status section of
+  ADR 007.
 - **artwork extraction** — the generated test files carry no embedded picture,
   so `ArtworkExtractor` has never actually written a JPEG. The path returns
   null correctly, which is not the same as proving the happy path.
-- **a sweep over 500+ real files without dropping frames** — three files prove
-  correctness, not performance.
 - **incremental rescan speed** on a library large enough for it to matter.
-- **completing a SAF pick** — the picker opens, but nothing has been selected
-  and walked. See `docs/adr/006-manual-add-is-first-class.md`, which records
-  that tree-walking is not designed yet.
 - **files with real tags** — the test files have no artist, album or genre, so
   the tag-reading path is exercised but never sees populated values.
+
+### Resolved: the unindexed-file scenario is real
+
+This was listed as unproven on the assumption that `adb push` indexes as it
+copies, so the case had to be simulated over MTP. It does not, at least not
+here. 520 files pushed to `/sdcard/Music/bulk` sat on disk — 56 MB, confirmed
+by `ls` — with **zero** matching rows in MediaStore. The scenario reproduces on
+demand simply by pushing files, and it is exactly what `Add music` and pull-to-
+refresh exist to fix.
+
+### Automating verification on Xiaomi hardware — don't
+
+MIUI refuses both `adb shell pm grant` (`grantRuntimePermission: … does not
+have android.permission.GRANT_RUNTIME_PERMISSIONS`) and `adb shell input`
+(`Injecting to another application requires INJECT_EVENTS permission`) for this
+package. Permission grants and every tap have to be performed by hand on the
+phone. `adb install`, `am start`, `screencap`, `logcat` and `dumpsys` all work
+normally, so capture can be automated even though input cannot — reset the
+counters, ask for the gesture, then read the result.
 
 ---
 
