@@ -49,16 +49,27 @@ object MediaStoreScanner {
     else MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 
   /**
-   * `IS_MUSIC` keeps ringtones, notifications and alarms out. A duration
-   * floor drops the stray one-second files that clutter a real device.
+   * `IS_MUSIC` keeps ringtones, notifications and alarms out — where the
+   * device sets it honestly. MIUI does not: measured on a Mi 9T, every call
+   * recording was stored with `is_music=1` and every other flag `0`. So the
+   * recording folders are excluded by path as well; see `MusicFilter`.
+   *
+   * A duration floor drops the stray one-second files that clutter a real
+   * device.
    */
-  private fun selection(minDurationMs: Int): Pair<String, Array<String>> =
+  private fun selection(minDurationMs: Int): Pair<String, Array<String>> {
+    val (excluded, excludedArgs) = MusicFilter.exclusionSelection()
+
+    val clauses = mutableListOf("${MediaStore.Audio.Media.IS_MUSIC} != 0", excluded)
+    val args = mutableListOf(*excludedArgs)
+
     if (minDurationMs > 0) {
-      "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= ?" to
-        arrayOf(minDurationMs.toString())
-    } else {
-      "${MediaStore.Audio.Media.IS_MUSIC} != 0" to emptyArray()
+      clauses += "${MediaStore.Audio.Media.DURATION} >= ?"
+      args += minDurationMs.toString()
     }
+
+    return clauses.joinToString(" AND ") to args.toTypedArray()
+  }
 
   fun count(context: Context, minDurationMs: Int): Int {
     val (where, args) = selection(minDurationMs)

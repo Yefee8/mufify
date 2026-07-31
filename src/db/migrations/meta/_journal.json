@@ -15,6 +15,13 @@
       "when": 1785453838581,
       "tag": "0001_smooth_tana_nile",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785500000000,
+      "tag": "0002_forget_unknown_placeholders",
+      "breakpoints": true
     }
   ]
 }

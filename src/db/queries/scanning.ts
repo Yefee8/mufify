@@ -209,6 +209,45 @@ export async function listUnenrichedUris(limit: number): Promise<string[]> {
 }
 
 /**
+ * Mark every present track this sweep did not see.
+ *
+ * `is_missing = 1`, never a delete: the file may be on an SD card that is not
+ * mounted right now, and deleting would take its playlist entries and play
+ * history with it.
+ *
+ * A `NOT IN` over ten thousand bound parameters is not an option — SQLite caps
+ * them near 999 — so the seen set goes into a temporary table and the sweep is
+ * one indexed anti-join. A track that reappears is un-marked by
+ * `saveEnumerated`, which already resets `is_missing` on conflict.
+ */
+export async function retireUnseen(seenFileUris: string[]): Promise<void> {
+  // An empty sweep means the query returned nothing at all — a revoked
+  // permission, most likely. Retiring the whole library on that basis would
+  // turn a permissions problem into apparent data loss.
+  if (seenFileUris.length === 0) return;
+
+  await db.run(sql`CREATE TEMP TABLE IF NOT EXISTS seen_uris (uri TEXT PRIMARY KEY)`);
+  await db.run(sql`DELETE FROM seen_uris`);
+
+  // Chunked well under SQLite's parameter ceiling.
+  const CHUNK = 400;
+  for (let index = 0; index < seenFileUris.length; index += CHUNK) {
+    const values = sql.join(
+      seenFileUris.slice(index, index + CHUNK).map((uri) => sql`(${uri})`),
+      sql`, `,
+    );
+    await db.run(sql`INSERT OR IGNORE INTO seen_uris (uri) VALUES ${values}`);
+  }
+
+  await db.run(
+    sql`UPDATE ${tracks} SET is_missing = 1
+        WHERE is_missing = 0 AND file_uri NOT IN (SELECT uri FROM seen_uris)`,
+  );
+
+  await db.run(sql`DROP TABLE seen_uris`);
+}
+
+/**
  * Folders the user added by hand, on top of whatever MediaStore indexes.
  *
  * Adding is cumulative. `onConflictDoNothing` against the unique `uri` index

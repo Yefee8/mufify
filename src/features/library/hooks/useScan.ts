@@ -6,6 +6,7 @@ import {
   addScanFolder,
   listScanFolders,
   listUnenrichedUris,
+  retireUnseen,
   saveEnriched,
   saveEnumerated,
 } from '@/db/queries/scanning';
@@ -86,6 +87,7 @@ export function useScan(): UseScanResult {
       saveEnumerated,
       saveEnriched,
       listUnenrichedUris,
+      retireUnseen,
       // Hand the frame back between batches so scrolling never stutters.
       // `requestIdleCallback` rather than InteractionManager, which RN 0.86
       // deprecates and warns about at runtime.

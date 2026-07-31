@@ -61,6 +61,15 @@ export interface ScannerPorts {
   /** URIs that stage two has not reached yet. */
   listUnenrichedUris(limit: number): Promise<string[]>;
 
+  /**
+   * Mark every present track the sweep did not see as missing.
+   *
+   * Called only after a *complete* enumeration. A cancelled or failed sweep
+   * has not seen the whole library, and acting on its partial result would
+   * retire most of it.
+   */
+  retireUnseen(seenFileUris: string[]): Promise<void>;
+
   /** Hand the frame back so scrolling never stutters mid-scan. */
   yieldToUi(): Promise<void>;
 }
@@ -89,6 +98,9 @@ export async function enumerateLibrary(
     progress = { ...progress, total };
     onProgress(progress);
 
+    // Every URI this sweep saw, so the rows it did not see can be retired.
+    const seen: string[] = [];
+
     let offset = 0;
     for (;;) {
       if (controller.isCancelled()) return finish(progress, 'cancelled', onProgress);
@@ -100,7 +112,9 @@ export async function enumerateLibrary(
       });
       if (page.length === 0) break;
 
-      await ports.saveEnumerated(page.map(fromMediaStore));
+      const rows = page.map(fromMediaStore);
+      for (const row of rows) seen.push(row.fileUri);
+      await ports.saveEnumerated(rows);
 
       offset += page.length;
       progress = { ...progress, processed: offset };
@@ -112,6 +126,15 @@ export async function enumerateLibrary(
       // cost a query to learn nothing.
       if (page.length < options.enumerateBatchSize) break;
     }
+
+    /*
+     * Only now, with the whole library seen. A track whose file is gone — or
+     * which no longer qualifies as music, since MIUI files call recordings as
+     * songs and those are excluded by folder now — is marked, never deleted.
+     * Deleting would take playlist entries and play history with it, and an
+     * unmounted SD card would read as a library wipe.
+     */
+    await ports.retireUnseen(seen);
 
     return finish({ ...progress, total: Math.max(progress.total, offset) }, 'done', onProgress);
   } catch (error) {

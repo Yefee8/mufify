@@ -56,6 +56,8 @@ function tags(uri: string, overrides: Partial<TrackTags> = {}): TrackTags {
 interface Harness {
   ports: ScannerPorts;
   saved: ScannedTrack[];
+  /** URIs handed to `retireUnseen`, or null when it was never called. */
+  retired: { seen: string[] } | null;
   enriched: { fileUri: string; fields: EnrichedFields }[];
   yields: number;
   queries: { limit: number; offset: number }[];
@@ -66,7 +68,7 @@ function harness(library: MediaStoreTrack[], pending: string[] = []): Harness {
   const enriched: { fileUri: string; fields: EnrichedFields }[] = [];
   const queries: { limit: number; offset: number }[] = [];
   const queue = [...pending];
-  const state = { yields: 0 };
+  const state = { yields: 0, retired: null as { seen: string[] } | null };
 
   const ports: ScannerPorts = {
     countAudioFiles: async () => library.length,
@@ -75,6 +77,9 @@ function harness(library: MediaStoreTrack[], pending: string[] = []): Harness {
       return library.slice(offset, offset + limit);
     },
     readTags: async (uris) => uris.map((uri) => tags(uri)),
+    retireUnseen: async (seen) => {
+      state.retired = { seen };
+    },
     saveEnumerated: async (rows) => {
       saved.push(...rows);
     },
@@ -94,6 +99,9 @@ function harness(library: MediaStoreTrack[], pending: string[] = []): Harness {
     queries,
     get yields() {
       return state.yields;
+    },
+    get retired() {
+      return state.retired;
     },
   };
 }
@@ -249,5 +257,60 @@ describe('enrichLibrary', () => {
 
     expect(result.phase).toBe('failed');
     expect(result.error).toBe('retriever exploded');
+  });
+});
+
+/** A library of `count` sequential tracks. */
+function rows(count: number): MediaStoreTrack[] {
+  return Array.from({ length: count }, (_, index) => row(index + 1));
+}
+
+describe('retiring tracks the sweep did not see', () => {
+  it('hands every seen URI over after a complete sweep', async () => {
+    const bench = harness(rows(25));
+    await enumerateLibrary(bench.ports, options, () => {});
+
+    expect(bench.retired?.seen).toHaveLength(25);
+    expect(bench.retired?.seen[0]).toBe('content://media/external/audio/media/1');
+  });
+
+  it('does not retire anything when the scan was cancelled', async () => {
+    // A cancelled sweep has not seen the whole library. Acting on its partial
+    // result would mark most of the library missing — the library would
+    // appear to empty itself because someone pressed Stop.
+    const bench = harness(rows(50));
+    let pages = 0;
+    const cancelAfterFirstPage = {
+      isCancelled: () => {
+        pages += 1;
+        return pages > 1;
+      },
+    };
+
+    await enumerateLibrary(bench.ports, options, () => {}, cancelAfterFirstPage);
+    expect(bench.retired).toBeNull();
+  });
+
+  it('does not retire anything when the sweep threw', async () => {
+    const bench = harness(rows(10));
+    const failing: ScannerPorts = {
+      ...bench.ports,
+      queryAudioFiles: async () => {
+        throw new Error('cursor closed');
+      },
+    };
+
+    const result = await enumerateLibrary(failing, options, () => {});
+    expect(result.phase).toBe('failed');
+    expect(bench.retired).toBeNull();
+  });
+
+  it('still retires on an empty library, so a deleted last track disappears', async () => {
+    // The query layer refuses an empty seen set — that is where "the
+    // permission was revoked" is handled — but the scanner must still make
+    // the call rather than deciding for it.
+    const bench = harness([]);
+    await enumerateLibrary(bench.ports, options, () => {});
+    expect(bench.retired?.seen).toEqual([]);
   });
 });

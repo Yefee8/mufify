@@ -1,4 +1,4 @@
-import AudioFocusEvents from 'audio-focus';
+import { onAudioBecomingNoisy } from 'audio-focus';
 import {
   createAudioPlayer,
   setAudioModeAsync,
@@ -126,10 +126,11 @@ class Engine {
      * focus handling never fires and the music would simply continue out loud.
      * Registered once, with the session, and never removed: the engine is a
      * singleton and this must hold for as long as the app can play anything.
+     *
+     * A build without the native module gets a no-op rather than a crash —
+     * see the note in modules/audio-focus.
      */
-    AudioFocusEvents.addListener('audioBecomingNoisy', () => {
-      this.pause();
-    });
+    onAudioBecomingNoisy(() => this.pause());
   }
 
   subscribe(listener: Listener): () => void {
