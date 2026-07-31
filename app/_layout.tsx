@@ -61,6 +61,7 @@ export default function RootLayout() {
         {/* Now Playing is somewhere you go from a track and dismiss, not a
             destination you switch to — so it presents rather than pushes. */}
         <Stack.Screen name="player" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="queue" options={{ presentation: 'modal' }} />
       </Stack>
     </GestureHandlerRootView>
   );

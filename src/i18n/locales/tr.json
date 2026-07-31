@@ -140,5 +140,14 @@
     "cancel": "Vazgeç",
     "save": "Kaydet",
     "back": "Geri"
+  },
+  "queue": {
+    "title": "Sıra",
+    "close": "Sırayı kapat",
+    "clear": "Sırayı temizle",
+    "remove": "{{title}} parçasını sıradan çıkar",
+    "empty": "Sırada bir şey yok. Kitaplıktan bir şey çal.",
+    "remaining_one": "{{count}} parça kaldı",
+    "remaining_other": "{{count}} parça kaldı"
   }
 }

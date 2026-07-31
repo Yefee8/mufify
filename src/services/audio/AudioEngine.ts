@@ -41,6 +41,14 @@ const RESTART_THRESHOLD_MS = 3_000;
 type Listener = (state: PlaybackState) => void;
 type ListenReporter = (listen: FinishedListen) => void;
 
+/** What the queue screen renders. */
+export interface QueueSnapshot {
+  tracks: readonly PlayableTrack[];
+  index: number;
+}
+
+type QueueListener = (snapshot: QueueSnapshot) => void;
+
 class Engine {
   private player: AudioPlayer | null = null;
   private queue: PlayableTrack[] = [];
@@ -57,6 +65,17 @@ class Engine {
   private state: PlaybackState = IDLE_PLAYBACK;
   private listeners = new Set<Listener>();
   private configured = false;
+
+  /*
+   * The queue has its own subscription rather than riding on PlaybackState.
+   * State is emitted twice a second for the position, and a queue screen
+   * re-rendering several hundred rows at that rate is the difference between
+   * a list that scrolls and one that does not. The snapshot object is only
+   * rebuilt when the queue or the index actually changes, so
+   * `useSyncExternalStore` can compare it by reference.
+   */
+  private queueListeners = new Set<QueueListener>();
+  private queueSnapshot: QueueSnapshot = { tracks: [], index: -1 };
 
   /*
    * Listening time is accumulated rather than read off the final position,
@@ -125,6 +144,27 @@ class Engine {
     return this.state;
   }
 
+  subscribeQueue(listener: QueueListener): () => void {
+    this.queueListeners.add(listener);
+    listener(this.queueSnapshot);
+    return () => {
+      this.queueListeners.delete(listener);
+    };
+  }
+
+  getQueueSnapshot(): QueueSnapshot {
+    return this.queueSnapshot;
+  }
+
+  /** Rebuild the snapshot and notify, but only when something really moved. */
+  private emitQueue(): void {
+    if (this.queueSnapshot.tracks === this.queue && this.queueSnapshot.index === this.index) {
+      return;
+    }
+    this.queueSnapshot = { tracks: this.queue, index: this.index };
+    for (const listener of this.queueListeners) listener(this.queueSnapshot);
+  }
+
   private emit(next: Partial<PlaybackState>): void {
     this.state = { ...this.state, ...next };
     for (const listener of this.listeners) listener(this.state);
@@ -173,6 +213,7 @@ class Engine {
     // Follow the current track to its new home. Nothing reloads: the audio
     // keeps playing and only the index moves.
     this.index = current ? this.queue.findIndex((track) => track.id === current.id) : -1;
+    this.emitQueue();
   }
 
   /**
@@ -217,6 +258,7 @@ class Engine {
     this.startedAt = new Date();
 
     this.index = index;
+    this.emitQueue();
     this.emit({ phase: 'loading', track, positionMs: 0, durationMs: track.durationMs });
 
     try {
@@ -394,8 +436,42 @@ class Engine {
     return this.repeat;
   }
 
-  getQueue(): { tracks: PlayableTrack[]; index: number } {
-    return { tracks: this.queue, index: this.index };
+  /**
+   * Drop one entry from the queue.
+   *
+   * Removing what is playing is not a stop — it plays what would have come
+   * next, which is what the gesture means on every other player.
+   */
+  async removeAt(index: number): Promise<void> {
+    if (!isPlayable(index, this.queue.length)) return;
+
+    const removed = this.queue[index];
+    const wasCurrent = index === this.index;
+
+    this.queue = this.queue.filter((_, position) => position !== index);
+    this.sourceQueue = this.sourceQueue.filter((track) => track.id !== removed?.id);
+
+    if (this.queue.length === 0) {
+      await this.stop();
+      return;
+    }
+
+    if (wasCurrent) {
+      // The next track has slid into this index; if it was the last one, wrap
+      // back rather than pointing past the end.
+      await this.loadIndex(Math.min(index, this.queue.length - 1), true);
+      return;
+    }
+
+    if (index < this.index) this.index -= 1;
+    this.emitQueue();
+  }
+
+  /** Empty the queue and stop. */
+  async clearQueue(): Promise<void> {
+    this.queue = [];
+    this.sourceQueue = [];
+    await this.stop();
   }
 
   /**
@@ -410,6 +486,7 @@ class Engine {
     this.player?.pause();
     this.player?.clearLockScreenControls();
     this.index = -1;
+    this.emitQueue();
     this.emit({ ...IDLE_PLAYBACK });
     await setIsAudioActiveAsync(false);
   }

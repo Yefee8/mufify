@@ -4,6 +4,7 @@ import { ChevronLeft, ListMusic, Pencil, Play, Trash2 } from 'lucide-react-nativ
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import {
@@ -84,7 +85,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
   );
 
   return (
-    <View className="flex-1 bg-surface">
+    <SafeAreaView edges={['top']} className="flex-1 bg-surface">
       <View className="flex-row items-center gap-2 px-4 pt-6">
         <Pressable
           onPress={goBack}
@@ -149,7 +150,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
         onCancel={() => setRenaming(false)}
         onSubmit={onRename}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

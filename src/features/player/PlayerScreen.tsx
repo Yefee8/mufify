@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
   ChevronDown,
+  ListMusic,
   Music,
   Pause,
   Play,
@@ -14,6 +15,7 @@ import {
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AudioEngine } from '@/services/audio/AudioEngine';
@@ -44,6 +46,7 @@ export function PlayerScreen() {
   const [shuffled, setShuffledState] = useState(() => AudioEngine.isShuffled());
 
   const close = useCallback(() => router.back(), [router]);
+  const openQueue = useCallback(() => router.push('/queue'), [router]);
 
   const onShufflePress = useCallback(() => {
     toggleShuffle();
@@ -58,10 +61,10 @@ export function PlayerScreen() {
 
   if (track === null) {
     return (
-      <View className="flex-1 bg-surface">
-        <Header onClose={close} label={t('player.title')} />
+      <SafeAreaView edges={['top']} className="flex-1 bg-surface">
+        <Header onClose={close} onOpenQueue={openQueue} label={t('player.title')} />
         <EmptyState icon={Music} messages={[t('player.empty')]} />
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -72,8 +75,8 @@ export function PlayerScreen() {
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
 
   return (
-    <View className="flex-1 bg-surface">
-      <Header onClose={close} label={t('player.title')} />
+    <SafeAreaView edges={['top']} className="flex-1 bg-surface">
+      <Header onClose={close} onOpenQueue={openQueue} label={t('player.title')} />
 
       <View className="flex-1 justify-center gap-8 px-6">
         <View className="aspect-square w-full items-center justify-center rounded-md bg-surface-elevated">
@@ -190,16 +193,17 @@ export function PlayerScreen() {
           </Pressable>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 interface HeaderProps {
   onClose: () => void;
+  onOpenQueue: () => void;
   label: string;
 }
 
-function Header({ onClose, label }: HeaderProps) {
+function Header({ onClose, onOpenQueue, label }: HeaderProps) {
   const colors = useThemeColors();
   const { t } = useTranslation();
 
@@ -214,7 +218,14 @@ function Header({ onClose, label }: HeaderProps) {
         <ChevronDown color={colors.label} size={26} strokeWidth={2} />
       </Pressable>
       <Text className="font-body-medium text-sm text-muted">{label}</Text>
-      <View className="min-h-11 min-w-11" />
+      <Pressable
+        onPress={onOpenQueue}
+        accessibilityRole="button"
+        accessibilityLabel={t('queue.title')}
+        className="min-h-11 min-w-11 items-center justify-center"
+      >
+        <ListMusic color={colors.label} size={22} strokeWidth={2} />
+      </Pressable>
     </View>
   );
 }
