@@ -42,7 +42,10 @@ export const QueueRow = memo(function QueueRow({
   const handleRemove = useCallback(() => onRemove(position), [onRemove, position]);
 
   const artworkUri = track.artworkPath ? `file://${track.artworkPath}` : null;
-  const subtitle = [track.artistName, track.albumName].filter(Boolean).join(' — ');
+  const subtitle = [
+    track.artistName ?? t('common.unknownArtist'),
+    track.albumName ?? t('common.unknownAlbum'),
+  ].join(' — ');
 
   return (
     <View

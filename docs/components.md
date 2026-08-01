@@ -31,6 +31,7 @@ it is repeated here because that is the thing a reader needs before touching it.
 | `Screen` | The standard frame: safe area, surface, display-face title. |
 | `EmptyState` | Icon, one line, and the way out. Picks one of several phrasings per mount so the app does not read like a recording. |
 | `ErrorState` | What failed in one plain sentence, and the retry. Never a raw error string. |
+| `TabErrorBoundary` | Contains a render failure to its selected tab and shows `ErrorState`; retry remounts only that tab. |
 | `Skeleton` | One placeholder block, sized by the caller. Pulses via a Reanimated worklet; stops dead under reduce-motion. |
 | `SkeletonRows` | A list's worth, shaped like real rows so nothing jumps when data lands. Hidden from screen readers. |
 | `SkeletonCards` | The same for the artist and album grids. Mirrors `CollectionGrid`'s two-column layout exactly. |
@@ -73,7 +74,7 @@ it is repeated here because that is the thing a reader needs before touching it.
 |---|---|
 | `PlayerScreen` | Now Playing. A modal route: somewhere you go from something and dismiss. |
 | `ArtworkCarousel` | Three slots — previous, current, next — all mounted, so a neighbour slides in already decoded. Commits on distance **or** velocity. Rubber-bands at the ends of the queue. |
-| `MiniPlayer` | The persistent transport strip. Subscribes to phase and track only, never position: doing otherwise reconciled it 20 times per ten seconds of playback. |
+| `MiniPlayer` | The persistent transport strip. Subscribes to phase and track only, never position; horizontal swipe changes tracks and vertical swipe opens Now Playing. |
 | `MiniProgress` | The progress hairline, and the only thing in the tab bar that hears about position. Width lives in a shared value; React renders it once. |
 | `Scrubber` | The seek bar. The drag runs entirely in a worklet; React hears about it once, on release. |
 | `SpecStrip` | The signature element — one monospaced line of a file's technical truth. |

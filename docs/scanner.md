@@ -94,7 +94,10 @@ usable within a second or two of a cold scan.
 ### Stage two — enrich
 
 `enrichLibrary()`. Opens files in batches of 25 and fills in tags, the spec
-strip and artwork.
+strip and artwork. `ARTIST` resolves `tracks.artist_id`; `ALBUMARTIST` (or
+`ARTIST` when absent) resolves the album's `artist_id`; and `ALBUM` resolves
+`tracks.album_id`. This keeps the normalised tables and the track metadata in
+step after a tag edit.
 
 The queue is not a table: it is `tracks` where `last_scanned_at IS NULL`. Each
 batch is written before the next starts, so a scan that is cancelled, crashes

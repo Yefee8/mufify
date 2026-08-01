@@ -1,0 +1,2 @@
+# The historical source revision contains one NUL separator; keep its repair reviewable.
+src/db/queries/scanning.ts diff

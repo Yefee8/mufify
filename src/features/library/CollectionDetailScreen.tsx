@@ -83,6 +83,8 @@ export function CollectionDetailScreen({ kind, id }: CollectionDetailScreenProps
           kind={kind}
           name={card.name}
           subtitle={card.subtitle}
+          isUnknown={card.isUnknown}
+          isUnknownSubtitle={card.isUnknownSubtitle}
           trackCount={tracks.length}
           artworkPath={card.artworkPath}
         />

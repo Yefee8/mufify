@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { Check, Music } from 'lucide-react-native';
 import { memo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 
 import type { TrackListItem } from '@/db/queries/tracks';
@@ -38,6 +39,7 @@ const TrackRowComponent = function TrackRow({
   isSelected = false,
   isCurrent = false,
 }: TrackRowProps) {
+  const { t } = useTranslation();
   const colors = useThemeColors();
   const handlePress = useCallback(() => onPress(track.id), [onPress, track.id]);
   const handleLongPress = useCallback(() => onLongPress(track.id), [onLongPress, track.id]);
@@ -46,12 +48,16 @@ const TrackRowComponent = function TrackRow({
   // Kotlin side writes and what it hands back. expo-image needs the scheme.
   const artworkUri = track.artworkPath ? `file://${track.artworkPath}` : null;
 
-  const subtitle = [track.artistName, track.albumName].filter(Boolean).join(' — ');
+  const subtitle = [
+    track.artistName ?? t('common.unknownArtist'),
+    track.albumName ?? t('common.unknownAlbum'),
+  ].join(' — ');
 
   return (
     <Pressable
       onPress={handlePress}
       onLongPress={handleLongPress}
+      android_ripple={{ color: colors.etch }}
       accessibilityRole={isSelecting ? 'checkbox' : 'button'}
       accessibilityLabel={track.title}
       accessibilityHint={subtitle || undefined}

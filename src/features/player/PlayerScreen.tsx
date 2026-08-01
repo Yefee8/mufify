@@ -105,7 +105,7 @@ export function PlayerScreen() {
           </Text>
           <View className="flex-row items-center justify-between">
             <Text numberOfLines={1} className="flex-1 font-body text-base text-muted">
-              {track.artistName ?? t('player.unknownArtist')}
+              {track.artistName ?? t('common.unknownArtist')}
             </Text>
             <FavoriteButton trackId={track.id} />
           </View>

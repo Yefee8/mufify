@@ -1,4 +1,4 @@
-import { and, asc, count, eq, like, or, sql } from 'drizzle-orm';
+import { and, asc, count, eq, isNull, like, or, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useEffect } from 'react';
 
@@ -266,9 +266,12 @@ export async function markMissing(trackIds: number[]): Promise<void> {
 /** An artist or album as a card: cover, name, and how much of it there is. */
 export interface CollectionCard {
   id: number;
-  name: string;
+  /** Null only for the reserved unknown artist or album card. */
+  name: string | null;
   /** For an album, its artist. Null for an artist card. */
   subtitle: string | null;
+  isUnknown: boolean;
+  isUnknownSubtitle: boolean;
   trackCount: number;
   artworkPath: string | null;
 }
@@ -286,18 +289,22 @@ export interface CollectionCard {
  * artwork changes between renders looks broken.
  */
 export function useArtistCards(): CollectionCard[] {
+  const collectionId = sql<number>`coalesce(${tracks.artistId}, 0)`;
   const query = db
     .select({
-      id: artists.id,
+      id: collectionId,
       name: artists.name,
       subtitle: sql<string | null>`null`,
+      isUnknown: sql`${tracks.artistId} IS NULL`.mapWith(Boolean),
+      isUnknownSubtitle: sql`false`.mapWith(Boolean),
       trackCount: count(tracks.id),
       artworkPath: sql<string | null>`min(${tracks.artworkPath})`,
     })
-    .from(artists)
-    .innerJoin(tracks, and(eq(tracks.artistId, artists.id), eq(tracks.isMissing, 0)))
-    .groupBy(artists.id)
-    .orderBy(asc(sql`${artists.sortName} COLLATE NOCASE`));
+    .from(tracks)
+    .leftJoin(artists, eq(tracks.artistId, artists.id))
+    .where(eq(tracks.isMissing, 0))
+    .groupBy(collectionId)
+    .orderBy(asc(sql`coalesce(${artists.sortName}, '') COLLATE NOCASE`));
 
   const { data } = useLiveQuery(query);
   return useThrottledData(data);
@@ -305,19 +312,25 @@ export function useArtistCards(): CollectionCard[] {
 
 /** Every album that has at least one present track. */
 export function useAlbumCards(): CollectionCard[] {
+  const collectionId = sql<number>`coalesce(${tracks.albumId}, 0)`;
   const query = db
     .select({
-      id: albums.id,
+      id: collectionId,
       name: albums.name,
       subtitle: artists.name,
+      isUnknown: sql`${tracks.albumId} IS NULL`.mapWith(Boolean),
+      isUnknownSubtitle: sql`${tracks.albumId} IS NOT NULL AND ${albums.artistId} IS NULL`.mapWith(
+        Boolean,
+      ),
       trackCount: count(tracks.id),
       artworkPath: sql<string | null>`min(${tracks.artworkPath})`,
     })
-    .from(albums)
-    .innerJoin(tracks, and(eq(tracks.albumId, albums.id), eq(tracks.isMissing, 0)))
+    .from(tracks)
+    .leftJoin(albums, eq(tracks.albumId, albums.id))
     .leftJoin(artists, eq(artists.id, albums.artistId))
-    .groupBy(albums.id)
-    .orderBy(asc(sql`${albums.name} COLLATE NOCASE`));
+    .where(eq(tracks.isMissing, 0))
+    .groupBy(collectionId)
+    .orderBy(asc(sql`coalesce(${albums.name}, '') COLLATE NOCASE`));
 
   const { data } = useLiveQuery(query);
   return useThrottledData(data);
@@ -331,6 +344,14 @@ export function useAlbumCards(): CollectionCard[] {
  * partially-tagged record still opens with the tracks that know where they go.
  */
 export function useCollectionTracks(kind: 'artist' | 'album', id: number): TrackListItem[] {
+  const collectionPredicate =
+    kind === 'artist'
+      ? id === 0
+        ? isNull(tracks.artistId)
+        : eq(tracks.artistId, id)
+      : id === 0
+        ? isNull(tracks.albumId)
+        : eq(tracks.albumId, id);
   const query = db
     .select(listSelection)
     .from(tracks)
@@ -340,7 +361,7 @@ export function useCollectionTracks(kind: 'artist' | 'album', id: number): Track
     .where(
       and(
         eq(tracks.isMissing, 0),
-        kind === 'artist' ? eq(tracks.artistId, id) : eq(tracks.albumId, id),
+        collectionPredicate,
       ),
     )
     .orderBy(

@@ -34,7 +34,10 @@ export const PlaylistEntryRow = memo(function PlaylistEntryRow({
   const handleRemove = useCallback(() => onRemove(entry.position), [onRemove, entry.position]);
 
   const artworkUri = entry.artworkPath ? `file://${entry.artworkPath}` : null;
-  const subtitle = [entry.artistName, entry.albumName].filter(Boolean).join(' — ');
+  const subtitle = [
+    entry.artistName ?? t('common.unknownArtist'),
+    entry.albumName ?? t('common.unknownAlbum'),
+  ].join(' — ');
 
   return (
     <View className="h-16 flex-row items-center gap-3 pl-6 pr-2">

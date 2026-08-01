@@ -12,6 +12,7 @@ import { CollectionCard } from './CollectionCard';
 const COLUMNS = 2;
 
 export interface CollectionGridProps {
+  kind: 'artist' | 'album';
   cards: readonly Card[];
   icon: LucideIcon;
   onPress: (id: number) => void;
@@ -31,16 +32,16 @@ export interface CollectionGridProps {
  * be wrong on the first rotation. Cards are uniform, so FlashList measures one
  * and reuses it.
  */
-export function CollectionGrid({ cards, icon, onPress, empty }: CollectionGridProps) {
+export function CollectionGrid({ kind, cards, icon, onPress, empty }: CollectionGridProps) {
   const renderItem = useCallback<ListRenderItem<Card>>(
     ({ item }) => (
       // Gutter as padding on the cell rather than a gap on the list: FlashList
       // sizes cells itself, and a gap would be applied outside that measurement.
       <View className="flex-1 p-2">
-        <CollectionCard card={item} icon={icon} onPress={onPress} />
+        <CollectionCard kind={kind} card={item} icon={icon} onPress={onPress} />
       </View>
     ),
-    [icon, onPress],
+    [kind, icon, onPress],
   );
 
   return (
