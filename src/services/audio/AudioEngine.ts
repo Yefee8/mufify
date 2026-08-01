@@ -8,6 +8,7 @@ import {
 } from 'expo-audio';
 
 import { shuffleTracks, type ShuffleAlgorithm } from '@/services/shuffle';
+import { isRewindToRestart } from '@/services/stats/repeatListen';
 
 import { isPlayable, nextIndex, playNextIndex, previousIndex, shiftForInsert } from './queue';
 import {
@@ -98,6 +99,16 @@ class Engine {
   private startedAt: Date | null = null;
   private playedMs = 0;
   private lastTickAt: number | null = null;
+
+  /**
+   * Position at the previous status tick, for spotting a rewind.
+   *
+   * A listen used to end only when the loaded track changed, so a track on
+   * repeat-one recorded one play no matter how many times it went round. This is
+   * what lets the engine notice the track starting over without the track
+   * changing. See `src/services/stats/repeatListen.ts`.
+   */
+  private lastPositionMs = 0;
 
   /**
    * Set when a track has been handed to the player but is not open yet.
@@ -331,6 +342,19 @@ class Engine {
     this.lastTickAt = null;
   }
 
+  /**
+   * Bank the listen so far and open a new one, same track still loaded.
+   *
+   * Distinct from `flushListen` in one respect that matters: `startedAt` is set
+   * to now rather than cleared, because the next listen has already begun. Period
+   * keys come from when a listen *started*, so a loop that crosses midnight puts
+   * its two halves in the right days.
+   */
+  private beginNextCycle(): void {
+    this.flushListen(true);
+    this.startedAt = new Date();
+  }
+
   /** Fold the time since the last tick into the running total. */
   private accumulate(): void {
     if (this.lastTickAt === null) return;
@@ -347,6 +371,7 @@ class Engine {
     this.startedAt = new Date();
 
     this.index = index;
+    this.lastPositionMs = 0;
     this.emitQueue();
     this.emit({ phase: 'loading', track, positionMs: 0, durationMs: track.durationMs });
 
@@ -410,6 +435,8 @@ class Engine {
     // The pending start from `loadIndex`, now that the file may be open.
     if (status.isLoaded) this.startIfReady();
 
+    const positionMs = Math.round(status.currentTime * 1000);
+
     // Clock the interval that just elapsed before anything else changes.
     if (status.playing) {
       this.accumulate();
@@ -422,15 +449,37 @@ class Engine {
     // once, unlike `currentTime >= duration`, which fires on every tick after.
     if (status.didJustFinish) {
       this.flushListen(true);
+      this.lastPositionMs = 0;
       void this.advance(false);
       return;
     }
+
+    /*
+     * The same track started over — looped, or dragged back to the beginning.
+     * Close the listen and open another, so a song on repeat is counted as many
+     * times as it is actually heard.
+     *
+     * Checked before the state is emitted, so `lastPositionMs` is still the
+     * previous tick's value when the comparison happens.
+     */
+    if (
+      isRewindToRestart({
+        previousPositionMs: this.lastPositionMs,
+        positionMs,
+        durationMs: this.state.durationMs,
+        msPlayedInCycle: this.playedMs,
+      })
+    ) {
+      this.beginNextCycle();
+    }
+
+    this.lastPositionMs = positionMs;
 
     if (this.state.phase === 'error') return;
 
     this.emit({
       phase: status.playing ? 'playing' : this.state.phase === 'loading' ? 'loading' : 'paused',
-      positionMs: Math.round(status.currentTime * 1000),
+      positionMs,
       // expo-audio reports -1 or 0 before the file is open; the scanner's
       // figure is the better answer until then.
       durationMs:
