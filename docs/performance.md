@@ -213,3 +213,28 @@ never been seen by anyone. `src/theme/scale.test.ts` now fails on any such class
   overstates JS cost substantially, so the cold-start figure in particular
   should be re-taken against a release build before it is treated as what a user
   experiences.
+
+---
+
+## Regression pass
+
+Run after the three critical sections closed, on the Pixel_7 AVD, with both
+gates green — `lint`, `typecheck`, 292 JS tests across 20 suites, and
+`:audio-tags:testDebugUnitTest` forced with `--rerun-tasks`.
+
+| Area | Result |
+|---|---|
+| Theme, light ↔ dark | Both render correctly on every screen. Dark uses its own lighter indigo and dark-on-accent text, as the tokens require. |
+| Language, en ↔ tr | Every string translated, tabs included. No raw keys, no English left in the Turkish build. |
+| Library, Playlists, Stats, Settings | All four render clean. No JS error or warning in logcat across the sweep. |
+| Scanning | Button, confirmation, skeleton, cancel wiring. An unchanged rescan measures 20 ms and 1 ms for its two pages. |
+| Playback | Play, carousel, mini player, swipe up and down, queue attribution. |
+| Shuffle | Selection persists and `play_events.shuffle_algorithm` records it. |
+| Statistics | Wrapped, tiles and all four ranked lists, with covers and durations. |
+
+**Not exercised end to end:** the playlist create → add tracks → play flow. Its
+pieces were each verified separately earlier — the detail screen, the mosaic,
+the add-tracks sheet, reorder — but the whole chain in one pass was blocked by
+`adb shell input` becoming unreliable on an emulator that had been up for
+around nine hours. It is a gap in the evidence rather than a known fault, and it
+is the first thing to check on a fresh device.
