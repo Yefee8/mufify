@@ -12,9 +12,11 @@ import { shuffleTracks, type ShuffleAlgorithm } from '@/services/shuffle';
 import { isPlayable, nextIndex, playNextIndex, previousIndex, shiftForInsert } from './queue';
 import {
   IDLE_PLAYBACK,
+  LIBRARY_SOURCE,
   type FinishedListen,
   type PlayableTrack,
   type PlaybackState,
+  type QueueSource,
   type RepeatMode,
 } from './types';
 
@@ -62,6 +64,15 @@ class Engine {
    */
   private sourceQueue: PlayableTrack[] = [];
   private shuffled = false;
+
+  /*
+   * Where the current queue came from, and which shuffle reordered it. Both are
+   * attributes of the *queue*, not of a track, so they belong here rather than
+   * on `PlayableTrack` — the same track played from a playlist and from the
+   * library is two different listens with two different attributions.
+   */
+  private source: QueueSource = LIBRARY_SOURCE;
+  private shuffleAlgorithm: ShuffleAlgorithm | null = null;
   private state: PlaybackState = IDLE_PLAYBACK;
   private listeners = new Set<Listener>();
   private configured = false;
@@ -171,11 +182,23 @@ class Engine {
     for (const listener of this.listeners) listener(this.state);
   }
 
-  /** Replace the queue and start at `startIndex`. */
-  async setQueue(tracks: PlayableTrack[], startIndex: number): Promise<void> {
+  /**
+   * Replace the queue and start at `startIndex`.
+   *
+   * `source` defaults to the library because that is where most queues come
+   * from, and defaulting it means a caller that forgets attributes a listen
+   * plausibly rather than crashing. Playlist playback passes its own.
+   */
+  async setQueue(
+    tracks: PlayableTrack[],
+    startIndex: number,
+    source: QueueSource = LIBRARY_SOURCE,
+  ): Promise<void> {
     this.sourceQueue = tracks;
     this.queue = tracks;
     this.shuffled = false;
+    this.shuffleAlgorithm = null;
+    this.source = source;
 
     if (!isPlayable(startIndex, tracks.length)) {
       await this.stop();
@@ -259,6 +282,7 @@ class Engine {
   async setShuffled(shuffled: boolean, algorithm: ShuffleAlgorithm): Promise<void> {
     const current = this.queue[this.index] ?? null;
     this.shuffled = shuffled;
+    this.shuffleAlgorithm = shuffled ? algorithm : null;
 
     if (!shuffled) {
       this.queue = this.sourceQueue;
@@ -292,7 +316,14 @@ class Engine {
     const startedAt = this.startedAt;
 
     if (track !== null && startedAt !== null && this.playedMs > 0) {
-      this.reportListen?.({ track, msPlayed: Math.round(this.playedMs), startedAt, completed });
+      this.reportListen?.({
+        track,
+        msPlayed: Math.round(this.playedMs),
+        startedAt,
+        completed,
+        source: this.source,
+        shuffleAlgorithm: this.shuffleAlgorithm,
+      });
     }
 
     this.startedAt = null;

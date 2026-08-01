@@ -56,6 +56,24 @@ export interface PlaybackState {
 export type RepeatMode = 'off' | 'all' | 'one';
 
 /**
+ * Where a queue came from.
+ *
+ * Carried so a finished listen can be attributed. Without it every play looks
+ * like it came from the library, and `stats_rollups` — which has an entity type
+ * for playlists — never gains a single playlist row. The statistics screen can
+ * then show top tracks and top artists but never top playlists, and nothing
+ * about that failure is visible: the query returns no rows, which looks exactly
+ * like a user who has not played any playlists.
+ */
+export interface QueueSource {
+  type: 'library' | 'album' | 'artist' | 'playlist' | 'queue';
+  /** The playlist, album or artist id. Absent for the library. */
+  id?: number;
+}
+
+export const LIBRARY_SOURCE: QueueSource = { type: 'library' };
+
+/**
  * One finished listen, handed out when a track stops being the current one.
  *
  * `msPlayed` is accumulated wall-clock time spent actually playing, not the
@@ -70,6 +88,16 @@ export interface FinishedListen {
   startedAt: Date;
   /** True when it reached its end rather than being skipped or replaced. */
   completed: boolean;
+  /** Where the queue this played from came from. */
+  source: QueueSource;
+  /**
+   * Which shuffle algorithm was running, or null when playing in order.
+   *
+   * `play_events` has had this column since Phase 1 and nothing ever wrote to
+   * it, so the question it exists to answer — which shuffle produces listens
+   * people finish — was unanswerable.
+   */
+  shuffleAlgorithm: string | null;
 }
 
 export const IDLE_PLAYBACK: PlaybackState = {

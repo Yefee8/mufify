@@ -1,7 +1,7 @@
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { ListMusic } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,10 +19,9 @@ import {
 } from '@/db/queries/playlists';
 import { useMessages } from '@/i18n';
 import { AudioEngine } from '@/services/audio/AudioEngine';
-import type { PlayableTrack } from '@/services/audio/types';
+import type { PlayableTrack, QueueSource } from '@/services/audio/types';
 import { getShuffleAlgorithm } from '@/services/settings';
 
-import { usePlaybackControls } from '../player/hooks/usePlayback';
 import { AddTracksSheet } from './components/AddTracksSheet';
 import { NamePlaylistDialog } from './components/NamePlaylistDialog';
 import { PlaylistDetailHeader } from './components/PlaylistDetailHeader';
@@ -41,14 +40,24 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
 
   const entries = usePlaylistEntries(playlistId);
   const playlist = usePlaylists().find((entry) => entry.id === playlistId);
-  const { playFrom } = usePlaybackControls();
 
   const [renaming, setRenaming] = useState(false);
   const [adding, setAdding] = useState(false);
 
+  /*
+   * Every entry point here declares the playlist as the queue's source, which is
+   * what puts rows in `stats_rollups` under entity type 'playlist'. Without it
+   * the top-playlists list is permanently empty and looks like a user who never
+   * plays playlists.
+   */
+  const source = useMemo<QueueSource>(
+    () => ({ type: 'playlist', id: playlistId }),
+    [playlistId],
+  );
+
   const playAll = useCallback(() => {
-    if (entries.length > 0) playFrom(entries.map(toPlayableEntry), 0);
-  }, [entries, playFrom]);
+    if (entries.length > 0) void AudioEngine.setQueue(entries.map(toPlayableEntry), 0, source);
+  }, [entries, source]);
 
   /*
    * Shuffle uses whichever algorithm Settings has selected, read at press time.
@@ -59,16 +68,16 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
    */
   const shuffleAll = useCallback(async () => {
     if (entries.length === 0) return;
-    await AudioEngine.setQueue(entries.map(toPlayableEntry), 0);
+    await AudioEngine.setQueue(entries.map(toPlayableEntry), 0, source);
     await AudioEngine.setShuffled(true, getShuffleAlgorithm());
-  }, [entries]);
+  }, [entries, source]);
 
   const playAt = useCallback(
     (position: number) => {
       const index = entries.findIndex((entry) => entry.position === position);
-      if (index !== -1) playFrom(entries.map(toPlayableEntry), index);
+      if (index !== -1) void AudioEngine.setQueue(entries.map(toPlayableEntry), index, source);
     },
-    [entries, playFrom],
+    [entries, source],
   );
 
   const remove = useCallback(
