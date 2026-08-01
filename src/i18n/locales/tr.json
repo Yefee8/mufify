@@ -8,14 +8,11 @@
   "library": {
     "title": "Kitaplık",
     "empty": [
-      "Henüz müzik yok. Taranacak bir klasör seç.",
-      "Burası şimdilik boş. Bir klasör göster, gerisi kendiliğinden gelir.",
-      "Kitaplığın tek bir klasör uzağında.",
-      "Müziğin nerede duruyorsa, oraya bak diyelim."
+      "Henüz müzik yok. Cihazı tara ya da bir klasör göster.",
+      "Burası şimdilik boş. Bir tarama yeter.",
+      "Kitaplığın tek bir tarama uzağında.",
+      "Şimdilik boş. Müziğin nerede olduğunu söyle ya da bulmasına izin ver."
     ],
-    "emptyAction": "Müzik ekle",
-    "addMusic": "Müzik ekle",
-    "rescan": "Yeniden tara",
     "trackCount_one": "{{count}} parça",
     "trackCount_other": "{{count}} parça",
     "scanning": {
@@ -33,7 +30,19 @@
     "search": "Ara",
     "searchPlaceholder": "Parça, sanatçı, albüm",
     "clearSearch": "Aramayı temizle",
-    "noResults": "“{{term}}” ile eşleşen bir şey yok."
+    "noResults": "“{{term}}” ile eşleşen bir şey yok.",
+    "scan": "Tara",
+    "addFolder": "Klasör ekle",
+    "scanConfirm": {
+      "title": "Müzik taransın mı?",
+      "body": "Mufify, Android'in bu cihazda indekslediği tüm ses dosyalarını okuyacak. Büyük bir kütüphanede bu biraz sürer. İstediğin an durdurabilirsin, o ana kadar bulunanlar kalır."
+    },
+    "view": {
+      "label": "Kitaplık görünümü",
+      "tracks": "Parçalar",
+      "artists": "Sanatçılar",
+      "albums": "Albümler"
+    }
   },
   "playlists": {
     "title": "Listeler",
@@ -86,7 +95,18 @@
     "topTracks": "En çok çalınan parçalar",
     "topArtists": "En çok dinlenen sanatçılar",
     "playCount_one": "{{formatted}} çalma",
-    "playCount_other": "{{formatted}} çalma"
+    "playCount_other": "{{formatted}} çalma",
+    "topAlbums": "En çok dinlenen albümler",
+    "topPlaylists": "En çok dinlenen listeler",
+    "wrapped": {
+      "week": "Bu hafta",
+      "month": "Bu ay",
+      "year": "Bu yıl",
+      "across_one": "{{tracks}} parçada {{plays}} çalma",
+      "across_other": "{{tracks}} parçada {{plays}} çalma",
+      "mostPlayed": "En çok çalınan",
+      "mostHeard": "En çok dinlenen"
+    }
   },
   "settings": {
     "title": "Ayarlar",
@@ -95,20 +115,24 @@
       "theme": "Tema",
       "system": "Sistem",
       "light": "Açık",
-      "dark": "Koyu"
+      "dark": "Koyu",
+      "description": "Uygulama koyu tema için tasarlandı. Sistem, telefonunu takip eder."
     },
     "language": {
       "title": "Dil",
       "label": "Uygulama dili",
       "system": "Sistem",
       "en": "English",
-      "tr": "Türkçe"
+      "tr": "Türkçe",
+      "description": "Türkçe ve İngilizce. Sistem, telefonunu takip eder."
     },
     "folders": {
       "title": "Müzik klasörleri",
       "empty": "Eklenmiş klasör yok. Mufify yine de Android’in indekslediği her şeyi tarar.",
       "remove": "{{folder}} klasörünü kaldır",
-      "removeNote": "Klasörü kaldırmak yeniden taranmasını durdurur. Parçaların kalır."
+      "removeNote": "Klasörü kaldırmak yeniden taranmasını durdurur. Parçaların kalır.",
+      "ignoreShort": "Kısa dosyaları yok say",
+      "ignoreShortHint": "30 saniyeden kısa olanları atlar. Varsayılan olarak kapalı: ara parçalar ve geçişler de birer parçadır."
     },
     "shuffle": {
       "title": "Karıştırma",
@@ -118,11 +142,16 @@
       "discovery": "Keşif",
       "favorites": "Favoriler",
       "album": "Albüme göre",
-      "pureHint": "Gerçekten rastgele. Kümelenir, çünkü rastgelelik böyledir.",
-      "balancedHint": "Her sanatçıyı kuyruğa yayar.",
-      "discoveryHint": "En az çaldığın parçaları öne alır.",
-      "favoritesHint": "En çok çaldıklarını ve favorilediklerini öne alır.",
-      "albumHint": "Albümleri karıştırır, albümün içini değil. Her biri sırasıyla çalar."
+      "pureHint": "Gerçekten rastgele. Aynı sanatçıyı arka arkaya çalabilir, çünkü rastgelelik böyledir.",
+      "balancedHint": "Her sanatçıyı kuyruğa yayar; aynı sanatçıdan iki parça art arda gelmez.",
+      "discoveryHint": "En az çaldıklarını öne alır. Hiç çalınmamış bir parça, bir kez dinlenmişin iki katı sıklıkta gelir.",
+      "favoritesHint": "Keşif’in tersi: en çok çaldıklarını öne alır, favorilediklerini daha da yukarı taşır.",
+      "albumHint": "Parçaları değil albümleri karıştırır. Her albüm kendi sırasıyla çalar — klasik ve sıralı dinlenen her şey için."
+    },
+    "playback": {
+      "title": "Çalma",
+      "haptics": "Titreşim",
+      "hapticsHint": "Çalma, duraklatma, sıraya ekleme ve sıralama değişiminde kısa bir titreşim."
     }
   },
   "player": {
@@ -192,5 +221,15 @@
       "channels": "Kanal",
       "fileSize": "Dosya boyutu"
     }
+  },
+  "toast": {
+    "queued_one": "Sıraya eklendi",
+    "queued_other": "{{count}} parça sıraya eklendi",
+    "playingNext_one": "Sıradaki olarak eklendi",
+    "playingNext_other": "{{count}} parça sıradaki olarak eklendi",
+    "favorited": "Favorilere eklendi",
+    "unfavorited": "Favorilerden çıkarıldı",
+    "addedToPlaylist_one": "Listeye eklendi",
+    "addedToPlaylist_other": "{{count}} parça listeye eklendi"
   }
 }

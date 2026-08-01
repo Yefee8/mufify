@@ -62,6 +62,16 @@ export interface ScannerPorts {
   listUnenrichedUris(limit: number): Promise<string[]>;
 
   /**
+   * How many rows stage two still has to open.
+   *
+   * Asked once, at the start of the stage, so the progress bar has a
+   * denominator. Without it stage two reported `total` as however many it had
+   * already done, which makes the ratio permanently 1 and the bar permanently
+   * full — a progress bar that is always finished is worse than none.
+   */
+  countUnenriched(): Promise<number>;
+
+  /**
    * Mark every present track the sweep did not see as missing.
    *
    * Called only after a *complete* enumeration. A cancelled or failed sweep
@@ -153,9 +163,17 @@ export async function enrichLibrary(
   controller: ScanController = NEVER_CANCELLED,
 ): Promise<ScanProgress> {
   let progress: ScanProgress = { phase: 'enriching', total: 0, processed: 0 };
-  onProgress(progress);
 
   try {
+    /*
+     * Counted before the first report, not after. Rows only leave the queue as
+     * this stage writes them, so the denominator is fixed from here and the bar
+     * fills honestly — and emitting once beforehand would have put a single
+     * frame of "0 / 0" on screen, which is the bug this exists to fix.
+     */
+    progress = { ...progress, total: await ports.countUnenriched() };
+    onProgress(progress);
+
     let processed = 0;
 
     for (;;) {
@@ -178,13 +196,16 @@ export async function enrichLibrary(
       await ports.saveEnriched(rows);
 
       processed += uris.length;
-      progress = { ...progress, processed, total: processed };
+      // `total` can be beaten by reality: a file that would not open is still
+      // counted as processed, and a scan resumed after a crash starts partway.
+      // Never report more done than there is to do.
+      progress = { ...progress, processed, total: Math.max(progress.total, processed) };
       onProgress(progress);
 
       await ports.yieldToUi();
     }
 
-    return finish({ ...progress, processed, total: processed }, 'done', onProgress);
+    return finish({ ...progress, processed }, 'done', onProgress);
   } catch (error) {
     return fail(progress, error, onProgress);
   }

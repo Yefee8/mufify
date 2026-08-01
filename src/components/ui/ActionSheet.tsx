@@ -58,7 +58,7 @@ export function ActionSheet({
         {/* Absorbs taps so pressing the sheet does not dismiss it. */}
         <Pressable
           onPress={absorb}
-          className="max-h-96 gap-1 rounded-md border border-subtle bg-surface-elevated p-5"
+          className="max-h-full gap-1 rounded-md border border-subtle bg-surface-elevated p-5"
         >
           <View className="gap-1 pb-3">
             <Text numberOfLines={1} className="font-body-semibold text-base text-primary">

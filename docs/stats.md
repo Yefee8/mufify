@@ -60,10 +60,66 @@ Non-positive duration or `ms_played` is `partial`.
 Settled in `docs/adr/005-play-skip-partial.md`. Not reopening it: every rollup
 will depend on it.
 
-### Not yet implemented
+---
 
-Seeking backwards must not create a second event. That is a recorder concern
-and lands with playback in Phase 3.
+## Repeated listens
+
+`src/services/stats/repeatListen.ts`, decided in
+`docs/adr/011-repeat-listen-detection.md`. A layer **on top of** the counting
+rule above, which is unchanged.
+
+The rule above answers whether *a* listen counted. It says nothing about where
+one listen ends and the next begins, because until playback existed that was
+never in doubt: the engine closed a listen when the loaded track changed.
+
+Repeat-one breaks that completely. A song looped all afternoon never changes the
+loaded track, so it produced exactly one `play_event`. So did dragging the
+scrubber back and listening again. The counts were not wrong about what
+qualified — they were wrong about how many times it happened, which for anyone
+who loops their favourites is the more visible error.
+
+### The rule
+
+A listen ends and a new one begins when **both** hold, checked on each status
+tick against the previous one:
+
+1. The current listen has already earned a play — at least `min(30s, duration ×
+   0.5)` of playback.
+2. The position jumped **backwards to at or below 25% of the track**.
+
+A loop to zero and a manual drag to the start both satisfy the second. A nudge
+back over the last chorus does not.
+
+### Why each condition
+
+**The earned-a-play requirement** is what stops seeking from shredding history.
+Without it, scrubbing around inside the first thirty seconds would split one
+listen into a dozen fragments, each too short to count as anything — turning a
+real play into a pile of skips. With it, a rewind can only ever *add* a listen.
+
+**25%** has to separate two things that look identical from outside: "start it
+again" and "go back a bit". The only available signal is how far back the
+position went. Tighter would count a scrub over the final chorus as a replay;
+looser would miss a genuine restart on a nearly-finished track. A quarter means
+at least three quarters of the progress was given up, which is a decision rather
+than an adjustment.
+
+### What the boundary deliberately does not check
+
+That the *new* listen also passes the play threshold. The boundary fires on the
+rewind; the new listen is then classified by the ordinary rule when it ends.
+
+This falls out better than the alternative. Rewind and then leave, and you get a
+`play` for what you heard plus a `skip` for what you abandoned — both true —
+rather than the abandoned fragment silently merging into the completed play.
+
+`startedAt` resets to the moment the new listen begins. Period keys come from
+when a listen started, so a loop running across midnight puts its halves in the
+right days.
+
+The thresholds are pinned by `repeatListen.test.ts`. This decides whether a
+listen is counted once or twice, so a quiet change to either condition silently
+rewrites the user's history.
 
 ---
 

@@ -1,16 +1,13 @@
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
-import { ListEnd } from 'lucide-react-native';
 import type { ReactElement } from 'react';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshControl } from 'react-native';
 
-import { SwipeableRow } from '@/components/ui/SwipeableRow';
 import type { TrackListItem } from '@/db/queries/tracks';
 import { useThemeColors } from '@/theme/useTheme';
 
-import type { Selection } from '../hooks/useSelection';
-import { TrackRow } from './TrackRow';
+import { LibraryRow } from './LibraryRow';
 
 /**
  * Every row is exactly this tall, from `h-16` on `TrackRow`.
@@ -38,7 +35,16 @@ const DRAW_DISTANCE = 1_200;
 export interface TrackListProps {
   tracks: TrackListItem[];
   locale: string;
-  selection: Selection;
+  /** True while the list is in selection mode. */
+  isSelecting: boolean;
+  /**
+   * The selected ids as a Set.
+   *
+   * A Set rather than the whole selection object, because `renderItem` closes
+   * over whatever it is given: taking the object made every row depend on
+   * something that changed on every unrelated parent render.
+   */
+  selectedIds: ReadonlySet<number>;
   /** Plays the track, or toggles it when selecting. */
   onPress: (id: number) => void;
   /** Opens the action sheet, or starts selection. */
@@ -63,7 +69,8 @@ export interface TrackListProps {
 export function TrackList({
   tracks,
   locale,
-  selection,
+  isSelecting,
+  selectedIds,
   onPress,
   onLongPress,
   onSwipeToQueue,
@@ -75,38 +82,34 @@ export function TrackList({
   const { t } = useTranslation();
   const colors = useThemeColors();
 
+  const swipeLabel = t('selection.addToQueue');
+
   const renderItem = useCallback<ListRenderItem<TrackListItem>>(
     ({ item }) => {
-      const row = (
-        <TrackRow
+      return (
+        <LibraryRow
           track={item}
           locale={locale}
           onPress={onPress}
           onLongPress={onLongPress}
-          isSelecting={selection.isActive}
-          isSelected={selection.has(item.id)}
+          onSwipeToQueue={onSwipeToQueue}
+          isSelecting={isSelecting}
+          isSelected={selectedIds.has(item.id)}
           isCurrent={item.id === currentTrackId}
+          swipeLabel={swipeLabel}
         />
       );
-
-      /*
-       * No swipe while selecting. Two horizontal gestures on one row means the
-       * user aiming for a checkbox occasionally queues a track instead, and
-       * during a multi-select that is both wrong and hard to undo.
-       */
-      if (selection.isActive) return row;
-
-      return (
-        <SwipeableRow
-          onSwipe={() => onSwipeToQueue(item.id)}
-          icon={ListEnd}
-          accessibilityLabel={t('selection.addToQueue')}
-        >
-          {row}
-        </SwipeableRow>
-      );
     },
-    [locale, onPress, onLongPress, onSwipeToQueue, selection, currentTrackId, t],
+    [
+      locale,
+      onPress,
+      onLongPress,
+      onSwipeToQueue,
+      isSelecting,
+      selectedIds,
+      currentTrackId,
+      swipeLabel,
+    ],
   );
 
   return (

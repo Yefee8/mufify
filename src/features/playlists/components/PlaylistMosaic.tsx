@@ -28,7 +28,13 @@ export interface PlaylistMosaicProps {
  */
 export function PlaylistMosaic({ covers, size = 'sm' }: PlaylistMosaicProps) {
   const colors = useThemeColors();
-  const box = size === 'lg' ? 'h-32 w-32' : 'h-12 w-12';
+  /*
+   * A fraction rather than a fixed size for the large variant. The obvious
+   * 128px square is not on the spacing scale, so it compiled to nothing and the
+   * mosaic drew at zero by zero — see `src/theme/scale.test.ts`, which now fails
+   * on any such class.
+   */
+  const box = size === 'lg' ? 'aspect-square w-1/3' : 'h-12 w-12';
 
   if (covers.length === 0) {
     return (

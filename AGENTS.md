@@ -21,7 +21,8 @@ call, it is wrong. This is the app's core promise and the reason it exists.
 
 ## Setup
 
-Requirements: Node 22+, JDK 17 or 21, Android Studio with SDK Platform 35+, macOS or Linux.
+Requirements: Node 22+, JDK 17 or 21, Android Studio with SDK Platform 36+, macOS or Linux.
+(Expo SDK 57 compiles against 36; this said 35 until `app.sh` checked it and was wrong.)
 
 ### Environment (macOS)
 
@@ -108,8 +109,10 @@ These are not preferences. Violating them is a bug.
    typed query functions.
 4. **No business logic in component bodies.** Logic goes in `src/services/` (pure, testable) or
    `src/features/*/hooks/` (stateful orchestration).
-5. **Settings live in MMKV. Data lives in SQLite.** Don't mix them. Zustand holds transient
-   player/UI state only, never anything that must survive a restart.
+5. **Settings live in MMKV. Data lives in SQLite.** Don't mix them. Transient player/UI state
+   lives in the `AudioEngine` singleton and the other module-level stores, read from React
+   through `useSyncExternalStore` — never anything that must survive a restart. There is no
+   global state library; don't add one.
 6. **Layers point downward.** `components → hooks → services → db`. Never the reverse. A service
    must not import a component.
 

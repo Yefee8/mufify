@@ -149,8 +149,8 @@ function PickRow({ track, isPicked, onToggle }: PickRowProps) {
       <View
         className={
           isPicked
-            ? 'h-7 w-7 items-center justify-center rounded-xs bg-accent'
-            : 'h-7 w-7 items-center justify-center rounded-xs border border-subtle'
+            ? 'h-8 w-8 items-center justify-center rounded-xs bg-accent'
+            : 'h-8 w-8 items-center justify-center rounded-xs border border-subtle'
         }
       >
         {isPicked ? <Check color={colors.onSignal} size={16} strokeWidth={3} /> : null}

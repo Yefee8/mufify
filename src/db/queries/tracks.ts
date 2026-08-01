@@ -131,10 +131,14 @@ export function useTracks(search = ''): { tracks: TrackListItem[]; isLoading: bo
 
   const { data, updatedAt } = useLiveQuery(query, [term]);
 
-  // Temporary instrumentation for the tab-switch investigation.
-  perf.count('useTracks.render');
+  /*
+   * Time to first rows, which is the number the cold-start investigation turned
+   * on. The per-render counter that used to sit here was removed: on the Mi 9T
+   * it fired often enough that MIUI's logcat rate limiter discarded this
+   * measurement, and a probe that hides the thing it is measuring is worse than
+   * no probe.
+   */
   useEffect(() => {
-    perf.count('useTracks.subscribe');
     perf.mark('useTracks.firstRows');
   }, [term]);
   useEffect(() => {
@@ -257,4 +261,96 @@ export async function markMissing(trackIds: number[]): Promise<void> {
     .update(tracks)
     .set({ isMissing: 1 })
     .where(sql`${tracks.id} IN ${trackIds}`);
+}
+
+/** An artist or album as a card: cover, name, and how much of it there is. */
+export interface CollectionCard {
+  id: number;
+  name: string;
+  /** For an album, its artist. Null for an artist card. */
+  subtitle: string | null;
+  trackCount: number;
+  artworkPath: string | null;
+}
+
+/**
+ * Every artist that has at least one present track.
+ *
+ * `innerJoin` rather than a left join from `artists`: the table accumulates a
+ * row the first time a name is seen and nothing ever removes one, so an artist
+ * whose only album has been deleted would otherwise sit in the list showing
+ * zero tracks. What is on the device is what the library should show.
+ *
+ * The cover is `min(artwork_path)`, which is an arbitrary-but-stable choice of
+ * one of the artist's covers. Stable matters more than which: a card whose
+ * artwork changes between renders looks broken.
+ */
+export function useArtistCards(): CollectionCard[] {
+  const query = db
+    .select({
+      id: artists.id,
+      name: artists.name,
+      subtitle: sql<string | null>`null`,
+      trackCount: count(tracks.id),
+      artworkPath: sql<string | null>`min(${tracks.artworkPath})`,
+    })
+    .from(artists)
+    .innerJoin(tracks, and(eq(tracks.artistId, artists.id), eq(tracks.isMissing, 0)))
+    .groupBy(artists.id)
+    .orderBy(asc(sql`${artists.sortName} COLLATE NOCASE`));
+
+  const { data } = useLiveQuery(query);
+  return useThrottledData(data);
+}
+
+/** Every album that has at least one present track. */
+export function useAlbumCards(): CollectionCard[] {
+  const query = db
+    .select({
+      id: albums.id,
+      name: albums.name,
+      subtitle: artists.name,
+      trackCount: count(tracks.id),
+      artworkPath: sql<string | null>`min(${tracks.artworkPath})`,
+    })
+    .from(albums)
+    .innerJoin(tracks, and(eq(tracks.albumId, albums.id), eq(tracks.isMissing, 0)))
+    .leftJoin(artists, eq(artists.id, albums.artistId))
+    .groupBy(albums.id)
+    .orderBy(asc(sql`${albums.name} COLLATE NOCASE`));
+
+  const { data } = useLiveQuery(query);
+  return useThrottledData(data);
+}
+
+/**
+ * The tracks of one artist or album, ready to play.
+ *
+ * Ordered by disc and track number where they exist, falling back to title —
+ * an album played in alphabetical order is not the album. Nulls sort last so a
+ * partially-tagged record still opens with the tracks that know where they go.
+ */
+export function useCollectionTracks(kind: 'artist' | 'album', id: number): TrackListItem[] {
+  const query = db
+    .select(listSelection)
+    .from(tracks)
+    .leftJoin(artists, eq(tracks.artistId, artists.id))
+    .leftJoin(albums, eq(tracks.albumId, albums.id))
+    .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
+    .where(
+      and(
+        eq(tracks.isMissing, 0),
+        kind === 'artist' ? eq(tracks.artistId, id) : eq(tracks.albumId, id),
+      ),
+    )
+    .orderBy(
+      asc(sql`${tracks.discNo} IS NULL`),
+      asc(tracks.discNo),
+      asc(sql`${tracks.trackNo} IS NULL`),
+      asc(tracks.trackNo),
+      asc(sql`${tracks.title} COLLATE NOCASE`),
+    );
+
+  const { data } = useLiveQuery(query, [kind, id]);
+  return useThrottledData(data);
 }

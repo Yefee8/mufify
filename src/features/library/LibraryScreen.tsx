@@ -1,32 +1,30 @@
-import { Music, SearchX } from 'lucide-react-native';
+import { Disc3, User } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, View } from 'react-native';
 
-import { EmptyState } from '@/components/ui/EmptyState';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Screen } from '@/components/ui/Screen';
-import type { TrackListItem } from '@/db/queries/tracks';
-import { useMessages } from '@/i18n';
+import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
+import { SkeletonCards } from '@/components/ui/Skeleton';
+import { useAlbumCards, useArtistCards } from '@/db/queries/tracks';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 import { isPermissionError } from '@/services/scanner/permission';
 
-import { AddToPlaylistSheet } from '../playlists/components/AddToPlaylistSheet';
-import { useCurrentTrack, usePlaybackControls } from '../player/hooks/usePlayback';
-import { toPlayable } from '../player/toPlayable';
+import { CollectionGrid } from './components/CollectionGrid';
 import { LibraryHeader } from './components/LibraryHeader';
 import { ScanBanner } from './components/ScanBanner';
 import { SearchField } from './components/SearchField';
-import { SelectionBar } from './components/SelectionBar';
-import { TrackActionSheet, type TrackAction } from './components/TrackActionSheet';
-import { TrackInfoSheet } from './components/TrackInfoSheet';
-import { TrackList } from './components/TrackList';
-import { TrackListSkeleton } from './components/TrackListSkeleton';
+import { LibraryTracks } from './LibraryTracks';
+import { useCollectionRouting } from './hooks/useCollectionRouting';
 import { useDebounced } from './hooks/useDebounced';
 import { useTracks } from './hooks/useLibrary';
 import { useScan } from './hooks/useScan';
-import { useSelection } from './hooks/useSelection';
-import { useTrackActions } from './hooks/useTrackActions';
+
+/** Which face of the library is on screen. */
+const VIEWS = ['tracks', 'artists', 'albums'] as const;
+type LibraryView = (typeof VIEWS)[number];
 
 /** Opens this app's page in system settings, where the permission switch is. */
 function openAppSettings(): void {
@@ -34,147 +32,80 @@ function openAppSettings(): void {
 }
 
 /**
- * The library: every present track, with the scan that fills it.
+ * The library, in three views: tracks, artists, albums.
  *
- * This screen decides *what* happens to a track — play it, queue it, select it,
- * describe it. `TrackList` decides how a row is drawn, and the sheets decide how
- * a choice is offered. The four states — loading, scanning, failed, empty — are
- * all here, per the States rule, and the scan banner sits above the list rather
- * than replacing it so the user can keep scrolling.
+ * This screen owns the *library* — scanning, searching, which view is showing —
+ * and delegates each view to a component that owns the things in it. That split
+ * happened because the tracks view alone had reached the 300-line limit; adding
+ * two more views to the same file was not an option, and the boundary it forced
+ * is the right one anyway.
+ *
+ * Genres are absent. The tech stack doc lists them alongside artists and albums,
+ * and MediaStore's genre tagging is unreliable enough on real libraries that a
+ * genre shelf is mostly one bucket called "Unknown" — see
+ * `docs/adr/012-artist-and-album-shelves.md`.
  */
 export function LibraryScreen() {
   useLifecycleTrace('LibraryScreen');
-  const { t, i18n } = useTranslation();
-  const messages = useMessages('library.empty');
+  const { t } = useTranslation();
 
+  const [view, setView] = useState<LibraryView>('tracks');
   const [search, setSearch] = useState('');
   // The field stays instant; only the query waits.
   const { tracks, isLoading } = useTracks(useDebounced(search));
-  /*
-   * The launch sweep waits for the list to be on screen. Firing it on mount put
-   * a MediaStore enumeration on the JS thread alongside the first library query
-   * — see `useScan` and docs/performance.md.
-   */
-  const { progress, isScanning, isRefreshing, scanLibrary, addFolder, rescan, cancel } =
-    useScan(!isLoading);
+  const { progress, isScanning, isRefreshing, scanLibrary, addFolder, rescan, cancel } = useScan();
 
-  const { playFrom } = usePlaybackControls();
-  const currentTrack = useCurrentTrack();
-  const selection = useSelection();
-  const { addToQueue, playNext, toggleFavorite } = useTrackActions();
+  const artists = useArtistCards();
+  const albums = useAlbumCards();
+  const { openArtist, openAlbum } = useCollectionRouting();
 
-  /** Which track's action sheet is open. */
-  const [actionTarget, setActionTarget] = useState<TrackListItem | null>(null);
-  /** Which track's info sheet is open. */
-  const [infoTarget, setInfoTarget] = useState<TrackListItem | null>(null);
-  /** Tracks queued for "add to playlist". Empty means the sheet is closed. */
-  const [playlistTargets, setPlaylistTargets] = useState<readonly number[]>([]);
+  /** True while the scan confirmation is on screen. */
+  const [confirmingScan, setConfirmingScan] = useState(false);
+  const askToScan = useCallback(() => setConfirmingScan(true), []);
 
   const hasFailed = !isScanning && progress.phase === 'failed';
   const permissionFailed = isPermissionError(progress.error);
   const permissionBlocked = progress.error === 'permission-blocked';
 
-  const find = useCallback(
-    (id: number) => tracks.find((track) => track.id === id) ?? null,
-    [tracks],
-  );
+  const viewOptions: SegmentedControlOption<LibraryView>[] = VIEWS.map((value) => ({
+    value,
+    label: t(`library.view.${value}`),
+  }));
 
   /*
-   * Playing a track makes the list it came from the queue, which is what a user
-   * means by tapping a row — not "play this one thing and stop". While
-   * selecting, the same tap ticks a box instead.
+   * Skeleton while the query is in flight *and* while a scan has not yet
+   * produced a first row.
+   *
+   * The second case is the fix for a contradiction: with an empty library and a
+   * scan running, the list showed its empty state — "No music found yet. Scan
+   * the device" with a Scan button — directly underneath a banner reporting a
+   * scan in progress. Two parts of one screen disagreeing about whether anything
+   * was happening.
    */
-  const onPress = useCallback(
-    (id: number) => {
-      if (selection.isActive) {
-        selection.toggle(id);
-        return;
-      }
-      const index = tracks.findIndex((track) => track.id === id);
-      if (index === -1) return;
-      playFrom(tracks.map(toPlayable), index);
-    },
-    [tracks, playFrom, selection],
-  );
-
-  const onLongPress = useCallback(
-    (id: number) => {
-      // Long-pressing during a selection extends it rather than opening a sheet
-      // about one row — the user is plainly in the middle of picking several.
-      if (selection.isActive) {
-        selection.toggle(id);
-        return;
-      }
-      setActionTarget(find(id));
-    },
-    [selection, find],
-  );
-
-  const onSwipeToQueue = useCallback(
-    (id: number) => {
-      const track = find(id);
-      if (track) addToQueue([track]);
-    },
-    [find, addToQueue],
-  );
-
-  const onAction = useCallback(
-    (action: TrackAction) => {
-      const track = actionTarget;
-      if (!track) return;
-
-      switch (action) {
-        case 'playNext':
-          playNext([track]);
-          return;
-        case 'addToQueue':
-          addToQueue([track]);
-          return;
-        case 'addToPlaylist':
-          setPlaylistTargets([track.id]);
-          return;
-        case 'favorite':
-          toggleFavorite(track);
-          return;
-        case 'select':
-          selection.begin(track.id);
-          return;
-        case 'info':
-          setInfoTarget(track);
-          return;
-      }
-    },
-    [actionTarget, playNext, addToQueue, toggleFavorite, selection],
-  );
-
-  const onSelectionQueue = useCallback(() => {
-    // Resolved in selection order, so the queue takes them as they were picked.
-    const picked = selection.ids
-      .map(find)
-      .filter((track): track is TrackListItem => track !== null);
-    addToQueue(picked);
-    selection.clear();
-  }, [addToQueue, selection, find]);
-
-  const onSelectionPlaylist = useCallback(() => {
-    setPlaylistTargets(selection.ids);
-  }, [selection.ids]);
-
-  const closePlaylistSheet = useCallback(() => {
-    setPlaylistTargets([]);
-    selection.clear();
-  }, [selection]);
+  const waiting = isLoading || (isScanning && tracks.length === 0);
 
   return (
     <Screen title={t('library.title')}>
       <LibraryHeader
         count={tracks.length}
         isScanning={isScanning}
-        onAddMusic={addFolder}
-        onStartSelecting={selection.activate}
+        onScan={askToScan}
+        onAddFolder={addFolder}
+        onStartSelecting={() => setView('tracks')}
       />
 
-      <SearchField value={search} onChange={setSearch} />
+      <View className="px-6 pb-4">
+        <SegmentedControl
+          options={viewOptions}
+          value={view}
+          onChange={setView}
+          accessibilityLabel={t('library.view.label')}
+        />
+      </View>
+
+      {/* Search filters tracks only. An artist grid of two cards does not need
+          a search box, and hiding it makes that obvious rather than puzzling. */}
+      {view === 'tracks' ? <SearchField value={search} onChange={setSearch} /> : null}
 
       {isScanning ? <ScanBanner progress={progress} onCancel={cancel} /> : null}
 
@@ -201,62 +132,53 @@ export function LibraryScreen() {
       ) : null}
 
       {/*
-        The list owns whatever height is left, explicitly. Without a bounded flex
-        parent a virtualized list keeps the height it first measured, so mounting
-        the scan banner above it shrank the space without shrinking the list —
-        which is where the blank band above the first row during "Reading tags…"
-        came from.
+        Every view owns whatever height is left, explicitly. Without a bounded
+        flex parent a virtualized list keeps the height it first measured, so
+        mounting the scan banner above it shrinks the space without shrinking the
+        list — which is where the blank band above the first row came from.
       */}
-      <View className="flex-1">
-        {isLoading ? (
-          <TrackListSkeleton />
-        ) : (
-          <TrackList
-            tracks={tracks}
-            locale={i18n.language}
-            selection={selection}
-            onPress={onPress}
-            onLongPress={onLongPress}
-            onSwipeToQueue={onSwipeToQueue}
-            currentTrackId={currentTrack?.id ?? null}
-            isRefreshing={isRefreshing}
-            onRefresh={rescan}
-            empty={
-              hasFailed ? null : search.trim() ? (
-                /* No hits is not an empty library — offering "Add music" here
-                   would answer a question the user did not ask. */
-                <EmptyState icon={SearchX} messages={[t('library.noResults', { term: search })]} />
-              ) : (
-                <EmptyState
-                  icon={Music}
-                  messages={messages}
-                  actionLabel={t('library.emptyAction')}
-                  onAction={addFolder}
-                />
-              )
-            }
-          />
-        )}
-      </View>
-
-      {selection.isActive ? (
-        <SelectionBar
-          count={selection.ids.length}
-          total={tracks.length}
-          onSelectAll={() => selection.toggleAll(tracks.map((track) => track.id))}
-          onAddToQueue={onSelectionQueue}
-          onAddToPlaylist={onSelectionPlaylist}
-          onCancel={selection.clear}
+      {view === 'tracks' ? (
+        <LibraryTracks
+          tracks={tracks}
+          isLoading={waiting}
+          isRefreshing={isRefreshing}
+          onRefresh={rescan}
+          search={search}
+          suppressEmpty={hasFailed}
+          onScan={askToScan}
         />
-      ) : null}
+      ) : (
+        <View className="flex-1">
+          {waiting ? (
+            <SkeletonCards />
+          ) : (
+            <CollectionGrid
+              cards={view === 'artists' ? artists : albums}
+              icon={view === 'artists' ? User : Disc3}
+              onPress={view === 'artists' ? openArtist : openAlbum}
+              empty={null}
+            />
+          )}
+        </View>
+      )}
 
-      <TrackActionSheet
-        track={actionTarget}
-        onSelect={onAction}
-        onClose={() => setActionTarget(null)}
+      {/*
+        Scanning reads every audio file on the device, so it says so before it
+        starts. There is no progress estimate to offer — MediaStore does not
+        report a count until it has been asked — so the copy promises a duration
+        proportional to the library rather than a number it cannot know.
+      */}
+      <ConfirmDialog
+        visible={confirmingScan}
+        title={t('library.scanConfirm.title')}
+        body={t('library.scanConfirm.body')}
+        confirmLabel={t('library.scan')}
+        onConfirm={() => {
+          setConfirmingScan(false);
+          void scanLibrary();
+        }}
+        onCancel={() => setConfirmingScan(false)}
       />
-      <TrackInfoSheet track={infoTarget} onClose={() => setInfoTarget(null)} />
-      <AddToPlaylistSheet trackIds={playlistTargets} onClose={closePlaylistSheet} />
     </Screen>
   );
 }

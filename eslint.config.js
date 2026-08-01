@@ -27,7 +27,10 @@ const RESTRICTED_IMPORTS = [LAYER_DIRECTION, DATABASE_BOUNDARY, AUDIO_BOUNDARY];
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['dist/*', 'android/*', 'ios/*', '.expo/*'],
+    // `.claude/worktrees/*` holds full checkouts of other branches. Linting
+    // them reports the root-level src/ exemptions as violations, because the
+    // path-based rules below only match src/ at the repo root.
+    ignores: ['dist/*', 'android/*', 'ios/*', '.expo/*', '.claude/**'],
   },
   {
     files: ['**/*.test.ts', '**/*.test.tsx', 'jest.setup.js'],

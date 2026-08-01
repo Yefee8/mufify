@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
   ChevronDown,
@@ -25,11 +24,12 @@ import type { RepeatMode } from '@/services/audio/types';
 import { formatDuration } from '@/services/format/duration';
 import { useThemeColors } from '@/theme/useTheme';
 
+import { ArtworkCarousel } from './components/ArtworkCarousel';
 import { FavoriteButton } from './components/FavoriteButton';
 import { Scrubber } from './components/Scrubber';
 import { SpecStrip } from './components/SpecStrip';
-import { TransportSwipe } from './components/TransportSwipe';
 import { usePlayback, usePlaybackControls } from './hooks/usePlayback';
+import { useQueueNeighbours } from './hooks/useQueueNeighbours';
 
 /**
  * Now Playing.
@@ -44,11 +44,14 @@ export function PlayerScreen() {
 
   const { phase, track, positionMs, durationMs, error } = usePlayback();
   const { toggle, toggleShuffle, next, previous, seekTo } = usePlaybackControls();
+  const neighbours = useQueueNeighbours();
   const [repeat, setRepeatState] = useState<RepeatMode>(() => AudioEngine.getRepeat());
   const [shuffled, setShuffledState] = useState(() => AudioEngine.isShuffled());
 
   const close = useCallback(() => router.back(), [router]);
-  const openQueue = useCallback(() => router.push('/queue'), [router]);
+  // `navigate` rather than `push`, for the same reason as the player itself:
+  // a double press must not leave two identical screens on the stack.
+  const openQueue = useCallback(() => router.navigate('/queue'), [router]);
 
   const onShufflePress = useCallback(() => {
     toggleShuffle();
@@ -73,39 +76,30 @@ export function PlayerScreen() {
   const isPlaying = phase === 'playing';
   const isLoading = phase === 'loading';
   const algorithm = getShuffleAlgorithm();
-  const artworkUri = track.artworkPath ? `file://${track.artworkPath}` : null;
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-surface">
       <Header onClose={close} onOpenQueue={openQueue} label={t('player.title')} />
 
-      <View className="flex-1 justify-center gap-8 px-6">
+      <View className="flex-1 justify-center gap-8">
         {/*
           The artwork carries the gestures, not the whole screen: the scrubber
-          below it owns a pan of its own, and two competing pans on one surface
+          below owns a pan of its own, and two competing pans on one surface
           means a scrub that sometimes dismisses the screen instead.
 
           Down dismisses, which is what the brief asks for and what Android's
-          modal presentation does not give on its own.
+          modal presentation does not give on its own. Sideways moves through the
+          queue with the neighbouring covers already on screen.
         */}
-        <TransportSwipe onSwipeDown={close} onSwipeLeft={next} onSwipeRight={previous}>
-          <View className="aspect-square w-full items-center justify-center rounded-md bg-surface-elevated">
-            {artworkUri ? (
-              <Image
-                source={{ uri: artworkUri }}
-                recyclingKey={String(track.id)}
-                cachePolicy="memory-disk"
-                contentFit="cover"
-                className="h-full w-full rounded-md"
-              />
-            ) : (
-              <Music color={colors.legend} size={64} strokeWidth={1} />
-            )}
-          </View>
-        </TransportSwipe>
+        <ArtworkCarousel
+          neighbours={neighbours}
+          onNext={next}
+          onPrevious={previous}
+          onDismiss={close}
+        />
 
-        <View className="gap-2">
+        <View className="gap-2 px-6">
           <Text numberOfLines={2} className="font-display text-3xl text-primary">
             {track.title}
           </Text>
@@ -119,12 +113,12 @@ export function PlayerScreen() {
         </View>
 
         {phase === 'error' ? (
-          <Text className="font-body text-sm text-muted">
+          <Text className="px-6 font-body text-sm text-muted">
             {t('player.error')}
             {error ? ` ${error}` : ''}
           </Text>
         ) : (
-          <View className="gap-2">
+          <View className="gap-2 px-6">
             <Scrubber
               positionMs={positionMs}
               durationMs={durationMs}
@@ -142,7 +136,7 @@ export function PlayerScreen() {
           </View>
         )}
 
-        <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center justify-between px-6">
           <Pressable
             onPress={onRepeatPress}
             accessibilityRole="button"

@@ -30,7 +30,7 @@ These are the four choices that shape everything else. Read §2 before locking t
 | Styling | **NativeWind** (Tailwind for RN) | Requested. Dark mode via `dark:` variant. |
 | Database | **`expo-sqlite`** + **Drizzle ORM** | Typed schema, `drizzle-kit` migrations, `useLiveQuery` for reactive lists. |
 | Key-value | **`react-native-mmkv`** | Settings, theme, last queue snapshot. Synchronous → no theme flash on boot. |
-| State | **Zustand** | Player/UI state only. Persisted data lives in SQLite, not in a store. |
+| State | **`useSyncExternalStore`** against module singletons | No state library. Player/UI state only, held by `AudioEngine` and friends. Persisted data lives in SQLite, not in a store. |
 | Lists | **`@shopify/flash-list`** | Required — a 10k-track library will not survive `FlatList`. |
 | Images | **`expo-image`** | Built-in memory + disk cache, `recyclingKey`, blurhash placeholders. |
 | Animation | **`react-native-reanimated`** + **`react-native-gesture-handler`** | Mini-player → full-player transition, swipe-to-queue. |

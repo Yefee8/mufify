@@ -63,6 +63,7 @@ export default function RootLayout() {
         <Stack.Screen name="player" options={{ presentation: 'modal' }} />
         <Stack.Screen name="queue" options={{ presentation: 'modal' }} />
       </Stack>
+
     </GestureHandlerRootView>
   );
 }
