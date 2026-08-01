@@ -21,6 +21,17 @@ export function ScanBanner({ progress, onCancel }: ScanBannerProps) {
   const { t } = useTranslation();
   const ratio = progress.total > 0 ? progress.processed / progress.total : 0;
 
+  /*
+   * Both stages report a total only once they have counted, and counting is
+   * itself a query that takes a moment on a large library. Until then the
+   * honest thing is to say nothing rather than "0 / 0", which reads as a scan
+   * that found nothing rather than one that has not looked yet.
+   *
+   * The label and the Stop button appear immediately either way, so the banner
+   * still confirms the press the instant it happens.
+   */
+  const hasTotal = progress.total > 0;
+
   const label =
     progress.phase === 'enumerating'
       ? t('library.scanning.enumerating')
@@ -44,9 +55,11 @@ export function ScanBanner({ progress, onCancel }: ScanBannerProps) {
 
       <ProgressBar value={ratio} accessibilityLabel={label} />
 
-      <Text className="font-mono text-sm text-muted">
-        {progress.processed} / {progress.total}
-      </Text>
+      {hasTotal ? (
+        <Text className="font-mono text-sm text-muted">
+          {progress.processed} / {progress.total}
+        </Text>
+      ) : null}
     </View>
   );
 }

@@ -215,8 +215,19 @@ export function LibraryScreen() {
         which is where the blank band above the first row during "Reading tags…"
         came from.
       */}
+      {/*
+        Skeleton while the query is in flight *and* while a scan has not yet
+        produced a first row.
+        
+        The second case is the fix for a contradiction: with an empty library and
+        a scan running, the list showed its empty state — "No music found yet.
+        Scan the device" with a Scan button — directly underneath a banner
+        reporting that a scan was in progress. Two parts of one screen
+        disagreeing about whether anything was happening. Rows arriving is the
+        only thing that should end it.
+      */}
       <View className="flex-1">
-        {isLoading ? (
+        {isLoading || (isScanning && tracks.length === 0) ? (
           <TrackListSkeleton />
         ) : (
           <TrackList
