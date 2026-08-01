@@ -89,7 +89,18 @@
     "topTracks": "En çok çalınan parçalar",
     "topArtists": "En çok dinlenen sanatçılar",
     "playCount_one": "{{formatted}} çalma",
-    "playCount_other": "{{formatted}} çalma"
+    "playCount_other": "{{formatted}} çalma",
+    "topAlbums": "En çok dinlenen albümler",
+    "topPlaylists": "En çok dinlenen listeler",
+    "wrapped": {
+      "week": "Bu hafta",
+      "month": "Bu ay",
+      "year": "Bu yıl",
+      "across_one": "{{tracks}} parçada {{plays}} çalma",
+      "across_other": "{{tracks}} parçada {{plays}} çalma",
+      "mostPlayed": "En çok çalınan",
+      "mostHeard": "En çok dinlenen"
+    }
   },
   "settings": {
     "title": "Ayarlar",

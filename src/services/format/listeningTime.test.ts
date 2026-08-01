@@ -42,3 +42,28 @@ describe('formatListeningTime', () => {
     expect(formatListeningTime(90 * 60_000, 'tr')).toBe('1h 30m');
   });
 });
+
+describe('formatListeningTime under a minute', () => {
+  it('reports seconds rather than a useless zero', () => {
+    /*
+     * The per-row totals on the statistics screen exposed this: a handful of
+     * six-second tracks all read "0m", which tells the reader nothing and looks
+     * like a value that failed to load.
+     */
+    expect(formatListeningTime(42_000, 'en')).toBe('42s');
+  });
+
+  it('rounds seconds down, like the minutes above', () => {
+    expect(formatListeningTime(6_900, 'en')).toBe('6s');
+  });
+
+  it('says 0s for nothing at all, not an empty string', () => {
+    expect(formatListeningTime(0, 'en')).toBe('0s');
+    expect(formatListeningTime(-1, 'en')).toBe('0s');
+  });
+
+  it('switches to minutes the moment there is one', () => {
+    expect(formatListeningTime(59_999, 'en')).toBe('59s');
+    expect(formatListeningTime(60_000, 'en')).toBe('1m');
+  });
+});

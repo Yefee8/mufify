@@ -89,7 +89,18 @@
     "topTracks": "Top tracks",
     "topArtists": "Top artists",
     "playCount_one": "{{formatted}} play",
-    "playCount_other": "{{formatted}} plays"
+    "playCount_other": "{{formatted}} plays",
+    "topAlbums": "Top albums",
+    "topPlaylists": "Top playlists",
+    "wrapped": {
+      "week": "This week",
+      "month": "This month",
+      "year": "This year",
+      "across_one": "{{plays}} plays across {{tracks}} track",
+      "across_other": "{{plays}} plays across {{tracks}} tracks",
+      "mostPlayed": "Most played",
+      "mostHeard": "Most heard"
+    }
   },
   "settings": {
     "title": "Settings",
