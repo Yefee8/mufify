@@ -1,5 +1,5 @@
 import { Music, SearchX } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, View } from 'react-native';
 
@@ -55,7 +55,17 @@ export function LibraryScreen() {
 
   const { playFrom } = usePlaybackControls();
   const currentTrack = useCurrentTrack();
+  /*
+   * Destructured, not held as an object. Every callback below would otherwise
+   * list `selection` as a dependency and be rebuilt on every render, which
+   * rebuilt every visible row — 47 of them per checkbox tap, measured. The
+   * individual functions are stable; only `isActive` and `ids` actually move.
+   */
   const selection = useSelection();
+  const { isActive: isSelecting, ids: selectedIdList, toggle: toggleSelected } = selection;
+
+  /** The selection as a Set, built once per change rather than once per row. */
+  const selectedIds = useMemo(() => new Set(selectedIdList), [selectedIdList]);
   const { addToQueue, playNext, toggleFavorite } = useTrackActions();
 
   /** Which track's action sheet is open. */
@@ -83,28 +93,28 @@ export function LibraryScreen() {
    */
   const onPress = useCallback(
     (id: number) => {
-      if (selection.isActive) {
-        selection.toggle(id);
+      if (isSelecting) {
+        toggleSelected(id);
         return;
       }
       const index = tracks.findIndex((track) => track.id === id);
       if (index === -1) return;
       playFrom(tracks.map(toPlayable), index);
     },
-    [tracks, playFrom, selection],
+    [tracks, playFrom, isSelecting, toggleSelected],
   );
 
   const onLongPress = useCallback(
     (id: number) => {
       // Long-pressing during a selection extends it rather than opening a sheet
       // about one row — the user is plainly in the middle of picking several.
-      if (selection.isActive) {
-        selection.toggle(id);
+      if (isSelecting) {
+        toggleSelected(id);
         return;
       }
       setActionTarget(find(id));
     },
-    [selection, find],
+    [isSelecting, toggleSelected, find],
   );
 
   const onSwipeToQueue = useCallback(
@@ -212,7 +222,8 @@ export function LibraryScreen() {
           <TrackList
             tracks={tracks}
             locale={i18n.language}
-            selection={selection}
+            isSelecting={isSelecting}
+            selectedIds={selectedIds}
             onPress={onPress}
             onLongPress={onLongPress}
             onSwipeToQueue={onSwipeToQueue}

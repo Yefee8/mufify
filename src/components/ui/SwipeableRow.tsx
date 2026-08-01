@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react-native';
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -59,25 +59,45 @@ export function SwipeableRow({
   /** Grows as the row nears the commit point, so the icon fades in with it. */
   const progress = useSharedValue(0);
 
-  const pan = Gesture.Pan()
-    .activeOffsetX([-ACTIVATION_SLOP, ACTIVATION_SLOP])
-    .failOffsetY([-ACTIVATION_SLOP, ACTIVATION_SLOP])
-    .onUpdate((event) => {
-      // Left only. Dragging right does nothing, rather than doing this action
-      // in reverse — one gesture, one meaning.
-      const travelled = Math.min(0, event.translationX);
-      const past = Math.max(0, -travelled - COMMIT_DISTANCE);
+  /*
+   * Memoized, because a `Gesture.Pan()` is not free.
+   *
+   * Building one allocates a handler and `GestureDetector` re-attaches it when
+   * the object identity changes. This is inside a virtualized list, so an
+   * unmemoized gesture meant rebuilding and re-attaching one per visible row on
+   * every parent render — roughly forty at a time. `onSwipe` is the only
+   * dependency, and callers pass a stable one.
+   */
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX([-ACTIVATION_SLOP, ACTIVATION_SLOP])
+        .failOffsetY([-ACTIVATION_SLOP, ACTIVATION_SLOP])
+        .onUpdate((event) => {
+          // Left only. Dragging right does nothing, rather than doing this
+          // action in reverse — one gesture, one meaning.
+          const travelled = Math.min(0, event.translationX);
+          const past = Math.max(0, -travelled - COMMIT_DISTANCE);
 
-      offset.value = travelled + past * (1 - OVERSHOOT_RATIO);
-      progress.value = Math.min(1, -travelled / COMMIT_DISTANCE);
-    })
-    .onEnd((event) => {
-      if (event.translationX <= -COMMIT_DISTANCE) runOnJS(onSwipe)();
-    })
-    .onFinalize(() => {
-      offset.value = withSpring(0, { damping: 22, stiffness: 240 });
-      progress.value = withTiming(0, { duration: 150 });
-    });
+          offset.value = travelled + past * (1 - OVERSHOOT_RATIO);
+          progress.value = Math.min(1, -travelled / COMMIT_DISTANCE);
+        })
+        .onEnd((event) => {
+          if (event.translationX <= -COMMIT_DISTANCE) runOnJS(onSwipe)();
+        })
+        .onFinalize(() => {
+          offset.value = withSpring(0, { damping: 22, stiffness: 240 });
+          progress.value = withTiming(0, { duration: 150 });
+        }),
+    /*
+     * `onSwipe` only. The two shared values are deliberately absent: a
+     * `useSharedValue` handle never changes identity, and listing one as a
+     * dependency of a hook that then writes to it is what the compiler's
+     * immutability rule rejects — correctly, for ordinary values.
+     */
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- shared values are stable handles
+    [onSwipe],
+  );
 
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: offset.value }] }));
   /*

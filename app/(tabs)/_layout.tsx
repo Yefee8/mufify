@@ -8,6 +8,7 @@ import { BarChart3, Disc3, ListMusic, SlidersHorizontal } from 'lucide-react-nat
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 
+import { Toaster } from '@/components/ui/Toaster';
 import { MiniPlayer } from '@/features/player/components/MiniPlayer';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 import { useTheme } from '@/theme/useTheme';
@@ -23,6 +24,16 @@ function TabBarWithPlayer(props: BottomTabBarProps) {
   useLifecycleTrace('TabBar');
   return (
     <View>
+      {/*
+        Toasts stack directly on top of the transport, which is why they live
+        here rather than at the root. Positioning them from the root would mean
+        an offset large enough to clear both the mini player and the tab bar —
+        and those heights are not design-system spacing values, so expressing
+        them would have meant either an arbitrary class (which the Tailwind
+        config correctly compiles to nothing) or a magic number in a style prop.
+        Stacking solves it with neither.
+      */}
+      <Toaster />
       <MiniPlayer />
       <BottomTabBar {...props} />
     </View>

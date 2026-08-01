@@ -195,5 +195,15 @@
       "channels": "Channels",
       "fileSize": "File size"
     }
+  },
+  "toast": {
+    "queued_one": "Added to queue",
+    "queued_other": "{{count}} tracks added to queue",
+    "playingNext_one": "Playing next",
+    "playingNext_other": "{{count}} tracks playing next",
+    "favorited": "Added to favourites",
+    "unfavorited": "Removed from favourites",
+    "addedToPlaylist_one": "Added to the playlist",
+    "addedToPlaylist_other": "{{count}} tracks added to the playlist"
   }
 }

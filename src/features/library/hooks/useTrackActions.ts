@@ -1,9 +1,11 @@
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { TrackListItem } from '@/db/queries/tracks';
 import { setFavorite } from '@/db/queries/tracks';
 import { AudioEngine } from '@/services/audio/AudioEngine';
 import { commitFeedback, rejectFeedback } from '@/services/haptics';
+import { showToast } from '@/services/toast';
 
 import { toPlayable } from '../../player/toPlayable';
 
@@ -27,30 +29,50 @@ export interface TrackActions {
  * An empty list gets a rejection buzz rather than a success one. "Add to queue"
  * with nothing selected is a press that cannot work, and confirming it is worse
  * than saying no.
+ *
+ * Each one also raises a toast. A swipe that queues a track has no visible
+ * result — the queue is on another screen — so without a message the gesture is
+ * indistinguishable from a scroll that did nothing. The haptic alone is not
+ * enough: it is invisible, and it is off for anyone who turned it off.
  */
 export function useTrackActions(): TrackActions {
-  const addToQueue = useCallback((tracks: TrackListItem[]) => {
-    if (tracks.length === 0) {
-      rejectFeedback();
-      return;
-    }
-    commitFeedback();
-    void AudioEngine.enqueue(tracks.map(toPlayable));
-  }, []);
+  const { t } = useTranslation();
 
-  const playNext = useCallback((tracks: TrackListItem[]) => {
-    if (tracks.length === 0) {
-      rejectFeedback();
-      return;
-    }
-    commitFeedback();
-    void AudioEngine.playNext(tracks.map(toPlayable));
-  }, []);
+  const addToQueue = useCallback(
+    (tracks: TrackListItem[]) => {
+      if (tracks.length === 0) {
+        rejectFeedback();
+        return;
+      }
+      commitFeedback();
+      void AudioEngine.enqueue(tracks.map(toPlayable));
+      showToast(t('toast.queued', { count: tracks.length }));
+    },
+    [t],
+  );
 
-  const toggleFavorite = useCallback((track: TrackListItem) => {
-    commitFeedback();
-    void setFavorite(track.id, !track.isFavorite);
-  }, []);
+  const playNext = useCallback(
+    (tracks: TrackListItem[]) => {
+      if (tracks.length === 0) {
+        rejectFeedback();
+        return;
+      }
+      commitFeedback();
+      void AudioEngine.playNext(tracks.map(toPlayable));
+      showToast(t('toast.playingNext', { count: tracks.length }));
+    },
+    [t],
+  );
+
+  const toggleFavorite = useCallback(
+    (track: TrackListItem) => {
+      commitFeedback();
+      const next = !track.isFavorite;
+      void setFavorite(track.id, next);
+      showToast(next ? t('toast.favorited') : t('toast.unfavorited'));
+    },
+    [t],
+  );
 
   return { addToQueue, playNext, toggleFavorite };
 }

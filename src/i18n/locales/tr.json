@@ -195,5 +195,15 @@
       "channels": "Kanal",
       "fileSize": "Dosya boyutu"
     }
+  },
+  "toast": {
+    "queued_one": "Sıraya eklendi",
+    "queued_other": "{{count}} parça sıraya eklendi",
+    "playingNext_one": "Sıradaki olarak eklendi",
+    "playingNext_other": "{{count}} parça sıradaki olarak eklendi",
+    "favorited": "Favorilere eklendi",
+    "unfavorited": "Favorilerden çıkarıldı",
+    "addedToPlaylist_one": "Listeye eklendi",
+    "addedToPlaylist_other": "{{count}} parça listeye eklendi"
   }
 }
