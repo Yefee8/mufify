@@ -128,6 +128,22 @@ Twenty is exactly the 2 Hz status interval. Fixed by two narrow subscriptions
 nothing changed, plus moving position into `MiniProgress` — one animated view
 whose width lives in a Reanimated shared value and which React renders once.
 
+### Row press
+
+The library row previously mapped every track to a playable queue and searched
+that same array inside its press handler. `MUFIFY_PERF` measured one press on
+the same 10,000-track synthetic library and the same first row on the Pixel_7
+AVD debug build:
+
+| | Before | After |
+|---|---:|---:|
+| Press handler | **16.6 ms** | **0.8 ms** |
+| Press to mini-player state | **168.5 ms** | **37.4 ms** |
+
+The queue and id-to-index map now update when the query result changes, not
+when a row is pressed. The second number ends when the mini-player observes the
+new current track; it is UI feedback latency, not time to audible audio.
+
 **Worth recording what this was not.** The first diagnosis was that the tab bar
 next door was re-rendering with it. The counter said 0, both before and after:
 React re-renders the component whose store changed and its children, not its
@@ -223,7 +239,7 @@ never been seen by anyone. `src/theme/scale.test.ts` now fails on any such class
 ## Regression pass
 
 Run after the three critical sections closed, on the Pixel_7 AVD, with both
-gates green — `lint`, `typecheck`, 292 JS tests across 20 suites, and
+gates green — `lint`, `typecheck`, 302 JS tests across 21 suites, and
 `:audio-tags:testDebugUnitTest` forced with `--rerun-tasks`.
 
 | Area | Result |

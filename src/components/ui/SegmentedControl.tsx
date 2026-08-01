@@ -59,6 +59,7 @@ export function SegmentedControl<T extends string>({
               <Pressable
                 key={option.value}
                 onPress={() => onChange(option.value)}
+                android_ripple={{ color: selected ? colors.onSignal : colors.etch }}
                 accessibilityRole="radio"
                 accessibilityState={{ selected }}
                 accessibilityLabel={option.label}

@@ -16,6 +16,11 @@ const TAG = 'MUFIFY_PERF';
 const counters = new Map<string, number>();
 const marks = new Map<string, number>();
 
+/** Hermes exposes a monotonic sub-millisecond clock; Date is the fallback. */
+function now(): number {
+  return globalThis.performance?.now?.() ?? Date.now();
+}
+
 /**
  * Count an occurrence and log the running total.
  *
@@ -33,7 +38,7 @@ export function count(label: string): void {
 /** Start a stopwatch. Overwrites any unfinished one under the same label. */
 export function mark(label: string): void {
   if (!__DEV__) return;
-  marks.set(label, Date.now());
+  marks.set(label, now());
 }
 
 /**
@@ -53,8 +58,10 @@ export function measure(label: string, detail?: string | number): number {
   }
 
   marks.delete(label);
-  const elapsed = Date.now() - started;
-  console.log(`${TAG} measure ${label} ${elapsed}ms${detail === undefined ? '' : ` ${detail}`}`);
+  const elapsed = now() - started;
+  console.log(
+    `${TAG} measure ${label} ${elapsed.toFixed(1)}ms${detail === undefined ? '' : ` ${detail}`}`,
+  );
   return elapsed;
 }
 

@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import { EmptyState } from '@/components/ui/EmptyState';
 import type { TrackListItem } from '@/db/queries/tracks';
 import { useMessages } from '@/i18n';
+import * as perf from '@/services/perf';
 
 import { AddToPlaylistSheet } from '../playlists/components/AddToPlaylistSheet';
 import { useCurrentTrack, usePlaybackControls } from '../player/hooks/usePlayback';
@@ -68,6 +69,17 @@ export function LibraryTracks({
   /** The selection as a Set, built once per change rather than once per row. */
   const selectedIds = useMemo(() => new Set(selectedIdList), [selectedIdList]);
   const { addToQueue, playNext, toggleFavorite } = useTrackActions();
+  // Queue conversion belongs to a data change, not to a row press.
+  const playableTracks = useMemo(() => {
+    perf.mark('library.playableQueue');
+    const playable = tracks.map(toPlayable);
+    perf.measure('library.playableQueue', playable.length);
+    return playable;
+  }, [tracks]);
+  const trackIndexById = useMemo(
+    () => new Map(tracks.map((track, index) => [track.id, index])),
+    [tracks],
+  );
 
   /** Which track's action sheet is open. */
   const [actionTarget, setActionTarget] = useState<TrackListItem | null>(null);
@@ -92,11 +104,14 @@ export function LibraryTracks({
         toggleSelected(id);
         return;
       }
-      const index = tracks.findIndex((track) => track.id === id);
-      if (index === -1) return;
-      playFrom(tracks.map(toPlayable), index);
+      const index = trackIndexById.get(id);
+      if (index === undefined) return;
+      perf.mark('library.play.handler');
+      perf.mark('library.play.toMiniPlayer');
+      playFrom(playableTracks, index);
+      perf.measure('library.play.handler', playableTracks.length);
     },
-    [tracks, playFrom, isSelecting, toggleSelected],
+    [trackIndexById, playFrom, playableTracks, isSelecting, toggleSelected],
   );
 
   const onLongPress = useCallback(
