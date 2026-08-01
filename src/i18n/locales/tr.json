@@ -98,20 +98,24 @@
       "theme": "Tema",
       "system": "Sistem",
       "light": "Açık",
-      "dark": "Koyu"
+      "dark": "Koyu",
+      "description": "Uygulama koyu tema için tasarlandı. Sistem, telefonunu takip eder."
     },
     "language": {
       "title": "Dil",
       "label": "Uygulama dili",
       "system": "Sistem",
       "en": "English",
-      "tr": "Türkçe"
+      "tr": "Türkçe",
+      "description": "Türkçe ve İngilizce. Sistem, telefonunu takip eder."
     },
     "folders": {
       "title": "Müzik klasörleri",
       "empty": "Eklenmiş klasör yok. Mufify yine de Android’in indekslediği her şeyi tarar.",
       "remove": "{{folder}} klasörünü kaldır",
-      "removeNote": "Klasörü kaldırmak yeniden taranmasını durdurur. Parçaların kalır."
+      "removeNote": "Klasörü kaldırmak yeniden taranmasını durdurur. Parçaların kalır.",
+      "ignoreShort": "Kısa dosyaları yok say",
+      "ignoreShortHint": "30 saniyeden kısa olanları atlar. Varsayılan olarak kapalı: ara parçalar ve geçişler de birer parçadır."
     },
     "shuffle": {
       "title": "Karıştırma",
@@ -121,11 +125,16 @@
       "discovery": "Keşif",
       "favorites": "Favoriler",
       "album": "Albüme göre",
-      "pureHint": "Gerçekten rastgele. Kümelenir, çünkü rastgelelik böyledir.",
-      "balancedHint": "Her sanatçıyı kuyruğa yayar.",
-      "discoveryHint": "En az çaldığın parçaları öne alır.",
-      "favoritesHint": "En çok çaldıklarını ve favorilediklerini öne alır.",
-      "albumHint": "Albümleri karıştırır, albümün içini değil. Her biri sırasıyla çalar."
+      "pureHint": "Gerçekten rastgele. Aynı sanatçıyı arka arkaya çalabilir, çünkü rastgelelik böyledir.",
+      "balancedHint": "Her sanatçıyı kuyruğa yayar; aynı sanatçıdan iki parça art arda gelmez.",
+      "discoveryHint": "En az çaldıklarını öne alır. Hiç çalınmamış bir parça, bir kez dinlenmişin iki katı sıklıkta gelir.",
+      "favoritesHint": "Keşif’in tersi: en çok çaldıklarını öne alır, favorilediklerini daha da yukarı taşır.",
+      "albumHint": "Parçaları değil albümleri karıştırır. Her albüm kendi sırasıyla çalar — klasik ve sıralı dinlenen her şey için."
+    },
+    "playback": {
+      "title": "Çalma",
+      "haptics": "Titreşim",
+      "hapticsHint": "Çalma, duraklatma, sıraya ekleme ve sıralama değişiminde kısa bir titreşim."
     }
   },
   "player": {

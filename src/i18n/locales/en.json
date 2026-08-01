@@ -98,20 +98,24 @@
       "theme": "Theme",
       "system": "System",
       "light": "Light",
-      "dark": "Dark"
+      "dark": "Dark",
+      "description": "Dark is the one this app was designed in. System follows your phone."
     },
     "language": {
       "title": "Language",
       "label": "App language",
       "system": "System",
       "en": "English",
-      "tr": "Türkçe"
+      "tr": "Türkçe",
+      "description": "Turkish and English. System follows your phone."
     },
     "folders": {
       "title": "Music folders",
       "empty": "No folders added. Mufify still scans everything Android has indexed.",
       "remove": "Remove {{folder}}",
-      "removeNote": "Removing a folder stops re-indexing it. Your tracks stay."
+      "removeNote": "Removing a folder stops re-indexing it. Your tracks stay.",
+      "ignoreShort": "Ignore short files",
+      "ignoreShortHint": "Skips anything under 30 seconds. Off by default: interludes and album segues are real tracks."
     },
     "shuffle": {
       "title": "Shuffle",
@@ -121,11 +125,16 @@
       "discovery": "Discovery",
       "favorites": "Favourites",
       "album": "By album",
-      "pureHint": "Truly random. Clusters, because randomness does.",
-      "balancedHint": "Spreads each artist across the queue.",
-      "discoveryHint": "Favours tracks you have played least.",
-      "favoritesHint": "Favours what you play most, and what you have hearted.",
-      "albumHint": "Shuffles the albums, never the album. Each one plays in order."
+      "pureHint": "Truly random. It will sometimes play the same artist twice in a row, because that is what random does.",
+      "balancedHint": "Spreads each artist across the queue, so no two of their tracks land together.",
+      "discoveryHint": "Favours what you have played least. An unplayed track comes up twice as often as one you have heard once.",
+      "favoritesHint": "The opposite of Discovery: favours what you play most, and pushes anything you have hearted further up.",
+      "albumHint": "Shuffles the albums, not the tracks. Each album plays through in order — for classical and anything with a running order."
+    },
+    "playback": {
+      "title": "Playback",
+      "haptics": "Haptics",
+      "hapticsHint": "A short buzz on play, pause, queueing and reordering."
     }
   },
   "player": {

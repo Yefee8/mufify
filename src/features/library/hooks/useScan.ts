@@ -12,6 +12,7 @@ import {
   saveEnumerated,
 } from '@/db/queries/scanning';
 import { permissionErrorFor } from '@/services/scanner/permission';
+import { getIgnoreShortFiles } from '@/services/settings';
 import { isPickerDismissal } from '@/services/scanner/pickerError';
 import { PRIMARY_VOLUME_ROOT, treeUriToPath } from '@/services/scanner/treeUri';
 import {
@@ -23,6 +24,9 @@ import {
 } from '@/services/scanner/scanner';
 
 const IDLE: ScanProgress = { phase: 'idle', total: 0, processed: 0 };
+
+/** What "short" means when the setting is on. Thirty seconds, as the copy says. */
+const SHORT_FILE_MS = 30_000;
 
 /**
  * Whether a scan may proceed, and if so whether this is the first time the app
@@ -108,7 +112,17 @@ export function useScan(): UseScanResult {
   const run = useCallback(async () => {
     cancelled.current = false;
     const controller = { isCancelled: () => cancelled.current };
-    const options = { ...DEFAULT_SCAN_OPTIONS, artworkDirectory: artworkDirectory() };
+
+    /*
+     * Read at scan time, not captured at mount: the switch is in Settings and
+     * the scan is started from the Library, so the value can legitimately change
+     * between this hook mounting and the user pressing Scan.
+     */
+    const options = {
+      ...DEFAULT_SCAN_OPTIONS,
+      minDurationMs: getIgnoreShortFiles() ? SHORT_FILE_MS : DEFAULT_SCAN_OPTIONS.minDurationMs,
+      artworkDirectory: artworkDirectory(),
+    };
 
     const enumerated = await enumerateLibrary(ports, options, setProgress, controller);
     if (enumerated.phase !== 'done') return;
