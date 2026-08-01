@@ -21,7 +21,8 @@ call, it is wrong. This is the app's core promise and the reason it exists.
 
 ## Setup
 
-Requirements: Node 22+, JDK 17 or 21, Android Studio with SDK Platform 35+, macOS or Linux.
+Requirements: Node 22+, JDK 17 or 21, Android Studio with SDK Platform 36+, macOS or Linux.
+(Expo SDK 57 compiles against 36; this said 35 until `app.sh` checked it and was wrong.)
 
 ### Environment (macOS)
 
