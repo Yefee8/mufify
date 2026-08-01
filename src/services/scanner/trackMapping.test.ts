@@ -189,6 +189,9 @@ describe('fromTags', () => {
   it('maps the spec strip fields', () => {
     const enriched = fromTags(tagRow());
     expect(enriched).toMatchObject({
+      artistName: 'Barış Manço',
+      albumName: 'Sakla Samanı',
+      albumArtist: 'Barış Manço',
       container: 'FLAC',
       // Null rather than 'flac': container and codec read the same MIME
       // subtype, so repeating it produced the strip "FLAC · flac".
@@ -214,6 +217,15 @@ describe('fromTags', () => {
 
   it('omits the title when the file has none, so MediaStore keeps its own', () => {
     expect(fromTags(tagRow({ title: null }))).not.toHaveProperty('title');
+  });
+
+  it('keeps missing collection tags null so they become one fallback category', () => {
+    const enriched = fromTags(tagRow({ artist: null, album: null, albumArtist: null }));
+    expect(enriched).toMatchObject({
+      artistName: null,
+      albumName: null,
+      albumArtist: null,
+    });
   });
 });
 

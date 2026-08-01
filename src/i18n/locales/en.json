@@ -183,7 +183,11 @@
     "cancel": "Cancel",
     "save": "Save",
     "back": "Back",
-    "close": "Close"
+    "close": "Close",
+    "unknownArtist": "Unknown artist",
+    "unknownAlbum": "Unknown album",
+    "unexpectedError": "Something went wrong. Try again.",
+    "tryAgain": "Try again"
   },
   "queue": {
     "title": "Queue",

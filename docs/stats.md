@@ -186,10 +186,13 @@ week/month/year × track/artist/album/playlist incrementally, from
 `applyRollups` inside `recordListen`.
 
 One listen writes up to twelve cells — three periods times four entities,
-minus whatever is null. `rollupDeltas` builds that as a product rather than by
-hand, so adding a period or an entity type cannot be done to one and forgotten
-in the others. Null artist and album ids are **skipped**, never defaulted to
-zero: an untagged file must not accumulate against a phantom entity.
+minus a missing playlist. `rollupDeltas` builds that as a product rather than
+by hand, so adding a period or an entity type cannot be done to one and
+forgotten in the others. A null artist or album uses the reserved rollup id
+`0`: it cannot collide with SQLite's positive row ids, is left-joined at read
+time, and is rendered as the active locale's “Unknown Artist” or “Unknown
+Album”. The content tables still retain null — no translated phantom row is
+stored in user data.
 
 The artist and album come from the `tracks` row, not from the caller. The
 player knows what it is playing, not how the library has it classified, and a

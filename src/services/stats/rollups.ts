@@ -16,6 +16,15 @@ export type PeriodType = (typeof PERIOD_TYPES)[number];
 export const ENTITY_TYPES = ['track', 'artist', 'album', 'playlist'] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
+/**
+ * Reserved rollup id for an artist or album absent from a file's metadata.
+ *
+ * SQLite auto-increment ids begin at 1, so 0 cannot collide with a real row.
+ * Keeping the fallback out of the content tables also keeps its display name
+ * localised at render time rather than persisting one language in user data.
+ */
+export const UNKNOWN_ENTITY_ID = 0;
+
 /** One `(period, entity)` cell and the amounts to add to it. */
 export interface RollupDelta {
   periodType: PeriodType;
@@ -26,7 +35,7 @@ export interface RollupDelta {
   msPlayed: number;
 }
 
-/** The entities one listen belongs to. Nulls are skipped, not defaulted. */
+/** The entities one listen belongs to. Null artist and album ids share id 0. */
 export interface ListenSubject {
   trackId: number;
   artistId: number | null;
@@ -50,8 +59,8 @@ export interface ListenContribution {
 /**
  * Fan one listen out into every cell it touches.
  *
- * Three periods times up to four entities, minus whatever is null. Written as
- * a product rather than by hand so a new period or entity type cannot be added
+ * Three periods times four entities, minus a missing playlist. Written as a
+ * product rather than by hand so a new period or entity type cannot be added
  * to one and forgotten in the others.
  */
 export function rollupDeltas({
@@ -68,13 +77,9 @@ export function rollupDeltas({
 
   const entities: { entityType: EntityType; entityId: number }[] = [
     { entityType: 'track', entityId: subject.trackId },
+    { entityType: 'artist', entityId: subject.artistId ?? UNKNOWN_ENTITY_ID },
+    { entityType: 'album', entityId: subject.albumId ?? UNKNOWN_ENTITY_ID },
   ];
-  if (subject.artistId !== null) {
-    entities.push({ entityType: 'artist', entityId: subject.artistId });
-  }
-  if (subject.albumId !== null) {
-    entities.push({ entityType: 'album', entityId: subject.albumId });
-  }
   if (subject.playlistId != null) {
     entities.push({ entityType: 'playlist', entityId: subject.playlistId });
   }

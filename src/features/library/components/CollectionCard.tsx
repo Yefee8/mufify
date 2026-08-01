@@ -8,6 +8,7 @@ import type { CollectionCard as Card } from '@/db/queries/tracks';
 import { useThemeColors } from '@/theme/useTheme';
 
 export interface CollectionCardProps {
+  kind: 'artist' | 'album';
   card: Card;
   /** Drawn when there is no cover. A disc for albums, a person for artists. */
   icon: LucideIcon;
@@ -27,6 +28,7 @@ export interface CollectionCardProps {
  * the covers rounder than the panel they sit on.
  */
 const CollectionCardComponent = function CollectionCard({
+  kind,
   card,
   icon: Icon,
   onPress,
@@ -35,13 +37,21 @@ const CollectionCardComponent = function CollectionCard({
   const colors = useThemeColors();
   const handlePress = useCallback(() => onPress(card.id), [onPress, card.id]);
 
-  const subtitle = card.subtitle ?? t('library.trackCount', { count: card.trackCount });
+  const name = card.isUnknown
+    ? t(kind === 'artist' ? 'common.unknownArtist' : 'common.unknownAlbum')
+    : card.name ?? t(kind === 'artist' ? 'common.unknownArtist' : 'common.unknownAlbum');
+  const subtitle = card.isUnknown
+    ? t('library.trackCount', { count: card.trackCount })
+    : card.isUnknownSubtitle
+      ? t('common.unknownArtist')
+      : card.subtitle ?? t('library.trackCount', { count: card.trackCount });
 
   return (
     <Pressable
       onPress={handlePress}
+      android_ripple={{ color: colors.etch }}
       accessibilityRole="button"
-      accessibilityLabel={card.name}
+      accessibilityLabel={name}
       accessibilityHint={t('library.trackCount', { count: card.trackCount })}
       className="w-full gap-2"
     >
@@ -62,7 +72,7 @@ const CollectionCardComponent = function CollectionCard({
 
       <View>
         <Text numberOfLines={1} className="font-body text-base text-primary">
-          {card.name}
+          {name}
         </Text>
         <Text numberOfLines={1} className="font-body text-sm text-muted">
           {subtitle}
@@ -74,11 +84,14 @@ const CollectionCardComponent = function CollectionCard({
 
 function isSameCard(previous: CollectionCardProps, next: CollectionCardProps): boolean {
   return (
+    previous.kind === next.kind &&
     previous.onPress === next.onPress &&
     previous.icon === next.icon &&
     previous.card.id === next.card.id &&
     previous.card.name === next.card.name &&
     previous.card.subtitle === next.card.subtitle &&
+    previous.card.isUnknown === next.card.isUnknown &&
+    previous.card.isUnknownSubtitle === next.card.isUnknownSubtitle &&
     previous.card.trackCount === next.card.trackCount &&
     previous.card.artworkPath === next.card.artworkPath
   );

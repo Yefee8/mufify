@@ -51,6 +51,7 @@ export function LibraryHeader({
       <Pressable
         onPress={onStartSelecting}
         disabled={count === 0}
+        android_ripple={{ color: colors.etch, borderless: true }}
         accessibilityRole="button"
         accessibilityLabel={t('track.select')}
         accessibilityState={{ disabled: count === 0 }}
@@ -62,6 +63,7 @@ export function LibraryHeader({
       <Pressable
         onPress={onAddFolder}
         disabled={isScanning}
+        android_ripple={{ color: colors.etch, borderless: true }}
         accessibilityRole="button"
         accessibilityLabel={t('library.addFolder')}
         accessibilityState={{ disabled: isScanning }}
@@ -73,6 +75,7 @@ export function LibraryHeader({
       <Pressable
         onPress={onScan}
         disabled={isScanning}
+        android_ripple={{ color: colors.etch }}
         accessibilityRole="button"
         accessibilityLabel={t('library.scan')}
         accessibilityState={{ disabled: isScanning }}

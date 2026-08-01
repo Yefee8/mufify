@@ -29,8 +29,8 @@ export function TrackInfoSheet({ track, onClose }: TrackInfoSheetProps) {
 
   const rows: [string, string][] = [
     [t('track.field.title'), track?.title ?? '—'],
-    [t('track.field.artist'), track?.artistName ?? '—'],
-    [t('track.field.album'), track?.albumName ?? '—'],
+    [t('track.field.artist'), track ? (track.artistName ?? t('common.unknownArtist')) : '—'],
+    [t('track.field.album'), track ? (track.albumName ?? t('common.unknownAlbum')) : '—'],
     [t('track.field.duration'), track ? formatDuration(track.durationMs, i18n.language) : '—'],
     [t('track.field.codec'), spec?.codec?.toUpperCase() ?? '—'],
     [t('track.field.container'), spec?.container ?? '—'],

@@ -75,13 +75,24 @@ export function StatsScreen() {
             totals={totals}
             topTrack={topTracks[0]}
             topArtist={topArtists[0]}
+            unknownArtist={t('common.unknownArtist')}
           />
 
           <StatTotals totals={totals} />
 
           <TopList title={t('stats.topTracks')} entries={topTracks} icon={Music} />
-          <TopList title={t('stats.topArtists')} entries={topArtists} icon={User} />
-          <TopList title={t('stats.topAlbums')} entries={topAlbums} icon={Disc3} />
+          <TopList
+            title={t('stats.topArtists')}
+            entries={topArtists}
+            icon={User}
+            unknownTitle={t('common.unknownArtist')}
+          />
+          <TopList
+            title={t('stats.topAlbums')}
+            entries={topAlbums}
+            icon={Disc3}
+            unknownTitle={t('common.unknownAlbum')}
+          />
           <TopList title={t('stats.topPlaylists')} entries={topPlaylists} icon={ListMusic} />
         </ScrollView>
       ) : (

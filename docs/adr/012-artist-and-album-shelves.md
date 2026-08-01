@@ -4,9 +4,9 @@
 
 The library had one face: an alphabetical list of every track. The tech stack
 doc calls for "Tracks / Albums / Artists / Genres" segments, and until now only
-the first existed. Nothing in the schema was missing — `artists` and `albums`
-have been populated by the scanner since Phase 2 — so this was a query and a
-screen, not a data problem.
+the first existed. The schema already had `artists` and `albums`; scanner writes
+now resolve their foreign keys from MediaStore and stage-two tags, so the shelf
+remains a query and screen concern rather than duplicated metadata.
 
 ## Decision
 
@@ -59,10 +59,10 @@ bounded by the result limit; the card queries use `min(artwork_path)` over the
 group, which is arbitrary but stable — and stable matters more than which,
 because a card whose cover changes between renders looks broken.
 
-Both card queries `INNER JOIN` tracks rather than starting from `artists`. The
-artist table gains a row the first time a name is seen and nothing ever removes
-one, so a left join would list artists with zero tracks. What is on the device is
-what the library shows.
+Both card queries start at present `tracks`, so an artist row left behind by a
+removed album cannot show as an empty shelf. They left-join their normalised
+table and group null metadata into one translated unknown card; what is on the
+device is what the library shows.
 
 ## Postscript: a class that compiled to nothing
 

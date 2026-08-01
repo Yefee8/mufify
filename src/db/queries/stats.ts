@@ -17,7 +17,8 @@ import { albums, artists, playlists, statsRollups, tracks } from '../schema';
 
 export interface TopEntry {
   id: number;
-  title: string;
+  /** Null only for the reserved unknown artist or album rollup row. */
+  title: string | null;
   subtitle: string | null;
   playCount: number;
   msPlayed: number;
@@ -100,7 +101,7 @@ export function useTopTracks(periodType: PeriodType, periodKey: string, limit = 
 export function useTopArtists(periodType: PeriodType, periodKey: string, limit = 10) {
   const query = db
     .select({
-      id: artists.id,
+      id: statsRollups.entityId,
       title: artists.name,
       subtitle: sql<string | null>`null`,
       playCount: statsRollups.playCount,
@@ -108,7 +109,7 @@ export function useTopArtists(periodType: PeriodType, periodKey: string, limit =
       artworkPath: artistCover,
     })
     .from(statsRollups)
-    .innerJoin(artists, eq(artists.id, statsRollups.entityId))
+    .leftJoin(artists, eq(artists.id, statsRollups.entityId))
     .where(rankedRollups(periodType, periodKey, 'artist'))
     .orderBy(desc(statsRollups.playCount), desc(statsRollups.msPlayed))
     .limit(limit);
@@ -121,7 +122,7 @@ export function useTopArtists(periodType: PeriodType, periodKey: string, limit =
 export function useTopAlbums(periodType: PeriodType, periodKey: string, limit = 10) {
   const query = db
     .select({
-      id: albums.id,
+      id: statsRollups.entityId,
       title: albums.name,
       subtitle: artists.name,
       playCount: statsRollups.playCount,
@@ -129,7 +130,7 @@ export function useTopAlbums(periodType: PeriodType, periodKey: string, limit = 
       artworkPath: albumCover,
     })
     .from(statsRollups)
-    .innerJoin(albums, eq(albums.id, statsRollups.entityId))
+    .leftJoin(albums, eq(albums.id, statsRollups.entityId))
     .leftJoin(artists, eq(artists.id, albums.artistId))
     .where(rankedRollups(periodType, periodKey, 'album'))
     .orderBy(desc(statsRollups.playCount), desc(statsRollups.msPlayed))

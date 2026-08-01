@@ -13,6 +13,8 @@ export interface TopListProps {
   entries: readonly TopEntry[];
   /** Drawn when an entry has no cover. Says what kind of thing this list holds. */
   icon: LucideIcon;
+  /** Used only by the reserved unknown artist or album row. */
+  unknownTitle?: string;
 }
 
 /**
@@ -29,7 +31,7 @@ export interface TopListProps {
  * measure and loses badly on the other. Showing only the count was hiding half
  * of what `stats_rollups` already knew.
  */
-export function TopList({ title, entries, icon: Icon }: TopListProps) {
+export function TopList({ title, entries, icon: Icon, unknownTitle }: TopListProps) {
   const { t, i18n } = useTranslation();
   const colors = useThemeColors();
 
@@ -64,7 +66,7 @@ export function TopList({ title, entries, icon: Icon }: TopListProps) {
 
             <View className="flex-1 gap-1">
               <Text numberOfLines={1} className="font-body text-base text-primary">
-                {entry.title}
+                {entry.title ?? unknownTitle}
               </Text>
 
               {/*

@@ -84,6 +84,9 @@ export function fromMediaStore(row: MediaStoreTrack): ScannedTrack {
 
 export interface EnrichedFields {
   title?: string;
+  artistName: string | null;
+  albumName: string | null;
+  albumArtist: string | null;
   genre: string | null;
   trackNo: number | null;
   discNo: number | null;
@@ -111,6 +114,9 @@ export function fromTags(tags: TrackTags): EnrichedFields | null {
 
   return {
     ...(tags.title?.trim() ? { title: tags.title.trim() } : {}),
+    artistName: blankToNull(tags.artist),
+    albumName: blankToNull(tags.album),
+    albumArtist: blankToNull(tags.albumArtist),
     genre: blankToNull(tags.genre),
     trackNo,
     discNo: tags.discNumber ?? discNo,

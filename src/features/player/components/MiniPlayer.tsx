@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Music, Pause, Play, SkipBack, SkipForward } from 'lucide-react-native';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { tapFeedback } from '@/services/haptics';
+import * as perf from '@/services/perf';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 import { useReducedMotion } from '@/theme/useReducedMotion';
 import { useThemeColors } from '@/theme/useTheme';
@@ -75,6 +76,10 @@ export function MiniPlayer() {
   const track = useCurrentTrack();
   const { toggle, next, previous } = usePlaybackControls();
 
+  useEffect(() => {
+    if (track !== null) perf.measure('library.play.toMiniPlayer', track.id);
+  }, [track]);
+
   /*
    * `navigate`, not `push`.
    *
@@ -104,9 +109,10 @@ export function MiniPlayer() {
    * routinely lost the race to a child's press responder, so the swipe worked
    * sometimes and looked broken the rest of the time.
    *
-   * This one activates on vertical movement only (`activeOffsetY`) and treats
-   * horizontal travel as a secondary read once it already owns the gesture, so
-   * it never competes with a tap and never needs to.
+   * A small minimum distance lets the pan claim both axes while leaving taps
+   * to the child Pressables. `activeOffsetY` looked safer but meant a purely
+   * horizontal drag could never activate, so mini-player track swipes did not
+   * exist in practice.
    *
    * Built inline rather than memoized, like `Scrubber` and unlike
    * `SwipeableRow`: there is exactly one mini player, so a rebuild per render
@@ -115,7 +121,7 @@ export function MiniPlayer() {
    * values and simply does not model Reanimated.
    */
   const pan = Gesture.Pan()
-    .activeOffsetY([-ACTIVATION_SLOP, ACTIVATION_SLOP])
+    .minDistance(ACTIVATION_SLOP)
     .onBegin(() => {
       axis.value = 0;
     })
@@ -180,6 +186,7 @@ export function MiniPlayer() {
           <View className="flex-row items-center gap-1 px-4 py-2">
             <Pressable
               onPress={openPlayer}
+              android_ripple={{ color: colors.etch }}
               accessibilityRole="button"
               accessibilityLabel={t('player.open')}
               className="min-h-11 flex-1 flex-row items-center gap-3"
@@ -203,11 +210,9 @@ export function MiniPlayer() {
                 <Text numberOfLines={1} className="font-body-medium text-sm text-primary">
                   {track.title}
                 </Text>
-                {track.artistName ? (
-                  <Text numberOfLines={1} className="font-body text-sm text-muted">
-                    {track.artistName}
-                  </Text>
-                ) : null}
+                <Text numberOfLines={1} className="font-body text-sm text-muted">
+                  {track.artistName ?? t('common.unknownArtist')}
+                </Text>
               </View>
             </Pressable>
 
@@ -218,6 +223,7 @@ export function MiniPlayer() {
             */}
             <Pressable
               onPress={previous}
+              android_ripple={{ color: colors.etch, borderless: true }}
               accessibilityRole="button"
               accessibilityLabel={t('player.previous')}
               className="min-h-11 min-w-11 items-center justify-center"
@@ -227,6 +233,7 @@ export function MiniPlayer() {
 
             <Pressable
               onPress={toggle}
+              android_ripple={{ color: colors.etch, borderless: true }}
               accessibilityRole="button"
               accessibilityLabel={isPlaying ? t('player.pause') : t('player.play')}
               className="min-h-11 min-w-11 items-center justify-center"
@@ -240,6 +247,7 @@ export function MiniPlayer() {
 
             <Pressable
               onPress={next}
+              android_ripple={{ color: colors.etch, borderless: true }}
               accessibilityRole="button"
               accessibilityLabel={t('player.next')}
               className="min-h-11 min-w-11 items-center justify-center"

@@ -74,7 +74,12 @@ export function TrackActionSheet({ track, onSelect, onClose }: TrackActionSheetP
       visible={track !== null}
       title={track?.title ?? ''}
       subtitle={
-        [track?.artistName, track?.albumName].filter(Boolean).join(' — ') || undefined
+        track
+          ? [
+              track.artistName ?? t('common.unknownArtist'),
+              track.albumName ?? t('common.unknownAlbum'),
+            ].join(' — ')
+          : undefined
       }
       actions={actions}
       onSelect={(id) => onSelect(id as TrackAction)}

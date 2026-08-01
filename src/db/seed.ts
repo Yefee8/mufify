@@ -1,7 +1,7 @@
 import { count } from 'drizzle-orm';
 
 import { db } from './client';
-import { albums, artists, tracks } from './schema';
+import { albums, artists, playEvents, playlistTracks, statsRollups, trackStats, tracks } from './schema';
 
 /*
  * Fake library for UI work, so Phase 4 can build lists before Phase 2 can
@@ -136,11 +136,18 @@ export async function seedDatabase(): Promise<number> {
   return inserted;
 }
 
-/** Remove everything the seed inserted. Development only. */
+/** Clear generated tracks and every record that would otherwise refer to them. Development only. */
 export async function clearDatabase(): Promise<void> {
-  await db.delete(tracks);
-  await db.delete(albums);
-  await db.delete(artists);
+  await db.transaction(async (tx) => {
+    // Rollups are not foreign-key children, so SQLite cannot cascade them.
+    await tx.delete(statsRollups);
+    await tx.delete(playEvents);
+    await tx.delete(trackStats);
+    await tx.delete(playlistTracks);
+    await tx.delete(tracks);
+    await tx.delete(albums);
+    await tx.delete(artists);
+  });
 }
 
 /*

@@ -1,6 +1,6 @@
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import { Check } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, Text, View } from 'react-native';
 
@@ -133,13 +133,18 @@ interface PickRowProps {
 }
 
 /** A library track with a tick box. Deliberately plainer than `TrackRow`. */
-function PickRow({ track, isPicked, onToggle }: PickRowProps) {
+const PickRowComponent = function PickRow({ track, isPicked, onToggle }: PickRowProps) {
+  const { t } = useTranslation();
   const colors = useThemeColors();
-  const subtitle = [track.artistName, track.albumName].filter(Boolean).join(' — ');
+  const handlePress = useCallback(() => onToggle(track.id), [onToggle, track.id]);
+  const subtitle = [
+    track.artistName ?? t('common.unknownArtist'),
+    track.albumName ?? t('common.unknownAlbum'),
+  ].join(' — ');
 
   return (
     <Pressable
-      onPress={() => onToggle(track.id)}
+      onPress={handlePress}
       accessibilityRole="checkbox"
       accessibilityLabel={track.title}
       accessibilityHint={subtitle || undefined}
@@ -168,7 +173,20 @@ function PickRow({ track, isPicked, onToggle }: PickRowProps) {
       </View>
     </Pressable>
   );
+};
+
+function isSamePickRow(previous: PickRowProps, next: PickRowProps): boolean {
+  return (
+    previous.isPicked === next.isPicked &&
+    previous.onToggle === next.onToggle &&
+    previous.track.id === next.track.id &&
+    previous.track.title === next.track.title &&
+    previous.track.artistName === next.track.artistName &&
+    previous.track.albumName === next.track.albumName
+  );
 }
+
+const PickRow = memo(PickRowComponent, isSamePickRow);
 
 function keyExtractor(track: TrackListItem): string {
   return String(track.id);

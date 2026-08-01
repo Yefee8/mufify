@@ -183,7 +183,11 @@
     "cancel": "Vazgeç",
     "save": "Kaydet",
     "back": "Geri",
-    "close": "Kapat"
+    "close": "Kapat",
+    "unknownArtist": "Bilinmeyen sanatçı",
+    "unknownAlbum": "Bilinmeyen albüm",
+    "unexpectedError": "Bir şeyler ters gitti. Tekrar dene.",
+    "tryAgain": "Tekrar dene"
   },
   "queue": {
     "title": "Sıra",

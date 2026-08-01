@@ -10,6 +10,7 @@ import { View } from 'react-native';
 
 import { Toaster } from '@/components/ui/Toaster';
 import { MiniPlayer } from '@/features/player/components/MiniPlayer';
+import * as perf from '@/services/perf';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 import { useTheme } from '@/theme/useTheme';
 
@@ -57,6 +58,10 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={renderTabBar}
+      screenListeners={({ route }) => ({
+        tabPress: () => perf.mark(`tab.${route.name}.focus`),
+        focus: () => perf.measure(`tab.${route.name}.focus`),
+      })}
       screenOptions={{
         headerShown: false,
         // Indigo marks the active tab and nothing else in this bar.

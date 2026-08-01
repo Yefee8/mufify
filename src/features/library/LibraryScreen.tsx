@@ -58,6 +58,11 @@ export function LibraryScreen() {
   const artists = useArtistCards();
   const albums = useAlbumCards();
   const { openArtist, openAlbum } = useCollectionRouting();
+  const collectionCards = view === 'artists' ? artists : albums;
+  const displayedTrackCount =
+    view === 'tracks'
+      ? tracks.length
+      : collectionCards.reduce((total, card) => total + card.trackCount, 0);
 
   /** True while the scan confirmation is on screen. */
   const [confirmingScan, setConfirmingScan] = useState(false);
@@ -87,7 +92,7 @@ export function LibraryScreen() {
   return (
     <Screen title={t('library.title')}>
       <LibraryHeader
-        count={tracks.length}
+        count={displayedTrackCount}
         isScanning={isScanning}
         onScan={askToScan}
         onAddFolder={addFolder}
@@ -153,7 +158,8 @@ export function LibraryScreen() {
             <SkeletonCards />
           ) : (
             <CollectionGrid
-              cards={view === 'artists' ? artists : albums}
+              kind={view === 'artists' ? 'artist' : 'album'}
+              cards={collectionCards}
               icon={view === 'artists' ? User : Disc3}
               onPress={view === 'artists' ? openArtist : openAlbum}
               empty={null}
