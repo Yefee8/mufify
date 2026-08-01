@@ -8,6 +8,7 @@ import {
 } from 'expo-audio';
 
 import { shuffleTracks, type ShuffleAlgorithm } from '@/services/shuffle';
+import { ListenCycle, type BankedListen } from '@/services/stats/listenCycle';
 import { isRewindToRestart } from '@/services/stats/repeatListen';
 
 import { isPlayable, nextIndex, playNextIndex, previousIndex, shiftForInsert } from './queue';
@@ -96,9 +97,7 @@ class Engine {
    * play/skip rule would count it as a full listen.
    */
   private reportListen: ListenReporter | null = null;
-  private startedAt: Date | null = null;
-  private playedMs = 0;
-  private lastTickAt: number | null = null;
+  private listenCycle = new ListenCycle();
 
   /**
    * Position at the previous status tick, for spotting a rewind.
@@ -321,25 +320,23 @@ class Engine {
 
   /** Bank the time played so far and hand the listen over. */
   private flushListen(completed: boolean): void {
-    this.accumulate();
+    this.reportClosedListen(this.listenCycle.close(), completed);
+  }
 
+  /** Send an already-banked cycle to statistics while its track is still current. */
+  private reportClosedListen(listen: BankedListen | null, completed: boolean): void {
     const track = this.state.track;
-    const startedAt = this.startedAt;
 
-    if (track !== null && startedAt !== null && this.playedMs > 0) {
+    if (track !== null && listen !== null) {
       this.reportListen?.({
         track,
-        msPlayed: Math.round(this.playedMs),
-        startedAt,
+        msPlayed: listen.msPlayed,
+        startedAt: listen.startedAt,
         completed,
         source: this.source,
         shuffleAlgorithm: this.shuffleAlgorithm,
       });
     }
-
-    this.startedAt = null;
-    this.playedMs = 0;
-    this.lastTickAt = null;
   }
 
   /**
@@ -351,15 +348,7 @@ class Engine {
    * its two halves in the right days.
    */
   private beginNextCycle(): void {
-    this.flushListen(true);
-    this.startedAt = new Date();
-  }
-
-  /** Fold the time since the last tick into the running total. */
-  private accumulate(): void {
-    if (this.lastTickAt === null) return;
-    this.playedMs += Date.now() - this.lastTickAt;
-    this.lastTickAt = null;
+    this.reportClosedListen(this.listenCycle.restart(), true);
   }
 
   private async loadIndex(index: number, autoPlay: boolean): Promise<void> {
@@ -368,7 +357,7 @@ class Engine {
 
     // The outgoing track's listen closes before the incoming one starts.
     this.flushListen(false);
-    this.startedAt = new Date();
+    this.listenCycle.open();
 
     this.index = index;
     this.lastPositionMs = 0;
@@ -438,12 +427,7 @@ class Engine {
     const positionMs = Math.round(status.currentTime * 1000);
 
     // Clock the interval that just elapsed before anything else changes.
-    if (status.playing) {
-      this.accumulate();
-      this.lastTickAt = Date.now();
-    } else {
-      this.accumulate();
-    }
+    this.listenCycle.tick(status.playing);
 
     // A track that reached its end advances the queue. `didJustFinish` fires
     // once, unlike `currentTime >= duration`, which fires on every tick after.
@@ -467,7 +451,7 @@ class Engine {
         previousPositionMs: this.lastPositionMs,
         positionMs,
         durationMs: this.state.durationMs,
-        msPlayedInCycle: this.playedMs,
+        msPlayedInCycle: this.listenCycle.msPlayedInCycle,
       })
     ) {
       this.beginNextCycle();

@@ -10,6 +10,7 @@ export interface WrappedProps {
   totals: PeriodTotals;
   topTrack: TopEntry | undefined;
   topArtist: TopEntry | undefined;
+  unknownArtist: string;
 }
 
 /**
@@ -30,7 +31,7 @@ export interface WrappedProps {
  * intent in an app whose whole promise is that nothing leaves the device. A
  * screenshot is already the share mechanism, and it needs no permission.
  */
-export function Wrapped({ period, totals, topTrack, topArtist }: WrappedProps) {
+export function Wrapped({ period, totals, topTrack, topArtist, unknownArtist }: WrappedProps) {
   const { t, i18n } = useTranslation();
 
   const time = formatListeningTime(totals.msPlayed, i18n.language);
@@ -61,10 +62,10 @@ export function Wrapped({ period, totals, topTrack, topArtist }: WrappedProps) {
       {topTrack || topArtist ? (
         <View className="gap-3 border-t border-subtle pt-4">
           {topTrack ? (
-            <Fact label={t('stats.wrapped.mostPlayed')} value={topTrack.title} />
+            <Fact label={t('stats.wrapped.mostPlayed')} value={topTrack.title ?? unknownArtist} />
           ) : null}
           {topArtist ? (
-            <Fact label={t('stats.wrapped.mostHeard')} value={topArtist.title} />
+            <Fact label={t('stats.wrapped.mostHeard')} value={topArtist.title ?? unknownArtist} />
           ) : null}
         </View>
       ) : null}

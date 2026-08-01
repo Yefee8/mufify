@@ -4,6 +4,7 @@ import {
   foldDeltas,
   rollupDeltas,
   rollupKey,
+  UNKNOWN_ENTITY_ID,
   type ListenSubject,
   type RollupDelta,
 } from './rollups';
@@ -69,8 +70,7 @@ function makeEvents(count: number, seed = 1): Event[] {
     return {
       subject: {
         trackId: 1 + next(40),
-        // Nulls on purpose: untagged files are common and must not become
-        // entity 0 or be silently counted against some other artist.
+        // Nulls on purpose: untagged files share the reserved fallback row.
         artistId: next(5) === 0 ? null : 1 + next(12),
         albumId: next(7) === 0 ? null : 1 + next(9),
         playlistId: next(3) === 0 ? 1 + next(4) : null,
@@ -139,7 +139,7 @@ describe('rollupDeltas', () => {
     );
   });
 
-  it('skips null entities rather than counting them as id 0', () => {
+  it('groups null artist and album ids under the reserved fallback row', () => {
     const deltas = rollupDeltas({
       subject: { trackId: 1, artistId: null, albumId: null, playlistId: null },
       keys,
@@ -147,8 +147,13 @@ describe('rollupDeltas', () => {
       countsAsPlay: true,
     });
 
-    expect(deltas).toHaveLength(3);
-    expect(deltas.every((d) => d.entityType === 'track')).toBe(true);
+    expect(deltas).toHaveLength(9);
+    expect(deltas.filter((d) => d.entityType === 'artist')).toEqual(
+      expect.arrayContaining([expect.objectContaining({ entityId: UNKNOWN_ENTITY_ID })]),
+    );
+    expect(deltas.filter((d) => d.entityType === 'album')).toEqual(
+      expect.arrayContaining([expect.objectContaining({ entityId: UNKNOWN_ENTITY_ID })]),
+    );
   });
 
   it('records milliseconds but no play for a skip or partial', () => {
