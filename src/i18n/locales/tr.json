@@ -36,6 +36,12 @@
     "scanConfirm": {
       "title": "Müzik taransın mı?",
       "body": "Mufify, Android'in bu cihazda indekslediği tüm ses dosyalarını okuyacak. Büyük bir kütüphanede bu biraz sürer. İstediğin an durdurabilirsin, o ana kadar bulunanlar kalır."
+    },
+    "view": {
+      "label": "Kitaplık görünümü",
+      "tracks": "Parçalar",
+      "artists": "Sanatçılar",
+      "albums": "Albümler"
     }
   },
   "playlists": {

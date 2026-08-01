@@ -109,11 +109,13 @@ export function SkeletonCards({ count = 4 }: { count?: number }) {
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      className="flex-row flex-wrap gap-4 px-6"
+      className="flex-row flex-wrap px-4"
     >
       {Array.from({ length: count }, (_, index) => (
-        <View key={index} className="w-32 gap-2">
-          <Skeleton className="h-32 w-32 rounded-xs" />
+        // Half-width cells with padding, matching `CollectionGrid` exactly, so
+        // the real cards land where the placeholders were.
+        <View key={index} className="w-1/2 gap-2 p-2">
+          <Skeleton className="aspect-square w-full rounded-xs" />
           <Skeleton className="h-4 w-4/5 rounded-xs" />
           <Skeleton className="h-3 w-2/5 rounded-xs" />
         </View>

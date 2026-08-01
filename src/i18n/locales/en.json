@@ -36,6 +36,12 @@
     "scanConfirm": {
       "title": "Scan for music?",
       "body": "Mufify will read every audio file Android has indexed on this device. On a large library this takes a while. You can stop it at any point, and anything already found is kept."
+    },
+    "view": {
+      "label": "Library view",
+      "tracks": "Tracks",
+      "artists": "Artists",
+      "albums": "Albums"
     }
   },
   "playlists": {

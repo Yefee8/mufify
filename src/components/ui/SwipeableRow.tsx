@@ -113,7 +113,7 @@ export function SwipeableRow({
       <Animated.View
         pointerEvents="none"
         style={trackStyle}
-        className="absolute inset-y-0 right-0 w-24 items-center justify-center bg-accent"
+        className="absolute inset-y-0 right-0 w-16 items-center justify-center bg-accent"
       >
         <Icon color={colors.onSignal} size={22} strokeWidth={2} />
       </Animated.View>

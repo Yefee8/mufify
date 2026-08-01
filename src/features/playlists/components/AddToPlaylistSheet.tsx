@@ -71,7 +71,7 @@ export function AddToPlaylistSheet({ trackIds, onClose }: AddToPlaylistSheetProp
       >
         <Pressable
           onPress={absorb}
-          className="max-h-96 gap-4 rounded-md border border-subtle bg-surface-elevated p-5"
+          className="max-h-full gap-4 rounded-md border border-subtle bg-surface-elevated p-5"
         >
           <Text className="font-body-semibold text-base text-primary">
             {trackIds.length > 1

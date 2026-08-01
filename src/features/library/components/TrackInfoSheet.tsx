@@ -61,7 +61,7 @@ export function TrackInfoSheet({ track, onClose }: TrackInfoSheetProps) {
           <View className="gap-2">
             {rows.map(([label, value]) => (
               <View key={label} className="flex-row items-baseline gap-4">
-                <Text className="w-28 font-body text-sm text-muted">{label}</Text>
+                <Text className="w-1/3 font-body text-sm text-muted">{label}</Text>
                 {/* Mono for every technical value, so the column aligns. */}
                 <Text numberOfLines={1} className="flex-1 font-mono text-sm text-primary">
                   {value}
