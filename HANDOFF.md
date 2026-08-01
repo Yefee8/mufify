@@ -59,54 +59,75 @@ fighting flaky taps.
 
 ## What is actually left
 
-### 1. Frame timing on the Mi 9T — never once obtained
+### 1. Frame timing on the Mi 9T — still never obtained
 
-The counters are **reset and armed right now**. Ask the user to scroll the
-library hard for ~10 seconds, then:
+**The only item on this list that no amount of automation can close.** The AVD
+renders through SwiftShader, so its frame numbers are worthless; MIUI blocks
+`adb shell input`, so the phone cannot be scrolled without a human hand. It
+needs both halves at once and there is no substitute.
+
+The user uninstalled the app from the phone on 2026-08-01, so this now needs a
+reinstall first. Then, with the app on the Library tab:
 
 ```bash
+adb -s 7a6f8791 shell dumpsys gfxinfo dev.mufify.app reset
+# human scrolls hard for ~10 seconds
 adb -s 7a6f8791 shell dumpsys gfxinfo dev.mufify.app framestats
 ```
+
+Note the package is `dev.mufify.app`, not `com.mufify` — querying the wrong one
+returns "No process found", which reads exactly like the app having died.
 
 This is the only valid source for a 60 fps claim, and `docs/performance.md`
 deliberately makes no frame-rate claim until it exists. Record it there.
 
-### 2. Playlist chain, end to end
+### 2. ~~Playlist chain, end to end~~ — DONE 2026-08-01
 
-Create → add tracks → reorder → play. Each piece was verified separately; the
-whole chain in one pass never was, because the emulator's input died. Needs
-human taps on the phone, or a fresh emulator.
+Verified on the Pixel_7 AVD in one pass, `stats_rollups` playlist rows included.
+Full record in `docs/performance.md` under "Device verification".
 
-While doing it, confirm a **playlist** row appears in `stats_rollups` — the
-`QueueSource` plumbing is in and unit-covered but that specific path is
-unverified on a device. Reading the database:
+Two things worth carrying forward:
+
+- Every control has an `accessibilityLabel`, so drive the UI from
+  `uiautomator dump` by label rather than guessing coordinates. That is what
+  made this reproducible where the previous attempt was not.
+- The reorder handle is `Gesture.Pan().activateAfterLongPress(120)`. A plain
+  `adb shell input swipe` **never activates it**; you need
+  `input motionevent DOWN` → hold → `MOVE`s → `UP`.
+
+Reading the database — **copy the `-wal` too.** WAL means recent writes are not
+in the main file, and copying only `mufify.db` shows an empty `play_events`,
+which looks exactly like the bug you would then go hunting:
 
 ```bash
-adb -s 7a6f8791 shell "run-as dev.mufify.app cat files/SQLite/mufify.db"     > /tmp/m.db
-adb -s 7a6f8791 shell "run-as dev.mufify.app cat files/SQLite/mufify.db-wal" > /tmp/m.db-wal
+adb -s <dev> shell "run-as dev.mufify.app cat files/SQLite/mufify.db"     > /tmp/m.db
+adb -s <dev> shell "run-as dev.mufify.app cat files/SQLite/mufify.db-wal" > /tmp/m.db-wal
 sqlite3 /tmp/m.db "SELECT entity_type, COUNT(*) FROM stats_rollups GROUP BY 1;"
 ```
 
-**Copy the `-wal` too.** WAL mode means recent writes are not in the main file,
-and copying only `mufify.db` shows an empty `play_events` — which looks exactly
-like the bug you would then go hunting.
+### 3. ~~Repeat-listen seek-back~~ — DONE 2026-08-01
 
-### 3. Repeat-listen seek-back, on a device
+Two distinct `outcome=play` rows for one track from two seek-backs, rollups
+agreeing. Recorded in `docs/performance.md`.
 
-`isRewindToRestart` has 15 tests including sequence-level ones, and the engine
-wiring is reviewed. The manual seek-back path has not been watched on hardware.
-Play something past 30 s, drag the scrubber to the start, listen past 30 s
-again, and confirm **two** rows in `play_events`.
+### 4. ~~Release build~~ — DONE 2026-08-01
 
-### 4. Release build
+Installed and run for the first time, on the AVD rather than the phone, with
+`adb reverse --remove-all` so it could not fall back to Metro. Boots clean, all
+four tabs render, no `INTERNET` permission in the manifest. Details in
+`docs/performance.md`.
 
-`assembleRelease` succeeds (~23 min, 133 MB universal APK). It has never been
-installed or run. It ships **without the `INTERNET` permission** by design, so
-it cannot use Metro — a genuine smoke test. Installing it over the debug build
-requires an uninstall, which **wipes the user's scanned library and playlists**;
-ask before doing that.
+Still **not measured** — functional smoke test only. Every number in this repo
+is from a debug build, which overstates JS cost.
 
-Every measurement so far is from a debug build, which overstates JS cost.
+### 4b. A UX gap found while doing the above
+
+`MiniPlayer` is rendered only in `app/(tabs)/_layout.tsx`. Pushed stack screens
+therefore have no transport control: start playback from a playlist detail
+screen and there is no visible player, and no way to reach Now Playing without
+going back to a tab. It follows from the routing structure rather than being a
+defect, so it is a design call rather than a bug fix — but it is a real gap and
+nobody has decided about it.
 
 ### 5. One finding from the phone's database (the other is closed)
 

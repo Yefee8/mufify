@@ -212,7 +212,11 @@ never been seen by anyone. `src/theme/scale.test.ts` now fails on any such class
   dev-mode React, no precompiled bytecode for lazily loaded modules. Debug
   overstates JS cost substantially, so the cold-start figure in particular
   should be re-taken against a release build before it is treated as what a user
-  experiences.
+  experiences. The release build now *runs* (see above) but has not been
+  measured — functional smoke test only.
+- **Artwork and artists at scale.** Both emulator and phone libraries are
+  synthetic files with no artist and, apart from two, no artwork. The artist
+  shelf and the artwork cache have never met a real library.
 
 ---
 
@@ -232,9 +236,72 @@ gates green — `lint`, `typecheck`, 292 JS tests across 20 suites, and
 | Shuffle | Selection persists and `play_events.shuffle_algorithm` records it. |
 | Statistics | Wrapped, tiles and all four ranked lists, with covers and durations. |
 
-**Not exercised end to end:** the playlist create → add tracks → play flow. Its
-pieces were each verified separately earlier — the detail screen, the mosaic,
-the add-tracks sheet, reorder — but the whole chain in one pass was blocked by
-`adb shell input` becoming unreliable on an emulator that had been up for
-around nine hours. It is a gap in the evidence rather than a known fault, and it
-is the first thing to check on a fresh device.
+~~**Not exercised end to end:** the playlist create → add tracks → play flow.~~
+Closed on 2026-08-01 — see below.
+
+---
+
+## Device verification, 2026-08-01
+
+Pixel_7 AVD, API 35, rebooted first because the previous session's flaky taps
+were an emulator that had been up nine hours rather than a real fault. Every
+control in this app carries an `accessibilityLabel`, so the whole pass was
+driven from `uiautomator dump` by label instead of guessed pixel coordinates —
+which is what made it reproducible where the earlier attempt was not.
+
+**The playlist chain, end to end.** Create → name → add 3 tracks → drag-reorder
+→ play, in one pass. The reorder needed a real `motionevent` DOWN / hold /
+MOVE / UP sequence, because `ReorderableEntry` uses
+`Gesture.Pan().activateAfterLongPress(120)` and a plain `input swipe` never
+activates it. Moving perf-001 from position 2 to 0 renumbered all three rows
+correctly in `playlist_tracks`.
+
+`QueueSource` reaches the database: `play_events` recorded `source_type=playlist,
+source_id=1, ms_played=6089, completed=1`, and `stats_rollups` gained three
+matching rows — `week 2026-W31`, `month 2026-08`, `year 2026`, each
+`playlist/1, play_count=1, ms_played=6089`. That path was unit-covered but had
+never been seen on a device.
+
+**Repeat-listen seek-back.** MUSE - Cryogen, 5:10, threshold 30 s. Played to
+3:00, dragged the scrubber to the start, played again, dragged back a second
+time. Two distinct qualifying rows for the same track — `ms_played=211171` and
+`ms_played=144145`, both `outcome=play` — which is exactly what
+`isRewindToRestart` exists to produce. `track_stats` and all three rollup
+periods agree at 4 plays / 464455 ms.
+
+**Background audio**, incidentally: playback continued through the app being
+backgrounded to the launcher and was still at `state=PLAYING` on return. The
+engine outliving every screen is the reason, and this is the first time it has
+been watched.
+
+**The spec strip on a real MP3** reads `MP3 · 44.1 kHz · 138 kbps · Stereo ·
+5.1 MB`. Two things confirmed there: no codec field, because `codecOf` returns
+null when the subtype is already the container name; and 138 kbps, which is
+`SpecMath.bitrateKbps` computing from size and duration rather than trusting
+the retriever's reported 32 — the exact file its doc comment describes.
+
+**One UX gap found.** `MiniPlayer` is rendered only in `app/(tabs)/_layout.tsx`,
+so pushed stack screens have no transport control. Start playback from a
+playlist detail screen and there is no visible player and no route to Now
+Playing without going back to a tab. It follows from the routing structure
+rather than being a defect, but it is a real gap.
+
+---
+
+## Release build, first run ever
+
+`app-release.apk`, 133 MB universal, installed on the Pixel_7 AVD with
+`adb reverse --remove-all` first, so nothing could quietly fall back to Metro.
+
+- **No `INTERNET` permission**, confirmed with `aapt2 dump permissions` before
+  installing. `ACCESS_NETWORK_STATE` is present and grants no network access
+  without it, as ADR 009 records.
+- Boots standalone, no crash, no red box, no `Unable to load script`.
+- All four tabs render under Hermes and minification: Library's empty state,
+  Playlists, Stats with its Week/Month/Year segments, and Settings with theme,
+  language including `Türkçe`, and all five shuffle algorithms with their
+  descriptions. Lucide SVG icons and all three fonts load.
+
+This was the last thing in the project never to have been run. Note it is still
+a *functional* smoke test — no release-build numbers were taken, so the
+cold-start caveat below stands unchanged.
