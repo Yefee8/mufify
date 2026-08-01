@@ -23,7 +23,7 @@ function fire(run: () => Promise<void>): void {
   });
 }
 
-/** A discrete confirmation: play, pause, favourite, a row selected. */
+/** A discrete confirmation: play, pause or favourite. */
 export function tapFeedback(): void {
   fire(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
 }
@@ -33,12 +33,12 @@ export function liftFeedback(): void {
   fire(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
 }
 
-/** A committed change: reorder dropped, track queued, selection applied. */
+/** A committed change: reorder dropped or track queued. */
 export function commitFeedback(): void {
   fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
 }
 
-/** A refused action: swiping past the end, an empty selection. */
+/** A refused action: swiping past the end or an empty action. */
 export function rejectFeedback(): void {
   fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
 }

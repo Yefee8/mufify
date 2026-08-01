@@ -62,8 +62,12 @@ export interface UseScanResult {
    * body about there being no automatic sweep.
    */
   scanLibrary: () => Promise<void>;
-  /** Opens the system folder picker, then scans what was chosen. */
-  addFolder: () => Promise<void>;
+  /** Opens the system folder picker without starting an import yet. */
+  pickFolder: () => Promise<string | null>;
+  /** Adds a confirmed folder and runs both scan stages. */
+  importFolder: (treeUri: string) => Promise<void>;
+  /** True from confirmed folder import until enrichment has settled. */
+  isFolderImporting: boolean;
   /**
    * Re-index the known folders and sweep again. This is the pull-to-refresh
    * path: a user who has just copied files in should not have to restart the
@@ -86,6 +90,7 @@ export interface UseScanResult {
 export function useScan(): UseScanResult {
   const [progress, setProgress] = useState<ScanProgress>(IDLE);
   const [pulled, setPulled] = useState(false);
+  const [isFolderImporting, setFolderImporting] = useState(false);
   const cancelled = useRef(false);
 
   const ports: ScannerPorts = useMemo(
@@ -163,36 +168,20 @@ export function useScan(): UseScanResult {
     await run();
   }, [ensurePermission, run]);
 
-  const addFolder = useCallback(async () => {
+  const pickFolder = useCallback(async (): Promise<string | null> => {
     // Ask before opening the picker, not after. The tree the picker returns
     // grants access to that tree only — the scan queries MediaStore, which
     // needs the audio permission — so without it the pick is wasted work and
     // the user has chosen a folder for nothing.
     const permission = await ensurePermission();
-    if (permission === 'denied') return;
+    if (permission === 'denied') return null;
 
     try {
       const directory = await Directory.pickDirectoryAsync();
-      await addScanFolder(directory.uri);
-
-      // Index the folder rather than walking it — see ADR 007. A tree walk
-      // would put SAF document URIs in `tracks.file_uri` alongside MediaStore
-      // ones, and every consumer would then have to know which it was holding.
-      await requestMediaScanFor(directory.uri);
-
-      await run();
+      return directory.uri;
     } catch (error) {
       if (isPickerDismissal(error)) {
-        /*
-         * A cancelled picker is not a failure — the user changed their mind, and
-         * the screen should look as it did before. With one exception: if the
-         * permission was granted a moment ago, nothing has ever read the library,
-         * so sweep once anyway. The user did ask for music to be added; they only
-         * changed their mind about *which folder*, and leaving a freshly
-         * permitted app on an empty library answers a question they did not ask.
-         */
-        if (permission === 'granted-now') await run();
-        return;
+        return null;
       }
       setProgress({
         phase: 'failed',
@@ -200,8 +189,26 @@ export function useScan(): UseScanResult {
         processed: 0,
         error: error instanceof Error ? error.message : String(error),
       });
+      return null;
     }
-  }, [ensurePermission, run]);
+  }, [ensurePermission]);
+
+  const importFolder = useCallback(
+    async (treeUri: string) => {
+      setFolderImporting(true);
+      try {
+        await addScanFolder(treeUri);
+        // Index the folder rather than walking it — see ADR 007. A tree walk
+        // would put SAF document URIs in `tracks.file_uri` alongside MediaStore
+        // ones, and every consumer would then have to know which it was holding.
+        await requestMediaScanFor(treeUri);
+        await run();
+      } finally {
+        setFolderImporting(false);
+      }
+    },
+    [run],
+  );
 
   const runRescan = useCallback(async () => {
     if ((await ensurePermission()) === 'denied') return;
@@ -268,7 +275,9 @@ export function useScan(): UseScanResult {
     isScanning,
     isRefreshing: pulled && isScanning,
     scanLibrary,
-    addFolder,
+    pickFolder,
+    importFolder,
+    isFolderImporting,
     rescan,
     cancel,
   };
@@ -292,4 +301,3 @@ async function requestMediaScanFor(treeUri: string): Promise<void> {
     // Indexing is best-effort; the sweep below still runs.
   }
 }
-

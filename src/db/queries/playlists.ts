@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, max, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, max, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 
 import { foldPlaylistRows, reorder, type PlaylistSummary } from '@/services/playlists/order';
@@ -30,6 +30,21 @@ export interface PlaylistEntry {
   playCount: number;
   isFavorite: boolean;
 }
+
+/** Virtual route id for liked songs; it never exists in `playlists`. */
+export const LIKED_SONGS_ID = -1;
+
+const entrySelection = {
+  trackId: tracks.id,
+  fileUri: tracks.fileUri,
+  title: tracks.title,
+  artistName: artists.name,
+  albumName: albums.name,
+  durationMs: tracks.durationMs,
+  artworkPath: tracks.artworkPath,
+  playCount: sql<number>`coalesce(${trackStats.playCount}, 0)`,
+  isFavorite: sql`coalesce(${trackStats.isFavorite}, 0)`.mapWith(Boolean),
+};
 
 /**
  * Live list of playlists, newest first, with their sizes and mosaic covers.
@@ -67,22 +82,14 @@ export function usePlaylists(): PlaylistSummary[] {
 export function usePlaylistEntries(playlistId: number): PlaylistEntry[] {
   const query = db
     .select({
-      trackId: tracks.id,
       position: playlistTracks.position,
-      fileUri: tracks.fileUri,
-      title: tracks.title,
-      artistName: artists.name,
-      albumName: albums.name,
-      durationMs: tracks.durationMs,
-      artworkPath: tracks.artworkPath,
+      ...entrySelection,
       /*
        * Real counts, not the zero this used to select. Shuffling a playlist
        * runs the same algorithms as shuffling the library, and `discovery` and
        * `favorites` both weight on these — fed constants they degrade silently
        * into `pure`, which looks like the setting being ignored.
        */
-      playCount: sql<number>`coalesce(${trackStats.playCount}, 0)`,
-      isFavorite: sql`coalesce(${trackStats.isFavorite}, 0)`.mapWith(Boolean),
     })
     .from(playlistTracks)
     .innerJoin(tracks, eq(tracks.id, playlistTracks.trackId))
@@ -93,6 +100,24 @@ export function usePlaylistEntries(playlistId: number): PlaylistEntry[] {
     .orderBy(asc(playlistTracks.position));
 
   const { data } = useLiveQuery(query, [playlistId]);
+  return data;
+}
+
+/** Live favourite tracks, newest favourite first, presented as a virtual playlist. */
+export function useFavoriteEntries(): PlaylistEntry[] {
+  const query = db
+    .select({
+      position: sql<number>`row_number() over (order by ${trackStats.favoriteAt} desc, ${tracks.id} desc) - 1`,
+      ...entrySelection,
+    })
+    .from(tracks)
+    .innerJoin(trackStats, eq(trackStats.trackId, tracks.id))
+    .leftJoin(artists, eq(artists.id, tracks.artistId))
+    .leftJoin(albums, eq(albums.id, tracks.albumId))
+    .where(and(eq(trackStats.isFavorite, 1), eq(tracks.isMissing, 0)))
+    .orderBy(desc(trackStats.favoriteAt), desc(tracks.id));
+
+  const { data } = useLiveQuery(query);
   return data;
 }
 

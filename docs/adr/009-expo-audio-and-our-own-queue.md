@@ -45,8 +45,8 @@ repeat-one meeting an explicit skip — is a unit test that runs on a laptop.
 repeat-one repeats; a track the user skips advances. Same mode, different
 input, and treating them identically makes the button look broken.
 
-**The three-second rule lives in the engine, not the queue.** Pressing previous
-more than three seconds in restarts the current track. That needs the playback
+**The ten-second rule lives in the engine, not the queue.** Pressing previous
+at or beyond ten seconds restarts the current track. That needs the playback
 position, which the queue does not have and should not.
 
 ## Consequences

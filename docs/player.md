@@ -46,8 +46,8 @@ Everything easy to get wrong lives there and is unit tested:
   repeats, a track the user *skips* advances. Same mode, different input.
   Treating them the same makes the skip button look broken.
 
-The three-second rule — previous restarts the track rather than going back,
-once you are far enough in — lives in the engine instead, because it needs the
+The ten-second rule — previous restarts the track rather than going back,
+at or beyond 10 seconds — lives in the engine instead, because it needs the
 playback position and the queue does not have one.
 
 ## Two Android requirements that are not optional

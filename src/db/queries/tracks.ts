@@ -223,10 +223,11 @@ export function useIsFavorite(trackId: number | null): boolean {
  */
 export async function setFavorite(trackId: number, isFavorite: boolean): Promise<void> {
   const flag = isFavorite ? 1 : 0;
+  const favoriteAt = isFavorite ? Date.now() : null;
   await db
     .insert(trackStats)
-    .values({ trackId, isFavorite: flag })
-    .onConflictDoUpdate({ target: trackStats.trackId, set: { isFavorite: flag } });
+    .values({ trackId, isFavorite: flag, favoriteAt })
+    .onConflictDoUpdate({ target: trackStats.trackId, set: { isFavorite: flag, favoriteAt } });
 }
 
 /**
@@ -358,12 +359,7 @@ export function useCollectionTracks(kind: 'artist' | 'album', id: number): Track
     .leftJoin(artists, eq(tracks.artistId, artists.id))
     .leftJoin(albums, eq(tracks.albumId, albums.id))
     .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
-    .where(
-      and(
-        eq(tracks.isMissing, 0),
-        collectionPredicate,
-      ),
-    )
+    .where(and(eq(tracks.isMissing, 0), collectionPredicate))
     .orderBy(
       asc(sql`${tracks.discNo} IS NULL`),
       asc(tracks.discNo),

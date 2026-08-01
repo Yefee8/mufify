@@ -3,8 +3,9 @@
 Everything is computed on-device from the user's own history. No network, no
 account, no export unless the user asks for one.
 
-> Phase status: the counting rule and period keys are implemented and tested
-> (Phase 1). Event recording is wired; rollups and the screens land in Phase 7.
+> Phase status: counting, event recording, incremental rollups and the stats
+> screen are implemented. The repeat-listen device check is recorded only after
+> it has been run against the on-device database.
 
 ---
 

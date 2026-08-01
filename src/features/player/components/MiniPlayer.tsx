@@ -1,9 +1,8 @@
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
 import { Music, Pause, Play, SkipBack, SkipForward } from 'lucide-react-native';
 import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -15,14 +14,12 @@ import Animated, {
 import { tapFeedback } from '@/services/haptics';
 import * as perf from '@/services/perf';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
-import { useReducedMotion } from '@/theme/useReducedMotion';
 import { useThemeColors } from '@/theme/useTheme';
 
 import { useCurrentTrack, usePlaybackControls, usePlaybackPhase } from '../hooks/usePlayback';
+import { playerExpansion, setPlayerExpansion } from '../playerExpansion';
 import { MiniProgress } from './MiniProgress';
 
-/** How far up the strip must be dragged to open the player. */
-const OPEN_DISTANCE = 40;
 /** px/s upward that opens it regardless of distance. */
 const OPEN_VELOCITY = 600;
 /** Sideways travel that changes track. Shorter than the player's — less room. */
@@ -43,6 +40,13 @@ const FOLLOW_RATIO = 0.4;
 
 const SPRING = { damping: 20, stiffness: 220 } as const;
 
+export interface MiniPlayerProps {
+  /** Mounts Now Playing as soon as a vertical drag begins. */
+  onPrepareOpen: () => void;
+  /** Settles the root overlay after a tap or released drag. */
+  onExpandedChange: (expanded: boolean) => void;
+}
+
 /**
  * The persistent transport strip above the tab bar.
  *
@@ -55,12 +59,11 @@ const SPRING = { damping: 20, stiffness: 220 } as const;
  * flick it. The gesture is deliberately additive — every one of its actions has
  * a button beside it, so nothing here is reachable only by knowing a secret.
  */
-export function MiniPlayer() {
+export function MiniPlayer({ onPrepareOpen, onExpandedChange }: MiniPlayerProps) {
   useLifecycleTrace('MiniPlayer');
   const { t } = useTranslation();
   const colors = useThemeColors();
-  const router = useRouter();
-  const reducedMotion = useReducedMotion();
+  const { height } = useWindowDimensions();
 
   /*
    * Phase and track, never position.
@@ -80,23 +83,12 @@ export function MiniPlayer() {
     if (track !== null) perf.measure('library.play.toMiniPlayer', track.id);
   }, [track]);
 
-  /*
-   * `navigate`, not `push`.
-   *
-   * The strip offers the same action three ways — tap, drag, flick — and a
-   * drag fires the pan's handler while the underlying Pressable can still
-   * register its own press. `push` stacked two copies of the player, and the
-   * symptom was baffling: swipe down to dismiss appeared to do nothing, and so
-   * did the close button, because each was correctly popping one of two
-   * identical screens. `navigate` reuses the route that is already there.
-   */
   const openPlayer = useCallback(() => {
     tapFeedback();
-    router.navigate('/player');
-  }, [router]);
+    onExpandedChange(true);
+  }, [onExpandedChange]);
 
   const offsetX = useSharedValue(0);
-  const offsetY = useSharedValue(0);
   const axis = useSharedValue(0);
 
   /*
@@ -132,14 +124,14 @@ export function MiniPlayer() {
         // Undecided until the finger has actually gone somewhere.
         if (Math.max(dx, dy) < AXIS_LOCK_SLOP) return;
         axis.value = dx > dy ? 1 : 2;
+        if (axis.value === 2) runOnJS(onPrepareOpen)();
       }
 
       if (axis.value === 1) {
         offsetX.value = event.translationX * FOLLOW_RATIO;
         return;
       }
-      // Up only. Dragging the strip down has nowhere to go.
-      offsetY.value = Math.min(0, event.translationY) * FOLLOW_RATIO;
+      setPlayerExpansion(Math.min(1, Math.max(0, -event.translationY / height)));
     })
     .onEnd((event) => {
       if (axis.value === 1) {
@@ -148,20 +140,18 @@ export function MiniPlayer() {
         return;
       }
 
-      // Distance or velocity, so a short flick opens it as readily as a
-      // deliberate drag.
-      const far = event.translationY <= -OPEN_DISTANCE;
+      const far = playerExpansion.value >= 0.18;
       const fast = event.velocityY <= -OPEN_VELOCITY;
-      if (far || fast) runOnJS(openPlayer)();
+      runOnJS(onExpandedChange)(far || fast);
     })
     .onFinalize(() => {
       axis.value = 0;
       offsetX.value = withSpring(0, SPRING);
-      offsetY.value = withSpring(0, SPRING);
     });
 
   const followStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: offsetX.value }, { translateY: offsetY.value }],
+    opacity: 1 - playerExpansion.value,
+    transform: [{ translateX: offsetX.value }],
   }));
 
   if (phase === 'idle' || track === null) return null;
@@ -182,7 +172,7 @@ export function MiniPlayer() {
       <MiniProgress />
 
       <GestureDetector gesture={pan}>
-        <Animated.View style={reducedMotion ? undefined : followStyle}>
+        <Animated.View style={followStyle}>
           <View className="flex-row items-center gap-1 px-4 py-2">
             <Pressable
               onPress={openPlayer}

@@ -11,7 +11,14 @@ import { shuffleTracks, type ShuffleAlgorithm } from '@/services/shuffle';
 import { ListenCycle, type BankedListen } from '@/services/stats/listenCycle';
 import { isRewindToRestart } from '@/services/stats/repeatListen';
 
-import { isPlayable, nextIndex, playNextIndex, previousIndex, shiftForInsert } from './queue';
+import {
+  isPlayable,
+  nextIndex,
+  playNextIndex,
+  previousIndex,
+  shouldRestartCurrentTrack,
+  shiftForInsert,
+} from './queue';
 import {
   IDLE_PLAYBACK,
   LIBRARY_SOURCE,
@@ -38,9 +45,6 @@ import {
 
 /** How often the engine reports position. 500ms is expo-audio's own default. */
 const STATUS_INTERVAL_MS = 500;
-
-/** Pressing previous past this point restarts the track instead of going back. */
-const RESTART_THRESHOLD_MS = 3_000;
 
 type Listener = (state: PlaybackState) => void;
 type ListenReporter = (listen: FinishedListen) => void;
@@ -466,8 +470,7 @@ class Engine {
       positionMs,
       // expo-audio reports -1 or 0 before the file is open; the scanner's
       // figure is the better answer until then.
-      durationMs:
-        status.duration > 0 ? Math.round(status.duration * 1000) : this.state.durationMs,
+      durationMs: status.duration > 0 ? Math.round(status.duration * 1000) : this.state.durationMs,
     });
   };
 
@@ -510,6 +513,9 @@ class Engine {
 
     // Repeat-one on a finished track: same index, so seek rather than reload.
     if (next === this.index && !explicit) {
+      // `onStatus` just banked the completed listen. Unlike loadIndex, this
+      // path keeps the same source, so it must explicitly open the next pass.
+      this.listenCycle.open();
       await this.seekTo(0);
       this.play();
       return;
@@ -521,12 +527,12 @@ class Engine {
   /**
    * The previous track, or the start of this one.
    *
-   * The three-second rule lives here rather than in the queue because it needs
+   * The ten-second rule lives here rather than in the queue because it needs
    * the playback position, which the queue does not have. It is what every
    * other player does and what the button is expected to do.
    */
   async previous(): Promise<void> {
-    if (this.state.positionMs > RESTART_THRESHOLD_MS) {
+    if (shouldRestartCurrentTrack(this.state.positionMs)) {
       await this.seekTo(0);
       return;
     }

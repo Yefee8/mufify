@@ -13,9 +13,8 @@ export interface AddToPlaylistSheetProps {
   /**
    * The tracks to add. Empty means closed.
    *
-   * A list rather than one id, because multi-select adds a whole selection at
-   * once and the single-track case is just a list of one. Order is preserved:
-   * they land in the playlist in the order they were picked.
+   * A list keeps the database write generic. The current caller supplies one
+   * id, and order is preserved if another single-action surface supplies more.
    */
   trackIds: readonly number[];
   onClose: () => void;
@@ -57,12 +56,7 @@ export function AddToPlaylistSheet({ trackIds, onClose }: AddToPlaylistSheetProp
   );
 
   return (
-    <Modal
-      visible={trackIds.length > 0}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={trackIds.length > 0} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable
         onPress={onClose}
         accessibilityRole="button"
@@ -85,9 +79,7 @@ export function AddToPlaylistSheet({ trackIds, onClose }: AddToPlaylistSheetProp
             className="min-h-11 flex-row items-center gap-3"
           >
             <Plus color={colors.signal} size={20} strokeWidth={2} />
-            <Text className="font-body-medium text-base text-accent">
-              {t('playlists.create')}
-            </Text>
+            <Text className="font-body-medium text-base text-accent">{t('playlists.create')}</Text>
           </Pressable>
 
           <ScrollView>

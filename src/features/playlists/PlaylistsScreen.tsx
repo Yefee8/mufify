@@ -6,7 +6,13 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
-import { createPlaylist, usePlaylists, type PlaylistSummary } from '@/db/queries/playlists';
+import {
+  createPlaylist,
+  LIKED_SONGS_ID,
+  useFavoriteEntries,
+  usePlaylists,
+  type PlaylistSummary,
+} from '@/db/queries/playlists';
 import { useMessages } from '@/i18n';
 import { useThemeColors } from '@/theme/useTheme';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
@@ -29,6 +35,7 @@ export function PlaylistsScreen() {
   const router = useRouter();
 
   const playlists = usePlaylists();
+  const likedEntries = useFavoriteEntries();
   const [naming, setNaming] = useState(false);
 
   const openNaming = useCallback(() => setNaming(true), []);
@@ -45,15 +52,25 @@ export function PlaylistsScreen() {
     [router],
   );
 
-  const openPlaylist = useCallback(
-    (id: number) => router.push(`/playlist/${id}`),
-    [router],
-  );
+  const openPlaylist = useCallback((id: number) => router.push(`/playlist/${id}`), [router]);
 
   const renderItem = useCallback(
     ({ item }: { item: PlaylistSummary }) => <PlaylistRow playlist={item} onPress={openPlaylist} />,
     [openPlaylist],
   );
+
+  const rows = [
+    {
+      id: LIKED_SONGS_ID,
+      name: t('playlists.likedSongs'),
+      trackCount: likedEntries.length,
+      mosaic: likedEntries
+        .flatMap((entry) => (entry.artworkPath ? [entry.artworkPath] : []))
+        .slice(0, 4),
+      artworkPath: null,
+    },
+    ...playlists,
+  ];
 
   return (
     <Screen title={t('playlists.title')}>
@@ -73,21 +90,22 @@ export function PlaylistsScreen() {
         </Pressable>
       </View>
 
-      {playlists.length === 0 ? (
-        <EmptyState
-          icon={ListMusic}
-          messages={messages}
-          actionLabel={t('playlists.create')}
-          onAction={openNaming}
-        />
-      ) : (
-        <FlatList
-          data={playlists}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          contentContainerClassName="pb-8"
-        />
-      )}
+      <FlatList
+        data={rows}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        contentContainerClassName="pb-8"
+        ListFooterComponent={
+          playlists.length === 0 ? (
+            <EmptyState
+              icon={ListMusic}
+              messages={messages}
+              actionLabel={t('playlists.create')}
+              onAction={openNaming}
+            />
+          ) : null
+        }
+      />
 
       <NamePlaylistDialog
         visible={naming}

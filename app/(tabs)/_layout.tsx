@@ -5,11 +5,12 @@ import { Tabs } from 'expo-router';
 import { BottomTabBar } from 'expo-router/build/react-navigation/bottom-tabs';
 import type { BottomTabBarProps } from 'expo-router/build/react-navigation/bottom-tabs';
 import { BarChart3, Disc3, ListMusic, SlidersHorizontal } from 'lucide-react-native';
+import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
+import { type LayoutChangeEvent, View } from 'react-native';
 
 import { Toaster } from '@/components/ui/Toaster';
-import { MiniPlayer } from '@/features/player/components/MiniPlayer';
+import { setPlayerTabBarHeight } from '@/features/player/playerLayerLayout';
 import * as perf from '@/services/perf';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 import { useTheme } from '@/theme/useTheme';
@@ -23,8 +24,14 @@ import { useTheme } from '@/theme/useTheme';
  */
 function TabBarWithPlayer(props: BottomTabBarProps) {
   useLifecycleTrace('TabBar');
+  const onLayout = useCallback((event: LayoutChangeEvent) => {
+    setPlayerTabBarHeight(event.nativeEvent.layout.height);
+  }, []);
+
+  useEffect(() => () => setPlayerTabBarHeight(0), []);
+
   return (
-    <View>
+    <View onLayout={onLayout}>
       {/*
         Toasts stack directly on top of the transport, which is why they live
         here rather than at the root. Positioning them from the root would mean
@@ -35,7 +42,6 @@ function TabBarWithPlayer(props: BottomTabBarProps) {
         Stacking solves it with neither.
       */}
       <Toaster />
-      <MiniPlayer />
       <BottomTabBar {...props} />
     </View>
   );

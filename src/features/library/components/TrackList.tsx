@@ -35,19 +35,9 @@ const DRAW_DISTANCE = 1_200;
 export interface TrackListProps {
   tracks: TrackListItem[];
   locale: string;
-  /** True while the list is in selection mode. */
-  isSelecting: boolean;
-  /**
-   * The selected ids as a Set.
-   *
-   * A Set rather than the whole selection object, because `renderItem` closes
-   * over whatever it is given: taking the object made every row depend on
-   * something that changed on every unrelated parent render.
-   */
-  selectedIds: ReadonlySet<number>;
-  /** Plays the track, or toggles it when selecting. */
+  /** Plays the track. */
   onPress: (id: number) => void;
-  /** Opens the action sheet, or starts selection. */
+  /** Opens the action sheet. */
   onLongPress: (id: number) => void;
   /** Swipe left on a row. */
   onSwipeToQueue: (id: number) => void;
@@ -62,15 +52,13 @@ export interface TrackListProps {
  * The library list itself.
  *
  * Split out of `LibraryScreen` because the screen had grown past what one
- * component should hold once selection, swiping and the action sheet arrived —
+ * component should hold once swiping and the action sheet arrived —
  * `AGENTS.md` puts a hard limit at 300 lines. The screen now decides *what*
  * happens; this decides how rows are drawn.
  */
 export function TrackList({
   tracks,
   locale,
-  isSelecting,
-  selectedIds,
   onPress,
   onLongPress,
   onSwipeToQueue,
@@ -82,7 +70,7 @@ export function TrackList({
   const { t } = useTranslation();
   const colors = useThemeColors();
 
-  const swipeLabel = t('selection.addToQueue');
+  const swipeLabel = t('track.addToQueue');
 
   const renderItem = useCallback<ListRenderItem<TrackListItem>>(
     ({ item }) => {
@@ -93,23 +81,12 @@ export function TrackList({
           onPress={onPress}
           onLongPress={onLongPress}
           onSwipeToQueue={onSwipeToQueue}
-          isSelecting={isSelecting}
-          isSelected={selectedIds.has(item.id)}
           isCurrent={item.id === currentTrackId}
           swipeLabel={swipeLabel}
         />
       );
     },
-    [
-      locale,
-      onPress,
-      onLongPress,
-      onSwipeToQueue,
-      isSelecting,
-      selectedIds,
-      currentTrackId,
-      swipeLabel,
-    ],
+    [locale, onPress, onLongPress, onSwipeToQueue, currentTrackId, swipeLabel],
   );
 
   return (

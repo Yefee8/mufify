@@ -63,6 +63,12 @@ removing "the track" would take both copies.
 `is_missing = 1`. Deleting it would take playlist entries and play history with
 it, and an SD card that is merely unmounted would look like a library wipe.
 
+**Liked songs are virtual.** `track_stats.is_favorite` is the source of truth;
+there is no reserved row in `playlists`. `favorite_at` is set when a track is
+liked and cleared when it is unliked, so the virtual Liked Songs list can sort
+newest first without changing playlist data. Existing favourite rows predate
+this column and have a null timestamp, so they sort after newly liked tracks.
+
 ### Spec strip columns
 
 `container`, `codec`, `bitrate_kbps`, `sample_rate_hz`, `bit_depth`,
@@ -106,8 +112,9 @@ recorder and the stats screens both go through it, so they cannot disagree.
 - A **skip** is `ms_played < duration_ms * 0.2` — abandoning it in the first
   fifth.
 - Anything else is **partial**: it happened, but it counts as neither.
-- Seeking backwards does not create a second event. That is a recorder concern
-  and lands with playback in Phase 3.
+- A rewind can start a second listen only after the current listen has earned a
+  play and the position jumps back to the first quarter. See ADR 011 and
+  `docs/stats.md`; ordinary seeks remain part of the same listen.
 
 ### The thresholds overlap — this is unresolved
 

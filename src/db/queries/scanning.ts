@@ -145,9 +145,8 @@ async function resolveAlbums(
  * doing five awaited round trips per track: insert artist, select artist, insert
  * album, select album, upsert track. At the default page size of 500 that is
  * ~2,500 sequential queries in one un-yielded block, and it is what "the
- * automatic scan freezes the app" meant. Measured on the Pixel_7 AVD with a
- * 528-file library, first scan: **859ms for one page of 500**, during which
- * nothing renders and no touch is handled.
+ * large-library scan freezes the app" meant: a first scan skipped nothing and
+ * could hold the JS thread for the whole page.
  *
  * The fingerprint skip that was already here only helps a *re*-scan, where most
  * rows are unchanged. The first scan — the one a new user sees — skipped nothing
@@ -216,8 +215,7 @@ export async function saveEnumerated(rows: EnumeratedRow[]): Promise<void> {
             albumId:
               row.albumName === null
                 ? null
-                : (albumIds.get(albumKey(row.albumName, albumArtistIdOf(row, artistIds))) ??
-                  null),
+                : (albumIds.get(albumKey(row.albumName, albumArtistIdOf(row, artistIds))) ?? null),
             albumArtist: row.albumArtist,
             genre: row.genre,
             trackNo: row.trackNo,
@@ -398,7 +396,8 @@ export async function saveEnriched(rows: EnrichedRow[]): Promise<void> {
 
   await db.transaction(async (tx) => {
     for (const { fileUri, fields } of rows) {
-      const artistId = fields.artistName === null ? null : (artistIds.get(fields.artistName) ?? null);
+      const artistId =
+        fields.artistName === null ? null : (artistIds.get(fields.artistName) ?? null);
       await tx
         .update(tracks)
         .set({
@@ -407,7 +406,8 @@ export async function saveEnriched(rows: EnrichedRow[]): Promise<void> {
           albumId:
             fields.albumName === null
               ? null
-              : (albumIds.get(albumKey(fields.albumName, albumArtistIdOf(fields, artistIds))) ?? null),
+              : (albumIds.get(albumKey(fields.albumName, albumArtistIdOf(fields, artistIds))) ??
+                null),
           albumArtist: fields.albumArtist,
           genre: fields.genre,
           trackNo: fields.trackNo,
@@ -535,7 +535,7 @@ export function useScanFolders(): ScanFolder[] {
  * Forget a folder.
  *
  * The row goes; the tracks stay. Those tracks are ordinary MediaStore content
- * that the automatic sweep would find anyway, so deleting them here would
+ * that a later library scan would find anyway, so deleting them here would
  * take playlist entries and play history with them to remove something the
  * next scan puts straight back. Removing a folder means "stop re-indexing
  * this path", not "delete this music".

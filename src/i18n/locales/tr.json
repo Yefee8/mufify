@@ -33,9 +33,23 @@
     "noResults": "“{{term}}” ile eşleşen bir şey yok.",
     "scan": "Tara",
     "addFolder": "Klasör ekle",
+    "import": "İçe aktar",
     "scanConfirm": {
       "title": "Müzik taransın mı?",
       "body": "Mufify, Android'in bu cihazda indekslediği tüm ses dosyalarını okuyacak. Büyük bir kütüphanede bu biraz sürer. İstediğin an durdurabilirsin, o ana kadar bulunanlar kalır."
+    },
+    "folderImportConfirm": {
+      "title": "Bu klasör içe aktarılsın mı?",
+      "body": "Mufify seçilen klasörü indeksleyecek ve etiketlerini okuyacak. Büyük bir kitaplıkta bu sürebilir ve cihaz performansını geçici olarak etkileyebilir. İstediğin an durdurabilirsin."
+    },
+    "importing": {
+      "title": "Müzik içe aktarılıyor",
+      "preparing": "İçe aktarma hazırlanıyor…",
+      "messages": [
+        "Bu cihazdaki müzikler okunuyor.",
+        "Kitaplık, hiçbir yere veri göndermeden oluşturuluyor.",
+        "Kapaklar ve etiketler kitaplık için hazırlanıyor."
+      ]
     },
     "view": {
       "label": "Kitaplık görünümü",
@@ -46,6 +60,7 @@
   },
   "playlists": {
     "title": "Listeler",
+    "likedSongs": "Beğenilenler",
     "create": "Yeni liste",
     "rename": "Yeniden adlandır",
     "delete": "Listeyi sil",
@@ -66,14 +81,12 @@
       "Burada henüz bir şey yok. Kitaplıktan parça ekle.",
       "Boş bir liste. Bir parçaya uzun bas ve buraya koy."
     ],
+    "likedEmpty": ["Henüz beğenilen parça yok. Burada tutmak için bir parçadaki kalbi kullan."],
     "addCount_one": "{{count}} parçayı bir listeye ekle",
     "addCount_other": "{{count}} parçayı bir listeye ekle",
     "shuffleAll": "Karıştır",
     "addTracks": "Parça ekle",
-    "reorder": "{{title}} sırasını değiştir",
-    "addSelected_zero": "Birkaç parça seç",
-    "addSelected_one": "{{count}} parça ekle",
-    "addSelected_other": "{{count}} parça ekle"
+    "reorder": "{{title}} sırasını değiştir"
   },
   "stats": {
     "title": "İstatistik",
@@ -198,19 +211,9 @@
     "remaining_one": "{{count}} parça kaldı",
     "remaining_other": "{{count}} parça kaldı"
   },
-  "selection": {
-    "count_zero": "Parça seç",
-    "count_one": "{{count}} seçildi",
-    "count_other": "{{count}} seçildi",
-    "all": "Tümünü seç",
-    "none": "Seçimi temizle",
-    "cancel": "Seçimden çık",
-    "addToQueue": "Sıraya ekle",
-    "addToPlaylist": "Listeye ekle"
-  },
   "track": {
     "playNext": "Sıradaki çal",
-    "select": "Seç",
+    "addToQueue": "Sıraya ekle",
     "info": "Parça bilgisi",
     "field": {
       "title": "Parça",

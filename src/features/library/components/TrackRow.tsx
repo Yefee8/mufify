@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Check, Music } from 'lucide-react-native';
+import { Music } from 'lucide-react-native';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
@@ -16,9 +16,6 @@ export interface TrackRowProps {
   onPress: (id: number) => void;
   /** Long press opens the track's actions. Also stable. */
   onLongPress: (id: number) => void;
-  /** True while the list is in selection mode. Swaps artwork for a checkbox. */
-  isSelecting?: boolean;
-  isSelected?: boolean;
   /** True when this is the track the engine is playing. Indigo marks it. */
   isCurrent?: boolean;
 }
@@ -35,8 +32,6 @@ const TrackRowComponent = function TrackRow({
   locale,
   onPress,
   onLongPress,
-  isSelecting = false,
-  isSelected = false,
   isCurrent = false,
 }: TrackRowProps) {
   const { t } = useTranslation();
@@ -58,28 +53,13 @@ const TrackRowComponent = function TrackRow({
       onPress={handlePress}
       onLongPress={handleLongPress}
       android_ripple={{ color: colors.etch }}
-      accessibilityRole={isSelecting ? 'checkbox' : 'button'}
+      accessibilityRole="button"
       accessibilityLabel={track.title}
       accessibilityHint={subtitle || undefined}
-      accessibilityState={isSelecting ? { checked: isSelected } : { selected: isCurrent }}
+      accessibilityState={{ selected: isCurrent }}
       className="h-16 flex-row items-center gap-3 px-6"
     >
-      {/*
-        The checkbox replaces the artwork rather than sitting beside it. Adding a
-        column would shift every title sideways the moment selection starts,
-        which makes the whole list appear to jump.
-      */}
-      {isSelecting ? (
-        <View
-          className={
-            isSelected
-              ? 'h-10 w-10 items-center justify-center rounded-xs bg-accent'
-              : 'h-10 w-10 items-center justify-center rounded-xs border border-subtle'
-          }
-        >
-          {isSelected ? <Check color={colors.onSignal} size={20} strokeWidth={3} /> : null}
-        </View>
-      ) : artworkUri ? (
+      {artworkUri ? (
         <Image
           source={{ uri: artworkUri }}
           // Recycling key and cache policy are both required by AGENTS.md: the
@@ -106,7 +86,9 @@ const TrackRowComponent = function TrackRow({
         <Text
           numberOfLines={1}
           className={
-            isCurrent ? 'font-body-medium text-base text-accent' : 'font-body text-base text-primary'
+            isCurrent
+              ? 'font-body-medium text-base text-accent'
+              : 'font-body text-base text-primary'
           }
         >
           {track.title}
@@ -139,8 +121,6 @@ function isSameRow(previous: TrackRowProps, next: TrackRowProps): boolean {
     previous.locale === next.locale &&
     previous.onPress === next.onPress &&
     previous.onLongPress === next.onLongPress &&
-    previous.isSelecting === next.isSelecting &&
-    previous.isSelected === next.isSelected &&
     previous.isCurrent === next.isCurrent &&
     previous.track.id === next.track.id &&
     previous.track.title === next.track.title &&

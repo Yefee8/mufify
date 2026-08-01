@@ -16,6 +16,7 @@ import { useReducedMotion } from '@/theme/useReducedMotion';
 import { useThemeColors } from '@/theme/useTheme';
 
 import type { QueueNeighbours } from '../hooks/useQueueNeighbours';
+import { setPlayerExpansion } from '../playerExpansion';
 
 /** Fraction of a page the finger must cover to commit without a flick. */
 const DISTANCE_THRESHOLD = 0.28;
@@ -54,8 +55,8 @@ export interface ArtworkCarouselProps {
   neighbours: QueueNeighbours;
   onNext: () => void;
   onPrevious: () => void;
-  /** Swipe down on the artwork dismisses the player. */
-  onDismiss: () => void;
+  /** Releases the shared overlay at either end of a vertical drag. */
+  onExpandedChange: (expanded: boolean) => void;
 }
 
 /**
@@ -85,13 +86,12 @@ export function ArtworkCarousel({
   neighbours,
   onNext,
   onPrevious,
-  onDismiss,
+  onExpandedChange,
 }: ArtworkCarouselProps) {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
 
   const offsetX = useSharedValue(0);
-  const offsetY = useSharedValue(0);
   /** 0 undecided, 1 horizontal, 2 vertical. Fixed once per gesture. */
   const axis = useSharedValue(0);
 
@@ -123,8 +123,7 @@ export function ArtworkCarousel({
       }
 
       if (axis.value === 2) {
-        // Down only. Dragging up from the player has no meaning.
-        offsetY.value = Math.max(0, event.translationY);
+        setPlayerExpansion(Math.min(1, Math.max(0, 1 - Math.max(0, event.translationY) / height)));
         return;
       }
 
@@ -136,9 +135,8 @@ export function ArtworkCarousel({
     })
     .onEnd((event) => {
       if (axis.value === 2) {
-        if (event.translationY > DISMISS_DISTANCE || event.velocityY > DISMISS_VELOCITY) {
-          runOnJS(onDismiss)();
-        }
+        const dismiss = event.translationY > DISMISS_DISTANCE || event.velocityY > DISMISS_VELOCITY;
+        runOnJS(onExpandedChange)(!dismiss);
         return;
       }
 
@@ -176,11 +174,10 @@ export function ArtworkCarousel({
     })
     .onFinalize(() => {
       axis.value = 0;
-      offsetY.value = withSpring(0, SPRING);
     });
 
   const stripStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: offsetX.value }, { translateY: offsetY.value }],
+    transform: [{ translateX: offsetX.value }],
   }));
 
   return (

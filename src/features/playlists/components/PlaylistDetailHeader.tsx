@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Pencil, Plus, Shuffle, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, Pencil, Shuffle, Trash2 } from 'lucide-react-native';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
@@ -14,9 +14,8 @@ export interface PlaylistDetailHeaderProps {
   covers: readonly string[];
   onPlay: () => void;
   onShuffle: () => void;
-  onAddTracks: () => void;
-  onRename: () => void;
-  onDelete: () => void;
+  onRename?: () => void;
+  onDelete?: () => void;
 }
 
 /**
@@ -36,7 +35,6 @@ export function PlaylistDetailHeader({
   covers,
   onPlay,
   onShuffle,
-  onAddTracks,
   onRename,
   onDelete,
 }: PlaylistDetailHeaderProps) {
@@ -60,32 +58,27 @@ export function PlaylistDetailHeader({
 
         <View className="flex-1" />
 
-        <Pressable
-          onPress={onAddTracks}
-          accessibilityRole="button"
-          accessibilityLabel={t('playlists.addTracks')}
-          className="min-h-11 min-w-11 items-center justify-center"
-        >
-          <Plus color={colors.signal} size={22} strokeWidth={2} />
-        </Pressable>
+        {onRename ? (
+          <Pressable
+            onPress={onRename}
+            accessibilityRole="button"
+            accessibilityLabel={t('playlists.rename')}
+            className="min-h-11 min-w-11 items-center justify-center"
+          >
+            <Pencil color={colors.legend} size={20} strokeWidth={2} />
+          </Pressable>
+        ) : null}
 
-        <Pressable
-          onPress={onRename}
-          accessibilityRole="button"
-          accessibilityLabel={t('playlists.rename')}
-          className="min-h-11 min-w-11 items-center justify-center"
-        >
-          <Pencil color={colors.legend} size={20} strokeWidth={2} />
-        </Pressable>
-
-        <Pressable
-          onPress={onDelete}
-          accessibilityRole="button"
-          accessibilityLabel={t('playlists.delete')}
-          className="min-h-11 min-w-11 items-center justify-center"
-        >
-          <Trash2 color={colors.legend} size={20} strokeWidth={2} />
-        </Pressable>
+        {onDelete ? (
+          <Pressable
+            onPress={onDelete}
+            accessibilityRole="button"
+            accessibilityLabel={t('playlists.delete')}
+            className="min-h-11 min-w-11 items-center justify-center"
+          >
+            <Trash2 color={colors.legend} size={20} strokeWidth={2} />
+          </Pressable>
+        ) : null}
       </View>
 
       <View className="flex-row items-end gap-4 px-6">

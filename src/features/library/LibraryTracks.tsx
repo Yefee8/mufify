@@ -11,12 +11,10 @@ import * as perf from '@/services/perf';
 import { AddToPlaylistSheet } from '../playlists/components/AddToPlaylistSheet';
 import { useCurrentTrack, usePlaybackControls } from '../player/hooks/usePlayback';
 import { toPlayable } from '../player/toPlayable';
-import { SelectionBar } from './components/SelectionBar';
 import { TrackActionSheet, type TrackAction } from './components/TrackActionSheet';
 import { TrackInfoSheet } from './components/TrackInfoSheet';
 import { TrackList } from './components/TrackList';
 import { TrackListSkeleton } from './components/TrackListSkeleton';
-import { useSelection } from './hooks/useSelection';
 import { useTrackActions } from './hooks/useTrackActions';
 
 export interface LibraryTracksProps {
@@ -38,7 +36,7 @@ export interface LibraryTracksProps {
  *
  * Split out of `LibraryScreen`, which had reached exactly the 300-line limit
  * `AGENTS.md` sets. The division is by subject rather than by size: this owns
- * *tracks* — selection, the action sheet, the info sheet, playing — and the
+ * *tracks* — the action sheet, the info sheet, playing — and the
  * screen above owns the *library*: scanning, searching, and which view is on
  * screen.
  */
@@ -57,17 +55,6 @@ export function LibraryTracks({
   const { playFrom } = usePlaybackControls();
   const currentTrack = useCurrentTrack();
 
-  /*
-   * Destructured, not held as an object. Every callback below would otherwise
-   * list `selection` as a dependency and be rebuilt on every render, which
-   * rebuilt every visible row — 47 of them per checkbox tap, measured. The
-   * individual functions are stable; only `isActive` and `ids` actually move.
-   */
-  const selection = useSelection();
-  const { isActive: isSelecting, ids: selectedIdList, toggle: toggleSelected } = selection;
-
-  /** The selection as a Set, built once per change rather than once per row. */
-  const selectedIds = useMemo(() => new Set(selectedIdList), [selectedIdList]);
   const { addToQueue, playNext, toggleFavorite } = useTrackActions();
   // Queue conversion belongs to a data change, not to a row press.
   const playableTracks = useMemo(() => {
@@ -95,15 +82,10 @@ export function LibraryTracks({
 
   /*
    * Playing a track makes the list it came from the queue, which is what a user
-   * means by tapping a row — not "play this one thing and stop". While
-   * selecting, the same tap ticks a box instead.
+   * means by tapping a row — not "play this one thing and stop".
    */
   const onPress = useCallback(
     (id: number) => {
-      if (isSelecting) {
-        toggleSelected(id);
-        return;
-      }
       const index = trackIndexById.get(id);
       if (index === undefined) return;
       perf.mark('library.play.handler');
@@ -111,21 +93,10 @@ export function LibraryTracks({
       playFrom(playableTracks, index);
       perf.measure('library.play.handler', playableTracks.length);
     },
-    [trackIndexById, playFrom, playableTracks, isSelecting, toggleSelected],
+    [trackIndexById, playFrom, playableTracks],
   );
 
-  const onLongPress = useCallback(
-    (id: number) => {
-      // Long-pressing during a selection extends it rather than opening a sheet
-      // about one row — the user is plainly in the middle of picking several.
-      if (isSelecting) {
-        toggleSelected(id);
-        return;
-      }
-      setActionTarget(find(id));
-    },
-    [isSelecting, toggleSelected, find],
-  );
+  const onLongPress = useCallback((id: number) => setActionTarget(find(id)), [find]);
 
   const onSwipeToQueue = useCallback(
     (id: number) => {
@@ -153,30 +124,17 @@ export function LibraryTracks({
         case 'favorite':
           toggleFavorite(track);
           return;
-        case 'select':
-          selection.begin(track.id);
-          return;
         case 'info':
           setInfoTarget(track);
           return;
       }
     },
-    [actionTarget, playNext, addToQueue, toggleFavorite, selection],
+    [actionTarget, playNext, addToQueue, toggleFavorite],
   );
-
-  const onSelectionQueue = useCallback(() => {
-    // Resolved in selection order, so the queue takes them as they were picked.
-    const picked = selection.ids
-      .map(find)
-      .filter((track): track is TrackListItem => track !== null);
-    addToQueue(picked);
-    selection.clear();
-  }, [addToQueue, selection, find]);
 
   const closePlaylistSheet = useCallback(() => {
     setPlaylistTargets([]);
-    selection.clear();
-  }, [selection]);
+  }, []);
 
   return (
     <>
@@ -187,8 +145,6 @@ export function LibraryTracks({
           <TrackList
             tracks={tracks}
             locale={i18n.language}
-            isSelecting={isSelecting}
-            selectedIds={selectedIds}
             onPress={onPress}
             onLongPress={onLongPress}
             onSwipeToQueue={onSwipeToQueue}
@@ -212,17 +168,6 @@ export function LibraryTracks({
           />
         )}
       </View>
-
-      {isSelecting ? (
-        <SelectionBar
-          count={selection.ids.length}
-          total={tracks.length}
-          onSelectAll={() => selection.toggleAll(tracks.map((track) => track.id))}
-          onAddToQueue={onSelectionQueue}
-          onAddToPlaylist={() => setPlaylistTargets(selection.ids)}
-          onCancel={selection.clear}
-        />
-      ) : null}
 
       <TrackActionSheet
         track={actionTarget}

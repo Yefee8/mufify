@@ -1,0 +1,1 @@
+ALTER TABLE `track_stats` ADD `favorite_at` integer;

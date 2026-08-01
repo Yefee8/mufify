@@ -8,21 +8,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import {
-  addTracksToPlaylist,
   deletePlaylist,
+  LIKED_SONGS_ID,
   movePlaylistEntry,
   removeFromPlaylist,
   renamePlaylist,
+  useFavoriteEntries,
   usePlaylistEntries,
   usePlaylists,
   type PlaylistEntry,
 } from '@/db/queries/playlists';
 import { useMessages } from '@/i18n';
 import { AudioEngine } from '@/services/audio/AudioEngine';
-import type { PlayableTrack, QueueSource } from '@/services/audio/types';
+import { LIBRARY_SOURCE, type PlayableTrack, type QueueSource } from '@/services/audio/types';
 import { getShuffleAlgorithm } from '@/services/settings';
 
-import { AddTracksSheet } from './components/AddTracksSheet';
 import { NamePlaylistDialog } from './components/NamePlaylistDialog';
 import { PlaylistDetailHeader } from './components/PlaylistDetailHeader';
 import { PlaylistEntryRow } from './components/PlaylistEntryRow';
@@ -36,23 +36,25 @@ export interface PlaylistDetailScreenProps {
 export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const messages = useMessages('playlists.detailEmpty');
+  const isLiked = playlistId === LIKED_SONGS_ID;
+  const detailMessages = useMessages(isLiked ? 'playlists.likedEmpty' : 'playlists.detailEmpty');
 
-  const entries = usePlaylistEntries(playlistId);
+  const playlistEntries = usePlaylistEntries(playlistId);
+  const likedEntries = useFavoriteEntries();
+  const entries = isLiked ? likedEntries : playlistEntries;
   const playlist = usePlaylists().find((entry) => entry.id === playlistId);
 
   const [renaming, setRenaming] = useState(false);
-  const [adding, setAdding] = useState(false);
 
   /*
-   * Every entry point here declares the playlist as the queue's source, which is
+   * User playlists declare themselves as the queue's source, which is
    * what puts rows in `stats_rollups` under entity type 'playlist'. Without it
    * the top-playlists list is permanently empty and looks like a user who never
    * plays playlists.
    */
   const source = useMemo<QueueSource>(
-    () => ({ type: 'playlist', id: playlistId }),
-    [playlistId],
+    () => (isLiked ? LIBRARY_SOURCE : { type: 'playlist', id: playlistId }),
+    [isLiked, playlistId],
   );
 
   const playAll = useCallback(() => {
@@ -90,14 +92,6 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
     [playlistId],
   );
 
-  const onAddTracks = useCallback(
-    (trackIds: number[]) => {
-      setAdding(false);
-      void addTracksToPlaylist(playlistId, trackIds);
-    },
-    [playlistId],
-  );
-
   const onRename = useCallback(
     (name: string) => {
       setRenaming(false);
@@ -114,46 +108,48 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
   }, [router, playlistId]);
 
   const renderItem = useCallback<ListRenderItem<PlaylistEntry>>(
-    ({ item, index }) => (
-      <ReorderableEntry
-        index={index}
-        count={entries.length}
-        onMove={move}
-        accessibilityLabel={t('playlists.reorder', { title: item.title })}
-      >
-        <PlaylistEntryRow
-          entry={item}
-          locale={i18n.language}
-          onPress={playAt}
-          onRemove={remove}
-        />
-      </ReorderableEntry>
-    ),
-    [entries.length, move, playAt, remove, i18n.language, t],
+    ({ item, index }) =>
+      isLiked ? (
+        <PlaylistEntryRow entry={item} locale={i18n.language} onPress={playAt} />
+      ) : (
+        <ReorderableEntry
+          index={index}
+          count={entries.length}
+          onMove={move}
+          accessibilityLabel={t('playlists.reorder', { title: item.title })}
+        >
+          <PlaylistEntryRow
+            entry={item}
+            locale={i18n.language}
+            onPress={playAt}
+            onRemove={remove}
+          />
+        </ReorderableEntry>
+      ),
+    [entries.length, isLiked, move, playAt, remove, i18n.language, t],
   );
+
+  const name = isLiked ? t('playlists.likedSongs') : (playlist?.name ?? '');
+  const covers = isLiked
+    ? entries.flatMap((entry) => (entry.artworkPath ? [entry.artworkPath] : [])).slice(0, 4)
+    : (playlist?.mosaic ?? []);
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-surface">
       <PlaylistDetailHeader
-        name={playlist?.name ?? ''}
+        name={name}
         trackCount={entries.length}
-        covers={playlist?.mosaic ?? []}
+        covers={covers}
         onPlay={playAll}
         onShuffle={() => void shuffleAll()}
-        onAddTracks={() => setAdding(true)}
-        onRename={() => setRenaming(true)}
-        onDelete={onDelete}
+        onRename={isLiked ? undefined : () => setRenaming(true)}
+        onDelete={isLiked ? undefined : onDelete}
       />
 
       {/* Bounded, so the list re-lays out when the rows above it change. */}
       <View className="flex-1">
         {entries.length === 0 ? (
-          <EmptyState
-            icon={ListMusic}
-            messages={messages}
-            actionLabel={t('playlists.addTracks')}
-            onAction={() => setAdding(true)}
-          />
+          <EmptyState icon={ListMusic} messages={detailMessages} />
         ) : (
           <FlashList
             data={entries}
@@ -164,19 +160,15 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
         )}
       </View>
 
-      <AddTracksSheet
-        visible={adding}
-        onAdd={onAddTracks}
-        onClose={() => setAdding(false)}
-      />
-
-      <NamePlaylistDialog
-        visible={renaming}
-        title={t('playlists.rename')}
-        initialName={playlist?.name ?? ''}
-        onCancel={() => setRenaming(false)}
-        onSubmit={onRename}
-      />
+      {isLiked ? null : (
+        <NamePlaylistDialog
+          visible={renaming}
+          title={t('playlists.rename')}
+          initialName={playlist?.name ?? ''}
+          onCancel={() => setRenaming(false)}
+          onSubmit={onRename}
+        />
+      )}
     </SafeAreaView>
   );
 }
