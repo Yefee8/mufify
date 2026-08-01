@@ -109,8 +109,10 @@ These are not preferences. Violating them is a bug.
    typed query functions.
 4. **No business logic in component bodies.** Logic goes in `src/services/` (pure, testable) or
    `src/features/*/hooks/` (stateful orchestration).
-5. **Settings live in MMKV. Data lives in SQLite.** Don't mix them. Zustand holds transient
-   player/UI state only, never anything that must survive a restart.
+5. **Settings live in MMKV. Data lives in SQLite.** Don't mix them. Transient player/UI state
+   lives in the `AudioEngine` singleton and the other module-level stores, read from React
+   through `useSyncExternalStore` — never anything that must survive a restart. There is no
+   global state library; don't add one.
 6. **Layers point downward.** `components → hooks → services → db`. Never the reverse. A service
    must not import a component.
 

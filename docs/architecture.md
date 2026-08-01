@@ -48,8 +48,7 @@ one has a failure that follows from breaking it:
 ## Where state actually lives
 
 This is the part that surprises people, because there is no global state
-library. `zustand` appears in `package.json` and is imported by nothing. State
-lives in three places, chosen by lifetime:
+library. State lives in three places, chosen by lifetime:
 
 **SQLite — everything persistent.** Tracks, playlists, play events, rollups.
 Opened once in [client.ts](../src/db/client.ts) with WAL, `synchronous=NORMAL`,
