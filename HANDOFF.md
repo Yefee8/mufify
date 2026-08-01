@@ -151,8 +151,11 @@ current rows have either.
 ### 6. Phase 10 leftovers
 
 Play Store listing copy (EN + TR), Data Safety answers, release AAB build
-instructions, screenshots for the README. `docs/architecture.md` does not exist —
-the README has an architecture section that could seed it.
+instructions, screenshots for the README.
+
+`docs/architecture.md` is **written** — startup ordering, the three places state
+lives, the scan and listen flows, and the native boundary. Screenshots are the
+one Phase 10 item that needs a device.
 
 ## Traps already paid for — do not rediscover these
 

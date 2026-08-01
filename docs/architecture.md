@@ -1,0 +1,155 @@
+# Architecture
+
+How Mufify is put together, and why it is put together that way. The per-topic
+documents go deep on individual subsystems — this one is the map that says
+which subsystem you want and how they meet.
+
+Mufify is an offline-only Android music player: React Native on Expo SDK 57,
+TypeScript in strict mode, SQLite for everything persistent, and two small
+Kotlin modules for the things the JS side cannot see. Release builds ship
+without the `INTERNET` permission, which is not a setting but a structural
+guarantee — `plugins/withOfflineOnly.js` strips it, and
+[ADR 009](adr/009-expo-audio-and-our-own-queue.md) records how both merged
+manifests were generated to verify that the release one really does go without
+it.
+
+## The shape
+
+```
+app/          routes only — read params, render a screen, nothing else
+src/
+  components/ui/   shared presentational components
+  features/        one directory per feature: screens, components, hooks
+  services/        pure logic — shuffle, stats, scanner, formatters
+  db/              schema, migrations, and the only place Drizzle is imported
+  theme/           design tokens, in exactly two files
+  i18n/            en.json and tr.json, kept in step by a test
+modules/      local native modules (Kotlin)
+```
+
+Four rules. Each is a bug rather than a preference when violated, because each
+one has a failure that follows from breaking it:
+
+1. **Only `src/services/audio/*` imports the audio library.** `AudioEngine.ts`
+   is the sole file that names an `expo-audio` symbol. RNTP v4 is frozen and
+   pre-New-Architecture and RNTP v5 is commercially licensed while this app
+   ships MIT, so the engine choice may genuinely have to be revisited. Behind
+   a facade that is a one-file change.
+2. **Only `src/db/queries/*` imports Drizzle or expo-sqlite.** A component that
+   builds its own query is a component that cannot be tested without a
+   database, and a schema change becomes a repo-wide search.
+3. **No business logic in component bodies.** If it can be decided without
+   rendering, it belongs in `services/` where a plain Jest test reaches it. This
+   is why the shuffle algorithms, period keys and repeat-listen detection have
+   real test coverage: none of them needs a device.
+4. **Layers point downward:** `components → hooks → services → db`. Nothing
+   below reaches up.
+
+## Where state actually lives
+
+This is the part that surprises people, because there is no global state
+library. `zustand` appears in `package.json` and is imported by nothing. State
+lives in three places, chosen by lifetime:
+
+**SQLite — everything persistent.** Tracks, playlists, play events, rollups.
+Opened once in [client.ts](../src/db/client.ts) with WAL, `synchronous=NORMAL`,
+foreign keys on, and `enableChangeListener: true`. That last flag is what makes
+Drizzle's `useLiveQuery` react to writes, so lists refresh themselves and no
+screen needs manual invalidation. WAL is why the library stays scrollable while
+a scan writes — and why pulling the database off a device without the `-wal`
+file shows an empty `play_events`.
+
+**The `AudioEngine` singleton — playback.** Deliberately not a hook and not
+React state: playback outlives every screen, which is the entire point of
+background audio, so it cannot be owned by a component that unmounts when the
+user opens Settings. Screens subscribe through `useSyncExternalStore` in
+[src/features/player/hooks](../src/features/player/hooks) — the right primitive
+for a store that lives outside React, and one that gets tearing right during
+concurrent renders where a hand-rolled subscription does not. Note that
+`usePlayback` re-renders twice a second while anything plays, because the
+engine reports position on a 500 ms interval; `usePlaybackPhase` and
+`useCurrentTrack` exist so that only Now Playing pays that cost.
+
+**MMKV — settings and theme.** Synchronous reads, which is the whole reason it
+is here rather than AsyncStorage: `applyStoredTheme()` and `initI18n()` run at
+module scope in [app/_layout.tsx](../app/_layout.tsx), before the first frame,
+so the app never paints the wrong theme or the wrong language and then corrects
+itself.
+
+## Startup, in order
+
+The root layout's ordering is load-bearing rather than incidental:
+
+1. `applyStoredTheme()` and `initI18n()` at module scope — synchronous MMKV
+   reads, before anything paints.
+2. `registerComponentInterop()` — NativeWind's `className` only works on
+   components registered with `cssInterop`. A component registered late has
+   already painted itself unstyled.
+3. Splash is held (`preventAutoHideAsync`) until **both** fonts and migrations
+   settle. Rendering earlier means a frame in the fallback font, or a screen
+   querying a schema that has not been migrated yet.
+4. `startListenRecording()` — for the life of the app, not the life of a
+   screen.
+5. `GestureHandlerRootView` wraps the tree. Gesture-handler throws rather than
+   silently ignoring gestures without it.
+
+Migrations are generated by `npm run db:generate` and committed, never derived
+at runtime, so a build always knows exactly which schema it expects.
+
+## Two flows worth tracing
+
+**Scanning** is two stages on purpose, and the split is what makes it
+resumable. `enumerateLibrary` walks MediaStore and writes cheap rows;
+`enrichLibrary` opens each file for tags, artwork and format. `last_scanned_at`
+is null until stage two has run, so **the null column is the queue** — a
+cancelled or killed scan resumes from exactly where it stopped, with no
+separate progress state to keep honest. `needsRescan` compares size and mtime,
+which is what makes rescanning an untouched library near-instant. Details in
+[scanner.md](scanner.md).
+
+**A listen becoming a statistic** crosses a boundary deliberately. The engine
+reports that a listen finished and knows nothing about `play_events`, rollups
+or week-start preferences; [listenRecorder.ts](../src/features/player/listenRecorder.ts)
+does that wiring. Playback stays testable without a database, and the layer
+direction stays pointing down. A failed write is logged in development and
+swallowed in production — losing one statistics row is a smaller harm than
+interrupting playback to complain about it. Details in [stats.md](stats.md).
+
+## The native boundary
+
+Two local Expo modules, both Kotlin, both Android-only:
+
+- **`audio-tags`** — MediaStore enumeration, tag reading, artwork extraction
+  and audio format. It exists because `MediaMetadataRetriever` reports no
+  sample rate and no bit depth below API 31, so a hi-res library on an Android
+  10 phone lost exactly the fields this app exists to show;
+  `AudioFormatReader` reads them from `MediaExtractor`, which has carried them
+  since API 16. `SpecMath.kt` holds the arithmetic with no Android import at
+  all, so it runs as a plain JVM unit test — no device, no emulator.
+- **`audio-focus`** — becoming-noisy events (headphones unplugged).
+
+`android/` is generated by CNG and git-ignored. Native configuration goes in
+`app.json` or a config plugin, never into the generated directory.
+
+## Adding something
+
+- **A screen** → a route in `app/` that only reads params and renders, plus the
+  real component under `src/features/<feature>/`. New routes need Metro running
+  to regenerate `.expo/types/router.d.ts`.
+- **A query** → `src/db/queries/`, nowhere else.
+- **A decision you had to think about** → an ADR in [adr/](adr/). Twelve of them
+  exist; several are the only written record of why an obvious-looking
+  alternative was rejected.
+- **A colour or a spacing value** → [theming.md](theming.md) first.
+  `tailwind.config.js` overrides the spacing scale, and a class built from a
+  value outside it compiles to *nothing* — no warning, no size. `scale.test.ts`
+  now fails on any such class, which is the only reason it is safe to guess.
+
+## Further reading
+
+[AGENTS.md](../AGENTS.md) is binding house style and comes before all of these.
+Then [database.md](database.md), [scanner.md](scanner.md),
+[player.md](player.md), [shuffle.md](shuffle.md), [stats.md](stats.md),
+[theming.md](theming.md), [i18n.md](i18n.md),
+[components.md](components.md), [performance.md](performance.md), and
+[adr/](adr/).

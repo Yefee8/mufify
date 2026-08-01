@@ -128,11 +128,15 @@ Four rules that are bugs rather than preferences when violated:
 3. No business logic in component bodies.
 4. Layers point downward: `components → hooks → services → db`.
 
+[docs/architecture.md](docs/architecture.md) goes further: the startup ordering,
+the two flows worth tracing, and why there is no global state library.
+
 ## Documentation
 
 | | |
 |---|---|
 | [AGENTS.md](AGENTS.md) | the house style, binding on humans and agents alike |
+| [docs/architecture.md](docs/architecture.md) | how the pieces fit, and where state lives |
 | [docs/components.md](docs/components.md) | what each shared component is for |
 | [docs/theming.md](docs/theming.md) | the token system, and how to add a colour |
 | [docs/i18n.md](docs/i18n.md) | how to add a string and a language |
