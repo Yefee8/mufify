@@ -8,14 +8,11 @@
   "library": {
     "title": "Kitaplık",
     "empty": [
-      "Henüz müzik yok. Taranacak bir klasör seç.",
-      "Burası şimdilik boş. Bir klasör göster, gerisi kendiliğinden gelir.",
-      "Kitaplığın tek bir klasör uzağında.",
-      "Müziğin nerede duruyorsa, oraya bak diyelim."
+      "Henüz müzik yok. Cihazı tara ya da bir klasör göster.",
+      "Burası şimdilik boş. Bir tarama yeter.",
+      "Kitaplığın tek bir tarama uzağında.",
+      "Şimdilik boş. Müziğin nerede olduğunu söyle ya da bulmasına izin ver."
     ],
-    "emptyAction": "Müzik ekle",
-    "addMusic": "Müzik ekle",
-    "rescan": "Yeniden tara",
     "trackCount_one": "{{count}} parça",
     "trackCount_other": "{{count}} parça",
     "scanning": {
@@ -33,7 +30,13 @@
     "search": "Ara",
     "searchPlaceholder": "Parça, sanatçı, albüm",
     "clearSearch": "Aramayı temizle",
-    "noResults": "“{{term}}” ile eşleşen bir şey yok."
+    "noResults": "“{{term}}” ile eşleşen bir şey yok.",
+    "scan": "Tara",
+    "addFolder": "Klasör ekle",
+    "scanConfirm": {
+      "title": "Müzik taransın mı?",
+      "body": "Mufify, Android'in bu cihazda indekslediği tüm ses dosyalarını okuyacak. Büyük bir kütüphanede bu biraz sürer. İstediğin an durdurabilirsin, o ana kadar bulunanlar kalır."
+    }
   },
   "playlists": {
     "title": "Listeler",

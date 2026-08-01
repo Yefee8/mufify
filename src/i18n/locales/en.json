@@ -8,14 +8,11 @@
   "library": {
     "title": "Library",
     "empty": [
-      "No music found. Choose a folder to scan.",
-      "Nothing here yet. Point it at a folder and it fills up.",
-      "Your library is one folder away.",
-      "Empty for now. Tell it where the music lives."
+      "No music found yet. Scan the device, or point Mufify at a folder.",
+      "Nothing here yet. One scan and it fills up.",
+      "Your library is one scan away.",
+      "Empty for now. Tell it where the music lives, or let it look."
     ],
-    "emptyAction": "Add music",
-    "addMusic": "Add music",
-    "rescan": "Rescan",
     "trackCount_one": "{{count}} track",
     "trackCount_other": "{{count}} tracks",
     "scanning": {
@@ -33,7 +30,13 @@
     "search": "Search",
     "searchPlaceholder": "Title, artist, album",
     "clearSearch": "Clear search",
-    "noResults": "Nothing matches “{{term}}”."
+    "noResults": "Nothing matches “{{term}}”.",
+    "scan": "Scan",
+    "addFolder": "Add a folder",
+    "scanConfirm": {
+      "title": "Scan for music?",
+      "body": "Mufify will read every audio file Android has indexed on this device. On a large library this takes a while. You can stop it at any point, and anything already found is kept."
+    }
   },
   "playlists": {
     "title": "Playlists",

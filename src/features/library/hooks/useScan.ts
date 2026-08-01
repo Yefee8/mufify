@@ -1,9 +1,10 @@
 import AudioTags from 'audio-tags';
 import { Directory, Paths } from 'expo-file-system';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import {
   addScanFolder,
+  countUnenriched,
   listScanFolders,
   listUnenrichedUris,
   retireUnseen,
@@ -46,12 +47,16 @@ export interface UseScanResult {
   /**
    * True only for a scan the user pulled for.
    *
-   * The refresh spinner is a response to a gesture, so it must not appear for
-   * the automatic launch sweep — that already has the scan banner, and showing
+   * The refresh spinner is a response to a gesture, so it must not appear for a
+   * scan started from the button — that already has the scan banner, and showing
    * both puts a spinner and a progress bar on screen for the same work.
    */
   isRefreshing: boolean;
-  /** MediaStore sweep. Safe to call on every launch. */
+  /**
+   * Sweep MediaStore. Asks for the audio permission first if it does not have
+   * it. Only ever called from an explicit user action — see the note in the
+   * body about there being no automatic sweep.
+   */
   scanLibrary: () => Promise<void>;
   /** Opens the system folder picker, then scans what was chosen. */
   addFolder: () => Promise<void>;
@@ -67,18 +72,14 @@ export interface UseScanResult {
 /**
  * Drives the two-stage scan and exposes its progress.
  *
- * `ready` gates the automatic launch sweep: pass false until the library has
- * painted. The manual entry points ignore it — a user pressing "Add music" has
- * asked for the work and should not wait on anything.
- *
- * Both entry points — the automatic MediaStore sweep and the manual folder
- * pick — go through the same pipeline. Manual adding is a first-class way to
- * fill the library, not a fallback for when the automatic scan disappoints:
- * MediaStore does not index files the system scanner has not seen, folders
- * with a `.nomedia`, or some SD card layouts, and this audience keeps music
- * in exactly those places.
+ * All three entry points — the scan button, the folder picker and pull to
+ * refresh — go through the same pipeline. Manual adding is a first-class way to
+ * fill the library, not a fallback for when the sweep disappoints: MediaStore
+ * does not index files the system scanner has not seen, folders with a
+ * `.nomedia`, or some SD card layouts, and this audience keeps music in exactly
+ * those places.
  */
-export function useScan(ready: boolean): UseScanResult {
+export function useScan(): UseScanResult {
   const [progress, setProgress] = useState<ScanProgress>(IDLE);
   const [pulled, setPulled] = useState(false);
   const cancelled = useRef(false);
@@ -91,6 +92,7 @@ export function useScan(ready: boolean): UseScanResult {
       saveEnumerated,
       saveEnriched,
       listUnenrichedUris,
+      countUnenriched,
       retireUnseen,
       // Hand the frame back between batches so scrolling never stutters.
       // `requestIdleCallback` rather than InteractionManager, which RN 0.86
@@ -168,14 +170,12 @@ export function useScan(ready: boolean): UseScanResult {
     } catch (error) {
       if (isPickerDismissal(error)) {
         /*
-         * A cancelled picker is not a failure — the user changed their mind,
-         * and the screen should look as it did before. With one exception: if
-         * the permission was granted a moment ago, the automatic sweep that
-         * runs at launch has never had it, so the library has never actually
-         * been read. Cancelling the folder picker would then leave a permitted
-         * app sitting on an empty library until the next cold start. Adding a
-         * folder is a way to *add* to the library, never the only way to fill
-         * it.
+         * A cancelled picker is not a failure — the user changed their mind, and
+         * the screen should look as it did before. With one exception: if the
+         * permission was granted a moment ago, nothing has ever read the library,
+         * so sweep once anyway. The user did ask for music to be added; they only
+         * changed their mind about *which folder*, and leaving a freshly
+         * permitted app on an empty library answers a question they did not ask.
          */
         if (permission === 'granted-now') await run();
         return;
@@ -228,43 +228,24 @@ export function useScan(ready: boolean): UseScanResult {
   }, []);
 
   /*
-   * The automatic sweep. Starts itself once per app session, and only after the
-   * library it is filling has something on screen.
+   * There is deliberately no automatic sweep.
    *
-   * `ready` is what makes that true, and it was worth measuring. This used to
-   * be `requestIdleCallback(…, { timeout: 1_000 })` on mount, which meant the
-   * sweep fired a second after mount whether or not the thread had ever gone
-   * idle — landing on top of the very first library query. Time from the query
-   * subscribing to its rows arriving, cold start:
+   * It used to start itself as soon as the permission was granted, which is how
+   * a user's first launch became "the app froze". Two separate problems were
+   * hiding behind each other: stage one held the JS thread for 859ms per page
+   * (fixed in `saveEnumerated`), and nothing the user did had asked for the work
+   * in the first place, so there was no moment where waiting felt earned.
    *
-   *   Pixel_7 AVD, 528 tracks   210ms
-   *   Mi 9T, 521 tracks        1608ms
+   * Scanning is now something the user presses, and the button says what it will
+   * cost before it starts. That is a real behaviour change, not only a
+   * performance one: a library scan reads every audio file on the device, and
+   * doing that unannounced on launch is the sort of thing this app exists not to
+   * do. See docs/adr/010-scanning-is-user-initiated.md.
    *
-   * The query itself is 14–15ms on the emulator, measured five times in a row
-   * with nothing else running. So nearly all of that was contention, and on the
-   * slower real device it was a second and a half of skeleton for work that
-   * takes fifteen milliseconds.
-   *
-   * Because the scan is incremental, an unchanged library still costs one
-   * MediaStore count and nothing else. A missing permission is not surfaced
-   * here: the automatic path stays quiet and the empty state does the asking.
+   * The launch cost of *not* scanning is zero, and a library that has already
+   * been scanned is already in SQLite — the list paints from the database with
+   * no MediaStore involvement at all.
    */
-  const swept = useRef(false);
-  useEffect(() => {
-    if (!ready || swept.current) return;
-    swept.current = true;
-
-    const handle = requestIdleCallback(
-      () => {
-        void AudioTags.hasAudioPermission().then((granted) => {
-          if (granted) void run();
-        });
-      },
-      { timeout: 1_000 },
-    );
-
-    return () => cancelIdleCallback(handle);
-  }, [ready, run]);
 
   const isScanning = progress.phase === 'enumerating' || progress.phase === 'enriching';
 

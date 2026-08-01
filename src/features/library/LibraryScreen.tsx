@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, View } from 'react-native';
 
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Screen } from '@/components/ui/Screen';
@@ -50,13 +51,7 @@ export function LibraryScreen() {
   const [search, setSearch] = useState('');
   // The field stays instant; only the query waits.
   const { tracks, isLoading } = useTracks(useDebounced(search));
-  /*
-   * The launch sweep waits for the list to be on screen. Firing it on mount put
-   * a MediaStore enumeration on the JS thread alongside the first library query
-   * — see `useScan` and docs/performance.md.
-   */
-  const { progress, isScanning, isRefreshing, scanLibrary, addFolder, rescan, cancel } =
-    useScan(!isLoading);
+  const { progress, isScanning, isRefreshing, scanLibrary, addFolder, rescan, cancel } = useScan();
 
   const { playFrom } = usePlaybackControls();
   const currentTrack = useCurrentTrack();
@@ -69,6 +64,8 @@ export function LibraryScreen() {
   const [infoTarget, setInfoTarget] = useState<TrackListItem | null>(null);
   /** Tracks queued for "add to playlist". Empty means the sheet is closed. */
   const [playlistTargets, setPlaylistTargets] = useState<readonly number[]>([]);
+  /** True while the scan confirmation is on screen. */
+  const [confirmingScan, setConfirmingScan] = useState(false);
 
   const hasFailed = !isScanning && progress.phase === 'failed';
   const permissionFailed = isPermissionError(progress.error);
@@ -170,7 +167,8 @@ export function LibraryScreen() {
       <LibraryHeader
         count={tracks.length}
         isScanning={isScanning}
-        onAddMusic={addFolder}
+        onScan={() => setConfirmingScan(true)}
+        onAddFolder={addFolder}
         onStartSelecting={selection.activate}
       />
 
@@ -230,8 +228,8 @@ export function LibraryScreen() {
                 <EmptyState
                   icon={Music}
                   messages={messages}
-                  actionLabel={t('library.emptyAction')}
-                  onAction={addFolder}
+                  actionLabel={t('library.scan')}
+                  onAction={() => setConfirmingScan(true)}
                 />
               )
             }
@@ -257,6 +255,24 @@ export function LibraryScreen() {
       />
       <TrackInfoSheet track={infoTarget} onClose={() => setInfoTarget(null)} />
       <AddToPlaylistSheet trackIds={playlistTargets} onClose={closePlaylistSheet} />
+
+      {/*
+        Scanning reads every audio file on the device, so it says so before it
+        starts. There is no progress estimate to offer — MediaStore does not
+        report a count until it has been asked — so the copy promises a duration
+        proportional to the library rather than a number it cannot know.
+      */}
+      <ConfirmDialog
+        visible={confirmingScan}
+        title={t('library.scanConfirm.title')}
+        body={t('library.scanConfirm.body')}
+        confirmLabel={t('library.scan')}
+        onConfirm={() => {
+          setConfirmingScan(false);
+          void scanLibrary();
+        }}
+        onCancel={() => setConfirmingScan(false)}
+      />
     </Screen>
   );
 }

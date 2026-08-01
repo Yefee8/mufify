@@ -87,6 +87,7 @@ function harness(library: MediaStoreTrack[], pending: string[] = []): Harness {
       enriched.push(...rows);
     },
     listUnenrichedUris: async (limit) => queue.splice(0, limit),
+    countUnenriched: async () => queue.length,
     yieldToUi: async () => {
       state.yields += 1;
     },
@@ -194,6 +195,37 @@ describe('enrichLibrary', () => {
     expect(result.phase).toBe('done');
     expect(test.enriched).toHaveLength(9);
     expect(result.processed).toBe(9);
+  });
+
+  it('reports a denominator the bar can actually fill', async () => {
+    /*
+     * Stage two used to set `total` to however many it had already processed,
+     * which makes the ratio permanently 1 — the bar was full from the first
+     * batch and the label read "N / N" throughout. A progress bar that is
+     * always finished is worse than no progress bar.
+     */
+    const test = harness([], [...pending]);
+    const seen: { processed: number; total: number }[] = [];
+
+    await enrichLibrary(test.ports, options, ({ processed, total }) => {
+      seen.push({ processed, total });
+    });
+
+    // Known before the first report, so no frame ever shows "0 / 0".
+    expect(seen.every((step) => step.total === 9)).toBe(true);
+    expect(seen.map((step) => step.processed)).toEqual([0, 4, 8, 9, 9]);
+  });
+
+  it('never claims more done than there is to do', async () => {
+    // A resumed scan starts partway through, so the count taken at the start
+    // can be beaten by what the loop actually drains.
+    const test = harness([], [...pending]);
+    test.ports.countUnenriched = async () => 2;
+
+    const result = await enrichLibrary(test.ports, options, () => {});
+
+    expect(result.processed).toBe(9);
+    expect(result.total).toBeGreaterThanOrEqual(result.processed);
   });
 
   it('writes each batch before starting the next', async () => {
