@@ -3,7 +3,6 @@ import { memo, useCallback, useMemo } from 'react';
 
 import { SwipeableRow } from '@/components/ui/SwipeableRow';
 import type { TrackListItem } from '@/db/queries/tracks';
-import * as perf from '@/services/perf';
 
 import { TrackRow } from './TrackRow';
 
@@ -43,9 +42,6 @@ const LibraryRowComponent = function LibraryRow({
   isCurrent,
   swipeLabel,
 }: LibraryRowProps) {
-  // Dev-only. This is the counter that told the truth about the checkbox
-  // freeze: 47 bodies per tap before the memo boundary, 1 after.
-  perf.count('LibraryRow.body');
   const handleSwipe = useCallback(() => onSwipeToQueue(track.id), [onSwipeToQueue, track.id]);
 
   const row = useMemo(

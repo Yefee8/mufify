@@ -131,10 +131,14 @@ export function useTracks(search = ''): { tracks: TrackListItem[]; isLoading: bo
 
   const { data, updatedAt } = useLiveQuery(query, [term]);
 
-  // Temporary instrumentation for the tab-switch investigation.
-  perf.count('useTracks.render');
+  /*
+   * Time to first rows, which is the number the cold-start investigation turned
+   * on. The per-render counter that used to sit here was removed: on the Mi 9T
+   * it fired often enough that MIUI's logcat rate limiter discarded this
+   * measurement, and a probe that hides the thing it is measuring is worse than
+   * no probe.
+   */
   useEffect(() => {
-    perf.count('useTracks.subscribe');
     perf.mark('useTracks.firstRows');
   }, [term]);
   useEffect(() => {
