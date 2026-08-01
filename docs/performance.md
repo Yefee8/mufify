@@ -143,6 +143,64 @@ rows. Included because it is the only way to reproduce any of the above.
 
 ---
 
+## Transitions, modals and lists
+
+The complaint was that screen transitions, the drawer and modal openings feel
+slow. Taken as a checklist, with a measurement or a source-level fact for each.
+
+### Is anything animating on the JS thread?
+
+No. Every animation in the app goes through Reanimated worklets: `Scrubber`,
+`MiniPlayer`, `MiniProgress`, `ArtworkCarousel`, `SwipeableRow`,
+`ReorderableEntry`, `Skeleton` and `Toaster`. There is no `Animated` import from
+`react-native`, no `LayoutAnimation`, and no `setInterval` or
+`requestAnimationFrame` driving a visual anywhere in `src` or `app`.
+
+Screen transitions themselves are react-navigation's, which run natively through
+`react-native-screens`.
+
+### Are list rows memoized with stable callbacks?
+
+Yes, and it is measured rather than asserted. Counting `LibraryRow` body
+executions on the Pixel_7 AVD:
+
+| | Before | After |
+|---|---|---|
+| Rows reconciled per checkbox tap | **47** | **1** |
+
+The fix is in `46d07a3`; the short version is that four separate things were
+handing the list a new identity on every render — the selection object, the
+screen's callbacks, `selection.has` per row, and an unmemoized `Gesture.Pan()`.
+
+### Does opening a modal re-render what is underneath?
+
+No. Long-pressing a row to open the action sheet reconciles **1** of the 47
+visible rows — the one that was pressed. The sheet's state lives in
+`LibraryTracks`, and `TrackList`'s `renderItem` does not depend on it, so
+FlashList never calls it again.
+
+### Is there an over-broad context?
+
+There is no React context in the app at all. Everything shared between screens —
+playback state, the queue, toasts — is a module-level store read through
+`useSyncExternalStore`, so a change notifies only the components that subscribed
+to it. The toast store is the clearest case: a toast confirming a swipe
+re-renders `Toaster` and nothing else, which is why it can appear over a list
+without touching it.
+
+### expo-image
+
+All nine call sites pass both `cachePolicy` and `recyclingKey`.
+
+### A silent layout bug found on the way
+
+`tailwind.config.js` overrides the spacing scale, so a class built from a value
+outside it compiles to nothing — no warning, no size. Five had already shipped
+invisible, including the swipe-to-queue reveal strip, whose icon had therefore
+never been seen by anyone. `src/theme/scale.test.ts` now fails on any such class.
+
+---
+
 ## Still owed
 
 - **Frame timing on the Mi 9T.** `adb shell dumpsys gfxinfo dev.mufify.app
