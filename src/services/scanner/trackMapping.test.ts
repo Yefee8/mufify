@@ -241,6 +241,20 @@ describe('codecOf', () => {
     expect(codecOf('audio/mpeg')).toBeNull();
     expect(codecOf('audio/flac')).toBeNull();
     expect(codecOf('audio/x-wav')).toBeNull();
+    expect(codecOf('audio/mp4')).toBeNull();
+  });
+
+  it('is null for every format on the user Mi 9T, which is not a defect', () => {
+    // Read from the device on 2026-08-01: `codec` null on all 521 rows while
+    // `container` and the rest of the spec were populated. That was written up
+    // as an unexplained finding twice. It is this function working: a library
+    // of mainstream formats has a null codec on every row by design, because
+    // the MIME subtype is already the container name. A non-null codec needs a
+    // subtype outside CONTAINER_NAMES, which a FLAC/MP3/M4A library never has.
+    for (const mime of ['audio/flac', 'audio/mp4', 'audio/mpeg']) {
+      expect(codecOf(mime)).toBeNull();
+      expect(containerOf(mime)).not.toBeNull();
+    }
   });
 
   it('keeps a subtype nothing is known about', () => {

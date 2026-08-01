@@ -108,11 +108,11 @@ ask before doing that.
 
 Every measurement so far is from a debug build, which overstates JS cost.
 
-### 5. Two findings from the phone's database, unexplained
+### 5. One finding from the phone's database (the other is closed)
 
-Read on 2026-08-01 from the Mi 9T (`stats_rollups`, `tracks`). Both may be
-artefacts of the test data on that device rather than defects — nobody has
-checked, and neither is reproducible on the emulator.
+Read on 2026-08-01 from the Mi 9T (`stats_rollups`, `tracks`). The codec finding
+below was chased and closed the same day — it was never a defect. The remaining
+one needs a human to press Scan.
 
 **Stage two is 446 of 521 short.** `last_scanned_at IS NULL` for 446 rows and
 set for 75. That is consistent with a scan that was cancelled or a process that
@@ -120,13 +120,27 @@ was killed, and the design says it resumes from exactly there — the null colum
 *is* the queue. Worth confirming that pressing Scan resumes rather than
 restarts, because it is a designed behaviour nobody has watched happen.
 
-**`codec` is null for all 521 rows, including the 75 enriched ones — but
-`bitrate_kbps` is populated.** Both come from `saveEnriched`, so the reader
-returned one and not the other. On the emulator the same path yields
-`FLAC · 44.1 kHz · 16-bit`. The difference may be API 29 versus 35, or it may be
-that these particular files are untagged. `AudioFormatReader` and `TagReader` in
-`modules/audio-tags` are where to look. The spec strip is the app's signature
-element, so a null codec on the user's actual API level matters.
+**~~`codec` is null for all 521 rows~~ — RESOLVED, not a defect. Do not
+reinvestigate.** It is `codecOf` in `src/services/scanner/trackMapping.ts`
+working as designed: it returns null whenever the MIME subtype is already a
+container name, because `audio/mpeg` otherwise renders the strip `MP3 · mpeg`
+— the same fact spelled worse. `flac`, `mp4`, `mpeg` and `wav` are all in
+`CONTAINER_NAMES`, so **a library of mainstream formats has a null codec on
+every row, always.**
+
+The premise behind the alarm was wrong twice over: `codec` never comes from the
+native reader, so "the reader returned one field and not the other" described a
+path that does not exist; and the emulator's `FLAC · 44.1 kHz · 16-bit` is the
+*container* column, which was being compared against the phone's *codec*
+column. Pulled from the device to confirm — the 75 enriched rows read
+`container=FLAC|M4A, codec=NULL, bitrate=143, sample_rate=44100, bit_depth=16,
+channels=2`. The phone renders exactly what the emulator does. There is no API
+29 versus 35 difference and nothing to fix. (`bit_depth` is null on the one M4A
+row, also correct — AAC is lossy and has no bit depth.)
+
+`trackMapping.test.ts` now pins this with the device case named, so the next
+reading of a null codec column resolves in one test file instead of a device
+session.
 
 Note the library on that phone is **synthetic test files** (`perf-NNN`, album
 `bulk`, no artist, no artwork), not the user's music. Scanning their real
