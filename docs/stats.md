@@ -122,6 +122,18 @@ The thresholds are pinned by `repeatListen.test.ts`. This decides whether a
 listen is counted once or twice, so a quiet change to either condition silently
 rewrites the user's history.
 
+### Where the rule meets the engine
+
+`repeatListen.ts` and `listenCycle.ts` are both pure and both have had good
+tests for some time. Every miscount actually reported has lived in neither:
+it lived in `AudioEngine.onStatus`, where a listen is opened, banked and
+reopened against a stream of status ticks, and which nothing covered.
+
+`src/services/audio/listenRecording.test.ts` now replays scripted tick streams
+through the real engine with `expo-audio` behind a fake player. It is the only
+place the wiring is checked, and it is where the duration defect below was
+found. A device session cannot be re-run; that suite can.
+
 ---
 
 ## Period keys
@@ -162,6 +174,41 @@ and `2025-W53` under Sunday.
 
 **Changing the week-start setting invalidates every week rollup.** It has to
 trigger a rebuild, not a renumber.
+
+---
+
+## Which duration the rule is applied to
+
+Every threshold in this document is a fraction of the track's duration, so the
+counting rule is only as good as the number it divides. There are two of them
+and they disagree.
+
+The **scanner's** duration comes from MediaStore. It is null more often than
+anyone expects: a file copied onto the device and indexed before its metadata
+was read has a row with no duration at all, and it stays that way until stage
+two of a scan reaches it. The **engine's** duration comes from the open file
+and is authoritative.
+
+`classifyListen(msPlayed, 0)` returns `partial` — the first line is
+`if (durationMs <= 0 || msPlayed <= 0) return 'partial'`. So a track with no
+stored duration recorded a `play_event` for every listen, moved neither
+counter, and disappeared from the play counts entirely. Listening to it ten
+times produced ten honest-looking rows and a play count of zero.
+
+`PlaybackState.durationMs` already preferred the engine's figure. The listen
+handed to the recorder did not — it carried `track.durationMs` straight off the
+row. **`FinishedListen.durationMs` is now the engine's, falling back to the
+scanner's only when the file never opened**, and the same preference decides
+`isRewindToRestart`, so a repeat is detected on the same number the outcome is
+judged against.
+
+This is the third report of "the loop count is wrong" and the first one with a
+mechanism that explains a partial failure rather than a total one: tracks with
+a good stored duration counted correctly all along, which is why the defect
+survived two rounds of device verification that happened to use them.
+
+Pinned by `src/services/audio/listenRecording.test.ts` — three cases that fail
+against the old behaviour.
 
 ---
 

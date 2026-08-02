@@ -83,6 +83,22 @@ export const LIBRARY_SOURCE: QueueSource = { type: 'library' };
  */
 export interface FinishedListen {
   track: PlayableTrack;
+  /**
+   * The duration the play/skip rule must be applied against.
+   *
+   * Not `track.durationMs`. That is the scanner's figure, out of MediaStore,
+   * and MediaStore returns null for it more often than anyone expects — a file
+   * copied onto the device and indexed before its metadata was read has no
+   * duration at all. `classifyListen` given a duration of zero returns
+   * `partial` whatever was actually heard, so a full listen to such a track
+   * moved neither counter and simply vanished from the counts.
+   *
+   * The engine's own figure is authoritative once the file is open, which it
+   * always is by the time a listen ends. `PlaybackState.durationMs` already
+   * preferred it; the recorded listen did not, and that gap is the whole
+   * defect.
+   */
+  durationMs: number;
   msPlayed: number;
   /** When this track started. Period keys derive from it, not from "now". */
   startedAt: Date;

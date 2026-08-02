@@ -11,6 +11,8 @@ import { shuffleTracks, type ShuffleAlgorithm } from '@/services/shuffle';
 import { ListenCycle, type BankedListen } from '@/services/stats/listenCycle';
 import { isRewindToRestart } from '@/services/stats/repeatListen';
 
+import { lockScreenArtworkUri, prepareNotificationArtwork } from './notificationArtwork';
+
 import {
   isPlayable,
   nextIndex,
@@ -125,6 +127,14 @@ class Engine {
   private playWhenReady = false;
 
   /**
+   * Whether this player is already the lock screen's active player.
+   *
+   * Claiming it is a session rebuild; keeping it is a metadata update. See
+   * `bindLockScreen`. Cleared by `stop()`, which hands the session back.
+   */
+  private lockScreenBound = false;
+
+  /**
    * Claim the audio session.
    *
    * `doNotMix` is not a preference: the tech stack doc records that the
@@ -141,6 +151,10 @@ class Engine {
       interruptionMode: 'doNotMix',
       shouldPlayInBackground: true,
     });
+
+    // Unpacked before the first track binds the lock screen, so a track with
+    // no cover has the app's placeholder to show rather than a blank square.
+    await prepareNotificationArtwork();
 
     /*
      * Pause when the audio route changes to the speaker.
@@ -334,6 +348,11 @@ class Engine {
     if (track !== null && listen !== null) {
       this.reportListen?.({
         track,
+        // The engine's duration, falling back to the scanner's only when the
+        // file never opened. See `FinishedListen.durationMs`: classifying
+        // against a MediaStore duration of zero turns every listen into a
+        // `partial` and loses it from the counts.
+        durationMs: this.state.durationMs > 0 ? this.state.durationMs : track.durationMs,
         msPlayed: listen.msPlayed,
         startedAt: listen.startedAt,
         completed,
@@ -401,18 +420,42 @@ class Engine {
    * three minutes in the background — it is what promotes the session to a
    * foreground media service, not merely what draws the controls. The tech
    * stack doc flags this as the single Android gotcha of this library.
+   *
+   * **Called once, then updated in place.** This used to run on every track
+   * load, and `setActiveForLockScreen` on an already-active player does not
+   * refresh a session — it releases the MediaSession and builds a new one on
+   * the main queue. Between the release and the rebuild there is a window with
+   * no live session, and the notification's play/pause icon is drawn from
+   * `session.player.isPlaying` at the moment it is posted. A state change
+   * landing in that window is drawn against a released session and then never
+   * corrected, which is how the notification came to show "playing" for audio
+   * that had stopped. It is also why `dumpsys media_session` reports nonsense
+   * for this app, which `docs/player.md` records as an unexplained quirk: it
+   * was catching the swap.
+   *
+   * `updateLockScreenMetadata` changes the metadata on the live session and
+   * re-posts the notification, with no session release and no window.
    */
   private bindLockScreen(track: PlayableTrack): void {
-    this.player?.setActiveForLockScreen(
-      true,
-      {
-        title: track.title,
-        artist: track.artistName ?? undefined,
-        albumTitle: track.albumName ?? undefined,
-        artworkUrl: track.artworkPath ? `file://${track.artworkPath}` : undefined,
-      },
-      { showSeekForward: true, showSeekBackward: true },
-    );
+    const metadata = {
+      title: track.title,
+      artist: track.artistName ?? undefined,
+      albumTitle: track.albumName ?? undefined,
+      // The app's own placeholder rather than nothing, so a track without a
+      // cover looks the same in the notification as it does on screen.
+      artworkUrl: lockScreenArtworkUri(track.artworkPath),
+    };
+
+    if (this.lockScreenBound) {
+      this.player?.updateLockScreenMetadata(metadata);
+      return;
+    }
+
+    this.lockScreenBound = true;
+    this.player?.setActiveForLockScreen(true, metadata, {
+      showSeekForward: true,
+      showSeekBackward: true,
+    });
   }
 
   /** Start playback once the source is actually open. Safe to call repeatedly. */
@@ -613,6 +656,7 @@ class Engine {
     this.flushListen(false);
     this.player?.pause();
     this.player?.clearLockScreenControls();
+    this.lockScreenBound = false;
     this.index = -1;
     this.emitQueue();
     this.emit({ ...IDLE_PLAYBACK });

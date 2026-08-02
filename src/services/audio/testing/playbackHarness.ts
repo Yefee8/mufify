@@ -58,6 +58,12 @@ export interface StartOptions {
   startIndex?: number;
   source?: QueueSource;
   repeat?: RepeatMode;
+  /**
+   * What the player reports once the file is open, when that differs from what
+   * the scanner stored. MediaStore returns null durations often enough that
+   * this is an ordinary case, not a contrived one.
+   */
+  reportedDurationMs?: number;
 }
 
 /** Build a track with sane defaults; only `durationMs` usually matters. */
@@ -92,9 +98,9 @@ export async function startPlayback(
     listens.push({
       trackId: listen.track.id,
       msPlayed: listen.msPlayed,
-      // The same call `recordListen` makes, so an outcome here is the outcome
-      // that would be written to the row.
-      outcome: classifyListen(listen.msPlayed, listen.track.durationMs),
+      // The same call `recordListen` makes, on the same duration it is given,
+      // so an outcome here is the outcome that would be written to the row.
+      outcome: classifyListen(listen.msPlayed, listen.durationMs),
       completed: listen.completed,
       startedAt: listen.startedAt.getTime(),
     });
@@ -104,7 +110,7 @@ export async function startPlayback(
 
   await AudioEngine.setQueue(tracks, options.startIndex ?? 0, options.source);
   await flush();
-  await settleLoad();
+  await settleLoad(options.reportedDurationMs);
 
   return {
     listens,
@@ -139,7 +145,7 @@ export async function startPlayback(
       live.playing = false;
       live.emit({ didJustFinish: true });
       await flush();
-      await settleLoad();
+      await settleLoad(options.reportedDurationMs);
     },
 
     async seekTo(ms: number) {
@@ -155,13 +161,13 @@ export async function startPlayback(
     async next() {
       await AudioEngine.advance(true);
       await flush();
-      await settleLoad();
+      await settleLoad(options.reportedDurationMs);
     },
 
     async previous() {
       await AudioEngine.previous();
       await flush();
-      await settleLoad();
+      await settleLoad(options.reportedDurationMs);
     },
 
     setRepeat(mode: RepeatMode) {
@@ -182,12 +188,12 @@ export async function startPlayback(
  * exists to handle — and that race is the reason playback used to stop dead on
  * the second track of every queue.
  */
-async function settleLoad(): Promise<void> {
+async function settleLoad(reportedDurationMs?: number): Promise<void> {
   const live = currentFakePlayer();
   if (live.isLoaded) return;
   const current = AudioEngine.getState().track;
   if (current === null) return;
-  live.finishLoading(current.durationMs / 1000);
+  live.finishLoading((reportedDurationMs ?? current.durationMs) / 1000);
   live.emit();
   await flush();
 }

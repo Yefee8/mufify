@@ -197,6 +197,58 @@ describe('e — scrubbing back and forth', () => {
   });
 });
 
+describe('a track whose stored duration is wrong', () => {
+  /*
+   * MediaStore returns a null duration for a file it indexed before reading
+   * its metadata — a track copied onto the device and played straight away.
+   * The scanner stores the zero, and `classifyListen` given a duration of zero
+   * returns `partial` however much was heard. Listening to such a track from
+   * end to end moved neither counter and vanished from the counts.
+   *
+   * The engine knows better the moment the file is open, which is always well
+   * before a listen ends.
+   */
+  it('counts a full listen as a play when the scanner stored no duration', async () => {
+    const harness = await startPlayback([track(1, 0), track(2, 0)], {
+      reportedDurationMs: DURATION_MS,
+    });
+
+    await harness.playFor(DURATION_MS - TICK_MS);
+    await harness.finishTrack();
+
+    expect(harness.listens).toHaveLength(1);
+    expect(harness.listens[0]?.outcome).toBe('play');
+  });
+
+  it('still splits a repeat when the scanner stored no duration', async () => {
+    const harness = await startPlayback([track(1, 0), track(2, 0)], {
+      reportedDurationMs: DURATION_MS,
+    });
+    harness.setRepeat('one');
+
+    await harness.playFor(DURATION_MS - TICK_MS);
+    await harness.finishTrack();
+    await harness.playFor(DURATION_MS - TICK_MS);
+    await harness.finishTrack();
+
+    expect(harness.listens).toHaveLength(2);
+    expect(harness.listens.map((listen) => listen.outcome)).toEqual(['play', 'play']);
+  });
+
+  it('prefers the engine when the scanner stored a duration that is too short', async () => {
+    // A five-second claim against a thirty-second file. The play threshold
+    // would be 2.5s, so almost anything would count — including a real skip.
+    const harness = await startPlayback([track(1, 5_000), track(2, 5_000)], {
+      reportedDurationMs: DURATION_MS,
+    });
+
+    await harness.playFor(3_000);
+    await harness.next();
+
+    expect(harness.listens[0]?.outcome).toBe('skip');
+  });
+});
+
 describe('the queue moving on', () => {
   it('closes the outgoing listen exactly once when a track ends', async () => {
     const harness = await start();
