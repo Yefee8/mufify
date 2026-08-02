@@ -58,9 +58,14 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} />
       <PlayerLayer>
+        {/*
+          No queue route. It was a modal here and it never appeared: PlayerLayer
+          mounts Now Playing outside the navigator, and an opaque full-screen
+          overlay covers whatever the navigator puts under it. The queue is a
+          root-level sheet now — see `QueueOverlay`.
+        */}
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="queue" options={{ presentation: 'modal' }} />
         </Stack>
       </PlayerLayer>
     </GestureHandlerRootView>

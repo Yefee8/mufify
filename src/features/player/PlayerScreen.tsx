@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import {
   ChevronDown,
   ListMusic,
@@ -37,13 +36,14 @@ import { useQueueNeighbours } from './hooks/useQueueNeighbours';
  * screen so the mini player and this surface share one gesture progress value.
  */
 export interface PlayerScreenProps {
-  onExpandedChange: (expanded: boolean) => void;
+  onExpandedChange: (expanded: boolean, velocity?: number) => void;
+  /** The queue is a root-level surface, not a route. See `QueueOverlay`. */
+  onOpenQueue: () => void;
 }
 
-export function PlayerScreen({ onExpandedChange }: PlayerScreenProps) {
+export function PlayerScreen({ onExpandedChange, onOpenQueue }: PlayerScreenProps) {
   const { t, i18n } = useTranslation();
   const colors = useThemeColors();
-  const router = useRouter();
 
   const { phase, track, positionMs, durationMs, error } = usePlayback();
   const { toggle, toggleShuffle, next, previous, seekTo } = usePlaybackControls();
@@ -52,8 +52,6 @@ export function PlayerScreen({ onExpandedChange }: PlayerScreenProps) {
   const [shuffled, setShuffledState] = useState(() => AudioEngine.isShuffled());
 
   const close = useCallback(() => onExpandedChange(false), [onExpandedChange]);
-  // A double press must not leave two identical queue screens on the stack.
-  const openQueue = useCallback(() => router.navigate('/queue'), [router]);
 
   const onShufflePress = useCallback(() => {
     toggleShuffle();
@@ -69,7 +67,7 @@ export function PlayerScreen({ onExpandedChange }: PlayerScreenProps) {
   if (track === null) {
     return (
       <View className="flex-1 bg-surface">
-        <Header onClose={close} onOpenQueue={openQueue} label={t('player.title')} />
+        <Header onClose={close} onOpenQueue={onOpenQueue} label={t('player.title')} />
         <EmptyState icon={Music} messages={[t('player.empty')]} />
       </View>
     );

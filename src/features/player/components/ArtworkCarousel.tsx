@@ -55,8 +55,11 @@ export interface ArtworkCarouselProps {
   neighbours: QueueNeighbours;
   onNext: () => void;
   onPrevious: () => void;
-  /** Releases the shared overlay at either end of a vertical drag. */
-  onExpandedChange: (expanded: boolean) => void;
+  /**
+   * Releases the shared overlay at either end of a vertical drag. `velocity` is
+   * in expansion units per second, so a thrown screen keeps its speed.
+   */
+  onExpandedChange: (expanded: boolean, velocity?: number) => void;
 }
 
 /**
@@ -136,7 +139,9 @@ export function ArtworkCarousel({
     .onEnd((event) => {
       if (axis.value === 2) {
         const dismiss = event.translationY > DISMISS_DISTANCE || event.velocityY > DISMISS_VELOCITY;
-        runOnJS(onExpandedChange)(!dismiss);
+        // Downwards is positive in gesture space and negative in expansion
+        // space, so the throw carries into the spring rather than stopping dead.
+        runOnJS(onExpandedChange)(!dismiss, -event.velocityY / height);
         return;
       }
 

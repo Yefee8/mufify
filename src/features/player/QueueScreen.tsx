@@ -1,5 +1,4 @@
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
-import { useRouter } from 'expo-router';
 import { ChevronDown, ListX, Music } from 'lucide-react-native';
 import { useCallback, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -26,21 +25,24 @@ interface QueueItem {
  * emitted twice a second for the position, and re-rendering a few hundred rows
  * at that rate is exactly the jank the performance rules exist to prevent.
  */
-export function QueueScreen() {
+export interface QueueScreenProps {
+  /** Dismisses the sheet. Not `router.back()` — this is not a route. */
+  onClose: () => void;
+}
+
+export function QueueScreen({ onClose }: QueueScreenProps) {
   const { t, i18n } = useTranslation();
   const colors = useThemeColors();
-  const router = useRouter();
 
   const snapshot = useSyncExternalStore(subscribeQueue, getQueueSnapshot);
-  const close = useCallback(() => router.back(), [router]);
 
   const playAt = useCallback((position: number) => void AudioEngine.jumpTo(position), []);
   const removeAt = useCallback((position: number) => void AudioEngine.removeAt(position), []);
 
   const clear = useCallback(() => {
     void AudioEngine.clearQueue();
-    router.back();
-  }, [router]);
+    onClose();
+  }, [onClose]);
 
   const items: QueueItem[] = snapshot.tracks.map((track, position) => ({ track, position }));
 
@@ -63,7 +65,7 @@ export function QueueScreen() {
     <SafeAreaView edges={['top']} className="flex-1 bg-surface">
       <View className="flex-row items-center justify-between px-4 pt-6">
         <Pressable
-          onPress={close}
+          onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel={t('queue.close')}
           className="min-h-11 min-w-11 items-center justify-center"

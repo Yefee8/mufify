@@ -41,10 +41,16 @@ const FOLLOW_RATIO = 0.4;
 const SPRING = { damping: 20, stiffness: 220 } as const;
 
 export interface MiniPlayerProps {
-  /** Mounts Now Playing as soon as a vertical drag begins. */
+  /** Mounts Now Playing as soon as a vertical drag begins, or a finger lands. */
   onPrepareOpen: () => void;
-  /** Settles the root overlay after a tap or released drag. */
-  onExpandedChange: (expanded: boolean) => void;
+  /**
+   * Settles the root overlay after a tap or released drag.
+   *
+   * `velocity` is in expansion units per second — the gesture's px/s over the
+   * screen height — so a flick hands its speed to the spring instead of the
+   * spring always starting from rest.
+   */
+  onExpandedChange: (expanded: boolean, velocity?: number) => void;
 }
 
 /**
@@ -142,15 +148,21 @@ export function MiniPlayer({ onPrepareOpen, onExpandedChange }: MiniPlayerProps)
 
       const far = playerExpansion.value >= 0.18;
       const fast = event.velocityY <= -OPEN_VELOCITY;
-      runOnJS(onExpandedChange)(far || fast);
+      // Upwards is negative in gesture space and positive in expansion space.
+      runOnJS(onExpandedChange)(far || fast, -event.velocityY / height);
     })
     .onFinalize(() => {
       axis.value = 0;
       offsetX.value = withSpring(0, SPRING);
     });
 
+  /*
+   * Only the sideways follow. The fade moved up to `PlayerLayer`, which wraps
+   * the whole strip — this style covered the row but not the strip's panel
+   * background, its top hairline or `MiniProgress`, and those three carried on
+   * drawing over an open Now Playing.
+   */
   const followStyle = useAnimatedStyle(() => ({
-    opacity: 1 - playerExpansion.value,
     transform: [{ translateX: offsetX.value }],
   }));
 
@@ -176,6 +188,14 @@ export function MiniPlayer({ onPrepareOpen, onExpandedChange }: MiniPlayerProps)
           <View className="flex-row items-center gap-1 px-4 py-2">
             <Pressable
               onPress={openPlayer}
+              /*
+               * Mount Now Playing when the finger lands, not when it lifts.
+               * The tap path used to mount the whole player screen — a carousel
+               * of three images, the scrubber, the spec strip — on the very
+               * frame the spring started, so the opening animation spent its
+               * first frames waiting for a render it had itself triggered.
+               */
+              onPressIn={onPrepareOpen}
               android_ripple={{ color: colors.etch }}
               accessibilityRole="button"
               accessibilityLabel={t('player.open')}
