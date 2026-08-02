@@ -1,7 +1,7 @@
 import { useSegments } from 'expo-router';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { View, type LayoutChangeEvent } from 'react-native';
+import { BackHandler, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { runOnJS, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -69,6 +69,34 @@ export function PlayerLayer({ children }: PlayerLayerProps) {
       if (finished) runOnJS(setVisible)(false);
     });
   }, []);
+
+  /*
+   * Back closes the topmost player surface.
+   *
+   * The queue used to be a route, so the navigator gave it this for free. Now
+   * that neither surface is one, nothing else can: they are mounted outside the
+   * router, so back would pop the screen *underneath* an open player and leave
+   * it open over a screen the user never chose. Innermost first, which is the
+   * order they are stacked in.
+   *
+   * Declared after `onExpandedChange` deliberately. A dependency array is built
+   * during render, so referencing it above its own `const` is a temporal dead
+   * zone error on every render, not a lint nit.
+   */
+  useEffect(() => {
+    if (!queueOpen && !expanded) return;
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (queueOpen) {
+        setQueueOpen(false);
+        return true;
+      }
+      onExpandedChange(false);
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [queueOpen, expanded, onExpandedChange]);
 
   /*
    * The whole strip fades, not just its contents.

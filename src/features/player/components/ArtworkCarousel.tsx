@@ -276,7 +276,10 @@ function Slot({ track, width, size, offset }: SlotProps) {
       <View
         style={{ width }}
         accessibilityLabel={track?.title ?? t('player.empty')}
-        className="flex-1 items-center justify-center"
+        /* `h-full`, not `flex-1`: this is a row, so `flex-1` would put a
+           flex-basis of 0 against the explicit width and leave which one wins
+           to the shrink factor. */
+        className="h-full items-center justify-center"
       >
         {content}
       </View>
