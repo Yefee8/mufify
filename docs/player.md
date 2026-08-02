@@ -66,6 +66,40 @@ anyone wants.
 buttons is worse than no notification, and Android will happily keep showing
 one for a player that has gone away.
 
+### Claim the session once, then update it
+
+`setActiveForLockScreen` is called on the **first** track only. Every track
+after it goes through `updateLockScreenMetadata`.
+
+The difference is not cosmetic. Inside expo-audio, calling
+`setActiveForLockScreen` on a player that is already active does not refresh
+anything — it releases the MediaSession and builds a new one on the main queue.
+Between those two there is a window with no live session, and the notification's
+play/pause icon is drawn from `session.player.isPlaying` at the moment it is
+posted. A state change landing in that window is drawn against a released
+session and never corrected, which is how the notification came to show
+"playing" for audio that had stopped.
+
+It also explains the entry below about `dumpsys media_session` reporting
+`state=NONE` with a stale title: the dump was catching the swap, and the swap
+happened on every single track change.
+
+`updateLockScreenMetadata` changes metadata on the live session and re-posts the
+notification, with no release and no window.
+
+### What the notification shows
+
+Title, artist, album, and artwork. A track with no cover gets the app's own
+music-note placeholder — `src/services/audio/notificationArtwork.ts` unpacks it
+from the bundle to a `file://` path, because the service loads artwork through
+`java.net.URL(...).openConnection()`, which knows nothing about `asset://` or a
+Metro URL.
+
+**There is no favourite button, and there cannot be one through this engine.**
+`AudioLockScreenOptions` has three fields and none of them is a custom action;
+the MediaSession is a private field of expo-audio's own service. The options
+and the reasoning are in `docs/adr/015`.
+
 ## States
 
 `PlaybackState.phase` is `idle | loading | playing | paused | error`.
