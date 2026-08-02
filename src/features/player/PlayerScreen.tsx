@@ -80,9 +80,14 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue }: PlayerScreenProp
 
   return (
     <View className="flex-1 bg-surface">
-      <Header onClose={close} onOpenQueue={openQueue} label={t('player.title')} />
+      <Header onClose={close} onOpenQueue={onOpenQueue} label={t('player.title')} />
 
-      <View className="flex-1 justify-center gap-8">
+      {/*
+        `gap-6`, not `gap-8`. Three gaps of 32 between four blocks was 96 dp of
+        air the column did not have — see `artworkSize.ts` for what the overflow
+        did to both ends of the screen.
+      */}
+      <View className="flex-1 gap-6 pb-4">
         {/*
           The artwork carries the gestures, not the whole screen: the scrubber
           below owns a pan of its own, and two competing pans on one surface

@@ -1,8 +1,8 @@
 import { Image } from 'expo-image';
 import { Music } from 'lucide-react-native';
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWindowDimensions, View } from 'react-native';
+import { useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -15,6 +15,7 @@ import type { PlayableTrack } from '@/services/audio/types';
 import { useReducedMotion } from '@/theme/useReducedMotion';
 import { useThemeColors } from '@/theme/useTheme';
 
+import { artworkSize } from '../artworkSize';
 import type { QueueNeighbours } from '../hooks/useQueueNeighbours';
 import { setPlayerExpansion } from '../playerExpansion';
 
@@ -93,6 +94,19 @@ export function ArtworkCarousel({
 }: ArtworkCarouselProps) {
   const { width, height } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
+
+  /*
+   * The cover is bounded by the height flex left over, not by the screen width
+   * alone. See `artworkSize.ts`: the width-only square overflowed the column,
+   * which is what clipped the header and pushed the transport row under the
+   * navigation bar. Measured rather than computed from a constant because the
+   * chrome below it changes height when the title wraps.
+   */
+  const [boxHeight, setBoxHeight] = useState(0);
+  const onLayout = useCallback((event: LayoutChangeEvent) => {
+    setBoxHeight(event.nativeEvent.layout.height);
+  }, []);
+  const size = artworkSize(width, boxHeight);
 
   const offsetX = useSharedValue(0);
   /** 0 undecided, 1 horizontal, 2 vertical. Fixed once per gesture. */
@@ -187,12 +201,15 @@ export function ArtworkCarousel({
 
   return (
     <GestureDetector gesture={pan}>
-      {/* Clips the neighbours to the visible slot. */}
-      <View className="w-full overflow-hidden">
-        <Animated.View style={reducedMotion ? undefined : stripStyle} className="flex-row">
-          <Slot track={previous} width={width} offset={-width} />
-          <Slot track={current} width={width} offset={0} />
-          <Slot track={next} width={width} offset={width} />
+      {/* Takes the height flex leaves it, and clips the neighbours. */}
+      <View onLayout={onLayout} className="min-h-0 w-full flex-1 overflow-hidden">
+        <Animated.View
+          style={reducedMotion ? undefined : stripStyle}
+          className="flex-1 flex-row items-center"
+        >
+          <Slot track={previous} width={width} size={size} offset={-width} />
+          <Slot track={current} width={width} size={size} offset={0} />
+          <Slot track={next} width={width} size={size} offset={width} />
         </Animated.View>
       </View>
     </GestureDetector>
@@ -202,6 +219,8 @@ export function ArtworkCarousel({
 interface SlotProps {
   track: PlayableTrack | null;
   width: number;
+  /** The side of the cover square, already bounded by both axes. */
+  size: number;
   /** Where this slot sits relative to the centre one. */
   offset: number;
 }
@@ -212,21 +231,29 @@ interface SlotProps {
  * Absolutely positioned rather than laid out in the row, so the strip is exactly
  * one screen wide and the neighbours hang off either edge — a three-wide flex row
  * would make the container three screens wide and push the layout around.
+ *
+ * The square takes its side from `size` rather than from `aspect-square w-full`.
+ * A width-derived square is only square while the width is the tighter of the
+ * two bounds, and on this screen it was not.
  */
-function Slot({ track, width, offset }: SlotProps) {
+function Slot({ track, width, size, offset }: SlotProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
 
   const artworkUri = track?.artworkPath ? `file://${track.artworkPath}` : null;
   const isCentre = offset === 0;
 
-  const style = useMemo(
+  const slotStyle = useMemo(
     () => ({ width, left: offset, position: 'absolute' as const, top: 0, bottom: 0 }),
     [width, offset],
   );
+  const squareStyle = useMemo(() => ({ width: size, height: size }), [size]);
 
   const content = (
-    <View className="aspect-square w-full items-center justify-center rounded-md bg-surface-elevated">
+    <View
+      style={squareStyle}
+      className="items-center justify-center overflow-hidden rounded-md bg-surface-elevated"
+    >
       {artworkUri ? (
         <Image
           source={{ uri: artworkUri }}
@@ -244,17 +271,12 @@ function Slot({ track, width, offset }: SlotProps) {
     </View>
   );
 
-  /*
-   * The centre slot is in the layout and gives the container its height; the
-   * neighbours are absolute and contribute none. Doing it the other way round
-   * would make the player's height depend on whether a next track exists.
-   */
   if (isCentre) {
     return (
       <View
         style={{ width }}
         accessibilityLabel={track?.title ?? t('player.empty')}
-        className="px-6"
+        className="flex-1 items-center justify-center"
       >
         {content}
       </View>
@@ -262,7 +284,7 @@ function Slot({ track, width, offset }: SlotProps) {
   }
 
   return (
-    <View style={style} pointerEvents="none" className="px-6">
+    <View style={slotStyle} pointerEvents="none" className="items-center justify-center">
       {content}
     </View>
   );
