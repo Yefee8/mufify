@@ -5,6 +5,8 @@ import { useCallback } from 'react';
 import { View } from 'react-native';
 
 import type { CollectionCard as Card } from '@/db/queries/tracks';
+import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
+import { SPACING } from '@/theme/tokens';
 
 import { CollectionCard } from './CollectionCard';
 
@@ -33,6 +35,8 @@ export interface CollectionGridProps {
  * and reuses it.
  */
 export function CollectionGrid({ kind, cards, icon, onPress, empty }: CollectionGridProps) {
+  const bottomInset = useMiniPlayerInset();
+
   const renderItem = useCallback<ListRenderItem<Card>>(
     ({ item }) => (
       // Gutter as padding on the cell rather than a gap on the list: FlashList
@@ -50,7 +54,14 @@ export function CollectionGrid({ kind, cards, icon, onPress, empty }: Collection
       renderItem={renderItem}
       keyExtractor={keyExtractor}
       numColumns={COLUMNS}
-      contentContainerClassName="px-4"
+      /*
+        One style rather than a class plus a style. The bottom inset is a
+        runtime measurement — the transport strip's height — which no Tailwind
+        class can carry, and mixing `contentContainerClassName` with
+        `contentContainerStyle` leaves which padding wins to NativeWind's merge
+        order. The values are still design-system tokens.
+      */
+      contentContainerStyle={{ paddingHorizontal: SPACING[4], paddingBottom: bottomInset }}
       ListEmptyComponent={empty}
     />
   );

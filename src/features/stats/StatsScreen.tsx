@@ -13,11 +13,13 @@ import {
   useTopPlaylists,
   useTopTracks,
 } from '@/db/queries/stats';
+import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { useMessages } from '@/i18n';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 import { getWeekStart } from '@/services/settings';
 import { periodKeys } from '@/services/stats/periodKeys';
 import { PERIOD_TYPES, type PeriodType } from '@/services/stats/rollups';
+import { SPACING } from '@/theme/tokens';
 
 import { StatTotals } from './components/StatTotals';
 import { TopList } from './components/TopList';
@@ -38,6 +40,7 @@ export function StatsScreen() {
   useLifecycleTrace('StatsScreen');
   const { t } = useTranslation();
   const messages = useMessages('stats.empty');
+  const bottomInset = useMiniPlayerInset();
   const [period, setPeriod] = useState<PeriodType>('week');
 
   // The key for "now" in the selected period. Recomputed per render rather
@@ -69,7 +72,13 @@ export function StatsScreen() {
       </View>
 
       {hasData ? (
-        <ScrollView contentContainerClassName="gap-8 px-6 pb-16">
+        <ScrollView
+          contentContainerStyle={{
+            gap: SPACING[8],
+            paddingHorizontal: SPACING[6],
+            paddingBottom: SPACING[16] + bottomInset,
+          }}
+        >
           <Wrapped
             period={period}
             totals={totals}

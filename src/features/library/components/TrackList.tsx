@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { RefreshControl } from 'react-native';
 
 import type { TrackListItem } from '@/db/queries/tracks';
+import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { useThemeColors } from '@/theme/useTheme';
 
 import { LibraryRow } from './LibraryRow';
@@ -69,6 +70,12 @@ export function TrackList({
 }: TrackListProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
+  /*
+   * A runtime measurement, so it cannot be a Tailwind class — the config
+   * compiles anything outside the spacing scale to nothing at all. This is the
+   * exception `AGENTS.md` names.
+   */
+  const bottomInset = useMiniPlayerInset();
 
   const swipeLabel = t('track.addToQueue');
 
@@ -96,6 +103,8 @@ export function TrackList({
       keyExtractor={keyExtractor}
       drawDistance={DRAW_DISTANCE}
       overrideItemLayout={setRowHeight}
+      // So the last rows clear the transport strip instead of sitting under it.
+      contentContainerStyle={{ paddingBottom: bottomInset }}
       /*
         Pull to refresh re-indexes and sweeps. Without it a user who has just
         copied files in has no way to make the app look again short of restarting

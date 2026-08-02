@@ -18,6 +18,7 @@ import {
   usePlaylists,
   type PlaylistEntry,
 } from '@/db/queries/playlists';
+import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { useMessages } from '@/i18n';
 import { AudioEngine } from '@/services/audio/AudioEngine';
 import { LIBRARY_SOURCE, type PlayableTrack, type QueueSource } from '@/services/audio/types';
@@ -37,6 +38,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const isLiked = playlistId === LIKED_SONGS_ID;
+  const bottomInset = useMiniPlayerInset();
   const detailMessages = useMessages(isLiked ? 'playlists.likedEmpty' : 'playlists.detailEmpty');
 
   const playlistEntries = usePlaylistEntries(playlistId);
@@ -156,6 +158,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
             renderItem={renderItem}
             keyExtractor={keyExtractor}
             overrideItemLayout={setEntryHeight}
+            contentContainerStyle={{ paddingBottom: bottomInset }}
           />
         )}
       </View>
