@@ -62,7 +62,10 @@ export function QueueScreen({ onClose }: QueueScreenProps) {
   );
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-surface">
+    /* `bottom` as well as `top`: this is a full-screen sheet now, not a route
+       inside a navigator that was insetting it, so the last queue row would sit
+       under the navigation bar the way the transport row did. */
+    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
       <View className="flex-row items-center justify-between px-4 pt-6">
         <Pressable
           onPress={onClose}

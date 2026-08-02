@@ -4,8 +4,10 @@ Everything is computed on-device from the user's own history. No network, no
 account, no export unless the user asks for one.
 
 > Phase status: counting, event recording, incremental rollups and the stats
-> screen are implemented. The repeat-listen device check is recorded only after
-> it has been run against the on-device database.
+> screen are implemented. The repeat-listen behaviour is pinned by
+> `src/services/audio/listenRecording.test.ts` against the real engine, and
+> partly confirmed on hardware — see "The repeat-listen device check,
+> corrected" below for what a device session can and cannot settle.
 
 ---
 
@@ -271,6 +273,25 @@ totals.
 Verified on device as well as in tests: after playing ten tracks, the rollups
 reproduced exactly the ten most recent `play_events` — 10 plays and 365,560 ms,
 consistent across all three period types.
+
+### The repeat-listen device check, corrected
+
+An earlier version of this file said the repeat-listen behaviour had been
+"verified on device". It had — twice — and both reports were true about what
+they measured and wrong about what they implied, which is that the feature was
+correct. Every track used in those sessions had a good stored duration, and
+those counted correctly the whole time. The failure needs a track whose
+MediaStore duration is missing, which is the state a freshly copied file is in.
+
+Re-run 2026-08-02 against the real engine, with the matrix written down before
+it was run rather than after: a, b and c pass on hardware — a loop produces one
+event per pass, 27–30 s apart, with no duplicates — and d and e could not be
+driven on device at all, because seeking forward needs the scrubber's pan and
+no `adb input` sequence activates it. Full record in `docs/performance.md`.
+
+**Prefer the harness over another device session.** A device session cannot be
+re-run and so cannot catch the next regression; that is how this defect survived
+two of them.
 
 ### Events recorded before rollups existed are not backfilled
 

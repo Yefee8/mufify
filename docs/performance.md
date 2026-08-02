@@ -321,3 +321,93 @@ rather than being a defect, but it is a real gap.
 This was the last thing in the project never to have been run. Note it is still
 a *functional* smoke test — no release-build numbers were taken, so the
 cold-start caveat below stands unchanged.
+
+---
+
+## Device verification, 2026-08-02 — the final polish branch
+
+Pixel_7 AVD, API 35, arm64, debug build over Metro, 531 tracks. The Mi 9T could
+not be driven at all this session: `adb shell input` is still refused
+(`SecurityException: INJECT_EVENTS`), and its notification shade was stuck open
+with `mCurrentFocus=StatusBar`, which no shell command would collapse. Waking
+it with `svc power stayon usb` worked; nothing else did. **Everything below is
+the emulator.**
+
+### The listen-counting matrix
+
+A 25-second WAV pushed to `/sdcard/Music`, so the thresholds are round numbers:
+play at 12,500 ms, skip below 5,000 ms.
+
+| # | Scenario | Expected | Actual | |
+|---|---|---|---|---|
+| a | played start to finish | 1 event, `play` | 1 event, `play`, completed | ✅ |
+| b | looped, repeat on | 1 event per pass | 7 passes → 7 events, all `play`, started 27–30 s apart | ✅ |
+| c | past the play mark, then rewound to 0 | 2 events | 2 events, `play` + `play` | ✅ |
+| d | heard briefly, skipped forward, finished | 1 event, only heard audio counted | **not run on device** | ⚠️ |
+| e | scrubbed back and forth | no extra events | **not run on device** | ⚠️ |
+
+The gaps in (b) are the load-bearing number: 27–30 s between consecutive
+`started_at_utc` values, each carrying ~27 s of `ms_played`. A double-written
+event would sit milliseconds from its twin. None did.
+
+(c) was driven with the **previous** button, which restarts the track at or
+past ten seconds — the same rewind-to-zero a scrubber drag produces, through
+the same code path.
+
+**(d) and (e) need a forward seek and there is no way to perform one from
+automation.** The scrubber is a Reanimated pan; `input swipe` does not activate
+it and neither does a hand-built `input motionevent` sequence, which is the
+same class of problem the reorder handle had. `cmd media_session dispatch
+fast-forward` and `KEYCODE_MEDIA_FAST_FORWARD` both left the position where it
+was. The only forward-seek control left is the notification's +10 s button,
+which needs the shade.
+
+Both are covered by `src/services/audio/listenRecording.test.ts`, which drives
+the real engine through the real `AudioEngine.seekTo`. That suite is 16/16 and
+three of its cases fail against the previous behaviour. **The matrix is 5/5 in
+the harness and 3/5 on hardware, and the three that ran on hardware are the
+three the harness cannot fully model** — real audio timing, a real 500 ms
+status stream, and a real SQLite write per event.
+
+### Notification and MediaSession
+
+| Check | Result |
+|---|---|
+| Metadata while playing | `description=loop-test-25s`, artwork drawn, artist shown |
+| `dumpsys media_session` accuracy | **now correct** — `state=PLAYING(3)` with the right title |
+| External pause (media button) | `state=PAUSED(2)`, and the app's own phase followed |
+| Resume | `state=PLAYING(3)` |
+| Headphone unplug | **not verified** — `ACTION_AUDIO_BECOMING_NOISY` is a protected broadcast |
+| Audio-focus loss | **not verified** — `adb emu gsm call` left `mCallState=0`, and the focus stack was empty |
+
+The second row is worth its own note. `docs/player.md` has carried a warning
+that `dumpsys media_session` "lies about this app", reporting `state=NONE` with
+a stale title, and put it down to the session being rebuilt on every track
+change. It was — that is exactly what `setActiveForLockScreen` does to an
+already-active player, and it is the same window that let the notification show
+"playing" for stopped audio. Claiming the session once and updating metadata in
+place fixed the notification and made the dump truthful in the same change.
+
+### The UI reports
+
+| Item | Result |
+|---|---|
+| Mini player drawing over Now Playing | ✅ gone — the overlay is opaque and complete |
+| Transport row under the navigation bar | ✅ clear of it, with space below |
+| Artwork the wrong shape | ✅ square, measured 790 × 789 px on a 1080-wide screen |
+| Queue opens but is invisible | ✅ visible — "Sıra", 529 remaining, current track marked |
+| Liked Songs card reads 0 | ✅ "2 liste" and "Beğenilenler — 4 parça", matching `track_stats` |
+| Empty state above a full list | ✅ gone |
+| Back closes the player surfaces | ✅ closes the queue, then the overlay |
+
+**The opening animation is not on this list.** It is a real change — velocity
+handoff from both gestures, a softer spring, an opacity ramp that finishes at
+40% of the travel — and none of that can be judged from a screenshot. It needs
+a hand on the phone.
+
+### What the emulator cost
+
+Two SystemUI ANRs and a restart mid-session, and taps that silently do nothing
+often enough that every step had to be confirmed from `MUFIFY_PERF` in the
+Metro log rather than assumed. The `library.play.handler` measure is the only
+reliable signal that a row press landed.
