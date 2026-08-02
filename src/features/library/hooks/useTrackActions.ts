@@ -21,10 +21,9 @@ export interface TrackActions {
 /**
  * The queue and favourite actions, in one place.
  *
- * Both the swipe gesture, the long-press sheet and the selection bar do these,
- * and each one wants the same haptic and the same empty-input guard. Duplicating
- * that across three call sites is how one of them ends up silently doing
- * nothing.
+ * Both the swipe gesture and the long-press sheet use these, and each one wants
+ * the same haptic and the same empty-input guard. Duplicating that across call
+ * sites is how one of them ends up silently doing nothing.
  *
  * An empty list gets a rejection buzz rather than a success one. "Add to queue"
  * with nothing selected is a press that cannot work, and confirming it is worse

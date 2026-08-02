@@ -21,7 +21,8 @@ export function startListenRecording(): () => void {
     void recordListen(
       {
         trackId: listen.track.id,
-        durationMs: listen.track.durationMs,
+        // The engine's duration, not the track row's. See `FinishedListen`.
+        durationMs: listen.durationMs,
         msPlayed: listen.msPlayed,
         startedAt: listen.startedAt,
         sourceType: listen.source.type,

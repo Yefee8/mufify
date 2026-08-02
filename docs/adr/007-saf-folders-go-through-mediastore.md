@@ -24,16 +24,18 @@ handles it with no second code path.
 The second also fixes a separate problem the tree walk would not have touched:
 a file copied over USB is frequently not in MediaStore for minutes, because
 nothing has told the scanner it exists. That is not a "manual add" case at all
-— it is the ordinary automatic scan appearing to lose files.
+— it is the ordinary library scan appearing to lose files.
 
 ## Decision
 
 **Trigger a media scan; do not walk the tree.**
 
 `requestMediaScan(paths)` wraps `MediaScannerConnection.scanFile()` and
-resolves once the scanner has visited every path. `addFolder` calls it for the
-picked folder, then runs the normal two-stage scan. `tracks.file_uri` stays a
-single kind of URI throughout the app.
+resolves once the scanner has visited every path. `importFolder` calls it for
+the picked folder, then runs the normal two-stage scan. `tracks.file_uri` stays
+a single kind of URI throughout the app. The library first shows a clear
+confirmation, then a full-screen cancellable progress state until both stages
+finish.
 
 The same call also backs the manual **rescan** affordance, so a user who has
 just copied files in can pull to refresh and see them without restarting the
@@ -53,14 +55,14 @@ scan reads MediaStore, not the folder list. They exist so a future rescan can
 re-index the same folders, and so Library settings can show what was added.
 
 Converting a SAF tree URI to filesystem paths is not always possible on modern
-Android. Where it fails, `addFolder` still runs the normal sweep — the user
+Android. Where it fails, `importFolder` still runs the normal sweep — the user
 gets whatever MediaStore already knows, rather than an error for something they
 cannot act on.
 
 `requestMediaScan` no longer resolves strictly on the last callback. The
 callback is not guaranteed to fire once per path — a path that does not exist,
 or a directory the provider declines to walk, can be dropped — and a dropped
-one left the promise unsettled forever. Since `addFolder` awaits it *before*
+one left the promise unsettled forever. Since `importFolder` awaits it *before*
 starting the scan, that was a frozen screen with no error state to show. It now
 settles on whatever has arrived after ten seconds.
 

@@ -39,7 +39,7 @@ is a button that silently does nothing. `permissionErrorFor` maps the answer to
 the error code the screen renders and is unit tested, per the rule that logic
 belongs in `src/services/` rather than in a hook body.
 
-`addFolder` asks **before** opening the picker. Asking afterwards means a user
+`pickFolder` asks **before** opening the picker. Asking afterwards means a user
 who declines has chosen a folder for nothing.
 
 ## Consequences

@@ -6,9 +6,14 @@
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     "types": ["jest", "node"],
+    // Most specific first. TypeScript picks the best pattern whatever the
+    // order, but jest-expo turns these into a Jest moduleNameMapper in this
+    // order and Jest takes the first pattern that matches — with "@/*" listed
+    // first, "@/assets/x" resolved to "src/assets/x" and no asset import
+    // resolved under test.
     "paths": {
-      "@/*": ["./src/*"],
       "@/assets/*": ["./assets/*"],
+      "@/*": ["./src/*"],
       "audio-tags": ["./modules/audio-tags/index.ts"],
       "audio-focus": ["./modules/audio-focus/index.ts"]
     }

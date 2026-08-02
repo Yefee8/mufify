@@ -4,6 +4,7 @@ import {
   nextIndex,
   playNextIndex,
   previousIndex,
+  shouldRestartCurrentTrack,
   shiftForInsert,
 } from './queue';
 import type { RepeatMode } from './types';
@@ -74,6 +75,17 @@ describe('previousIndex', () => {
   it('has nowhere to go in an empty or unstarted queue', () => {
     expect(previousIndex(at(0, 0))).toBeNull();
     expect(previousIndex(at(-1, 3))).toBeNull();
+  });
+});
+
+describe('shouldRestartCurrentTrack', () => {
+  it('moves to the previous track before ten seconds', () => {
+    expect(shouldRestartCurrentTrack(9_900)).toBe(false);
+  });
+
+  it('restarts the current track at and after ten seconds', () => {
+    expect(shouldRestartCurrentTrack(10_000)).toBe(true);
+    expect(shouldRestartCurrentTrack(10_100)).toBe(true);
   });
 });
 

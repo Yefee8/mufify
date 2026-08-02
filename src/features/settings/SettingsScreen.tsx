@@ -18,6 +18,7 @@ import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/S
 import { SettingGroup } from '@/components/ui/SettingGroup';
 import { SettingRow } from '@/components/ui/SettingRow';
 import { SettingSwitch } from '@/components/ui/SettingSwitch';
+import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { changeLanguage } from '@/i18n';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 import {
@@ -34,6 +35,7 @@ import {
   type ThemePreference,
 } from '@/services/settings';
 import { SHUFFLE_ALGORITHMS, type ShuffleAlgorithm } from '@/services/shuffle';
+import { SPACING } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 import { DevTools } from './components/DevTools';
@@ -61,6 +63,7 @@ export function SettingsScreen() {
   useLifecycleTrace('SettingsScreen');
   const { t } = useTranslation();
   const { preference: theme, setPreference: setTheme } = useTheme();
+  const bottomInset = useMiniPlayerInset();
 
   const [language, setLanguage] = useState<LanguagePreference>(getLanguagePreference);
   const [shuffle, setShuffle] = useState<ShuffleAlgorithm>(getShuffleAlgorithm);
@@ -107,7 +110,13 @@ export function SettingsScreen() {
 
   return (
     <Screen title={t('settings.title')}>
-      <ScrollView contentContainerClassName="gap-8 px-6 pb-16">
+      <ScrollView
+        contentContainerStyle={{
+          gap: SPACING[8],
+          paddingHorizontal: SPACING[6],
+          paddingBottom: SPACING[16] + bottomInset,
+        }}
+      >
         <SettingGroup title={t('settings.appearance.title')}>
           <SettingRow
             icon={THEME_ICONS[theme]}

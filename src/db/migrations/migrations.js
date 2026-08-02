@@ -4,6 +4,7 @@ import journal from './meta/_journal.json';
 import m0000 from './0000_curved_odin.sql';
 import m0001 from './0001_smooth_tana_nile.sql';
 import m0002 from './0002_forget_unknown_placeholders.sql';
+import m0003 from './0003_numerous_cannonball.sql';
 
 export default {
   journal,
@@ -11,5 +12,6 @@ export default {
     m0000,
     m0001,
     m0002,
+    m0003,
   },
 };

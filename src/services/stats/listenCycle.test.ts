@@ -75,6 +75,24 @@ describe('ListenCycle', () => {
       expect(banked).toEqual([trackMs, trackMs, trackMs, trackMs, trackMs]);
     });
 
+    it('can start the next repeat-one pass after the finished pass closes', () => {
+      const cycle = new ListenCycle();
+      cycle.open(new Date(T0));
+      cycle.tick(true, T0);
+      cycle.tick(true, T0 + 6_000);
+
+      expect(cycle.close(T0 + 6_000)?.msPlayed).toBe(6_000);
+
+      // AudioEngine takes this route when expo-audio reports didJustFinish:
+      // it banks the completed pass, seeks the same source to zero, then opens
+      // a fresh cycle before the next status tick.
+      cycle.open(new Date(T0 + 6_000));
+      cycle.tick(true, T0 + 6_000);
+      cycle.tick(true, T0 + 12_000);
+
+      expect(cycle.close(T0 + 12_000)?.msPlayed).toBe(6_000);
+    });
+
     it('dates each pass from when that pass began, not when the first did', () => {
       const cycle = new ListenCycle();
       cycle.open(new Date(T0));

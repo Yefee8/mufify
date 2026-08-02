@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useDatabase } from '@/db/useDatabase';
+import { PlayerLayer } from '@/features/player/PlayerLayer';
 import { startListenRecording } from '@/features/player/listenRecorder';
 import { initI18n } from '@/i18n';
 import { APP_FONTS } from '@/theme/fonts';
@@ -56,14 +57,17 @@ export default function RootLayout() {
     // one, and gesture-handler throws rather than silently ignoring gestures.
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        {/* Now Playing is somewhere you go from a track and dismiss, not a
-            destination you switch to — so it presents rather than pushes. */}
-        <Stack.Screen name="player" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="queue" options={{ presentation: 'modal' }} />
-      </Stack>
-
+      <PlayerLayer>
+        {/*
+          No queue route. It was a modal here and it never appeared: PlayerLayer
+          mounts Now Playing outside the navigator, and an opaque full-screen
+          overlay covers whatever the navigator puts under it. The queue is a
+          root-level sheet now — see `QueueOverlay`.
+        */}
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </PlayerLayer>
     </GestureHandlerRootView>
   );
 }

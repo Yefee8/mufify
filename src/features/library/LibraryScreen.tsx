@@ -14,6 +14,7 @@ import { isPermissionError } from '@/services/scanner/permission';
 
 import { CollectionGrid } from './components/CollectionGrid';
 import { LibraryHeader } from './components/LibraryHeader';
+import { FolderImportModal } from './components/FolderImportModal';
 import { ScanBanner } from './components/ScanBanner';
 import { SearchField } from './components/SearchField';
 import { LibraryTracks } from './LibraryTracks';
@@ -53,7 +54,17 @@ export function LibraryScreen() {
   const [search, setSearch] = useState('');
   // The field stays instant; only the query waits.
   const { tracks, isLoading } = useTracks(useDebounced(search));
-  const { progress, isScanning, isRefreshing, scanLibrary, addFolder, rescan, cancel } = useScan();
+  const {
+    progress,
+    isScanning,
+    isRefreshing,
+    scanLibrary,
+    pickFolder,
+    importFolder,
+    isFolderImporting,
+    rescan,
+    cancel,
+  } = useScan();
 
   const artists = useArtistCards();
   const albums = useAlbumCards();
@@ -66,7 +77,17 @@ export function LibraryScreen() {
 
   /** True while the scan confirmation is on screen. */
   const [confirmingScan, setConfirmingScan] = useState(false);
+  const [pendingFolder, setPendingFolder] = useState<string | null>(null);
   const askToScan = useCallback(() => setConfirmingScan(true), []);
+  const chooseFolder = useCallback(async () => {
+    const uri = await pickFolder();
+    if (uri) setPendingFolder(uri);
+  }, [pickFolder]);
+  const confirmFolderImport = useCallback(() => {
+    const uri = pendingFolder;
+    setPendingFolder(null);
+    if (uri) void importFolder(uri);
+  }, [importFolder, pendingFolder]);
 
   const hasFailed = !isScanning && progress.phase === 'failed';
   const permissionFailed = isPermissionError(progress.error);
@@ -95,8 +116,7 @@ export function LibraryScreen() {
         count={displayedTrackCount}
         isScanning={isScanning}
         onScan={askToScan}
-        onAddFolder={addFolder}
-        onStartSelecting={() => setView('tracks')}
+        onAddFolder={chooseFolder}
       />
 
       <View className="px-6 pb-4">
@@ -112,7 +132,9 @@ export function LibraryScreen() {
           a search box, and hiding it makes that obvious rather than puzzling. */}
       {view === 'tracks' ? <SearchField value={search} onChange={setSearch} /> : null}
 
-      {isScanning ? <ScanBanner progress={progress} onCancel={cancel} /> : null}
+      {isScanning && !isFolderImporting ? (
+        <ScanBanner progress={progress} onCancel={cancel} />
+      ) : null}
 
       {hasFailed ? (
         <ErrorState
@@ -185,6 +207,15 @@ export function LibraryScreen() {
         }}
         onCancel={() => setConfirmingScan(false)}
       />
+      <ConfirmDialog
+        visible={pendingFolder !== null}
+        title={t('library.folderImportConfirm.title')}
+        body={t('library.folderImportConfirm.body')}
+        confirmLabel={t('library.import')}
+        onConfirm={confirmFolderImport}
+        onCancel={() => setPendingFolder(null)}
+      />
+      {isFolderImporting ? <FolderImportModal progress={progress} onCancel={cancel} /> : null}
     </Screen>
   );
 }

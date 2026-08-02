@@ -33,9 +33,23 @@
     "noResults": "Nothing matches “{{term}}”.",
     "scan": "Scan",
     "addFolder": "Add a folder",
+    "import": "Import",
     "scanConfirm": {
       "title": "Scan for music?",
       "body": "Mufify will read every audio file Android has indexed on this device. On a large library this takes a while. You can stop it at any point, and anything already found is kept."
+    },
+    "folderImportConfirm": {
+      "title": "Import this folder?",
+      "body": "Mufify will index the selected folder and read its tags. This can take a while on a large library and may temporarily affect device performance. You can stop it at any time."
+    },
+    "importing": {
+      "title": "Importing music",
+      "preparing": "Preparing the import…",
+      "messages": [
+        "Reading the music that is already on this device.",
+        "Building the library without sending anything anywhere.",
+        "Covers and tags are being prepared for the library."
+      ]
     },
     "view": {
       "label": "Library view",
@@ -46,6 +60,7 @@
   },
   "playlists": {
     "title": "Playlists",
+    "likedSongs": "Liked songs",
     "create": "New playlist",
     "rename": "Rename",
     "delete": "Delete playlist",
@@ -66,14 +81,12 @@
       "Nothing in here yet. Add tracks from the library.",
       "An empty playlist. Long-press a track to put it here."
     ],
+    "likedEmpty": ["No liked songs yet. Use the heart on a track to keep it here."],
     "addCount_one": "Add {{count}} track to a playlist",
     "addCount_other": "Add {{count}} tracks to a playlist",
     "shuffleAll": "Shuffle",
     "addTracks": "Add tracks",
-    "reorder": "Reorder {{title}}",
-    "addSelected_zero": "Pick some tracks",
-    "addSelected_one": "Add {{count}} track",
-    "addSelected_other": "Add {{count}} tracks"
+    "reorder": "Reorder {{title}}"
   },
   "stats": {
     "title": "Stats",
@@ -198,19 +211,9 @@
     "remaining_one": "{{count}} track left",
     "remaining_other": "{{count}} tracks left"
   },
-  "selection": {
-    "count_zero": "Select tracks",
-    "count_one": "{{count}} selected",
-    "count_other": "{{count}} selected",
-    "all": "Select all",
-    "none": "Clear selection",
-    "cancel": "Leave selection",
-    "addToQueue": "Add to queue",
-    "addToPlaylist": "Add to playlist"
-  },
   "track": {
     "playNext": "Play next",
-    "select": "Select",
+    "addToQueue": "Add to queue",
     "info": "Track info",
     "field": {
       "title": "Title",

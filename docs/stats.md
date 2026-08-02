@@ -3,8 +3,11 @@
 Everything is computed on-device from the user's own history. No network, no
 account, no export unless the user asks for one.
 
-> Phase status: the counting rule and period keys are implemented and tested
-> (Phase 1). Event recording is wired; rollups and the screens land in Phase 7.
+> Phase status: counting, event recording, incremental rollups and the stats
+> screen are implemented. The repeat-listen behaviour is pinned by
+> `src/services/audio/listenRecording.test.ts` against the real engine, and
+> partly confirmed on hardware — see "The repeat-listen device check,
+> corrected" below for what a device session can and cannot settle.
 
 ---
 
@@ -121,6 +124,18 @@ The thresholds are pinned by `repeatListen.test.ts`. This decides whether a
 listen is counted once or twice, so a quiet change to either condition silently
 rewrites the user's history.
 
+### Where the rule meets the engine
+
+`repeatListen.ts` and `listenCycle.ts` are both pure and both have had good
+tests for some time. Every miscount actually reported has lived in neither:
+it lived in `AudioEngine.onStatus`, where a listen is opened, banked and
+reopened against a stream of status ticks, and which nothing covered.
+
+`src/services/audio/listenRecording.test.ts` now replays scripted tick streams
+through the real engine with `expo-audio` behind a fake player. It is the only
+place the wiring is checked, and it is where the duration defect below was
+found. A device session cannot be re-run; that suite can.
+
 ---
 
 ## Period keys
@@ -161,6 +176,41 @@ and `2025-W53` under Sunday.
 
 **Changing the week-start setting invalidates every week rollup.** It has to
 trigger a rebuild, not a renumber.
+
+---
+
+## Which duration the rule is applied to
+
+Every threshold in this document is a fraction of the track's duration, so the
+counting rule is only as good as the number it divides. There are two of them
+and they disagree.
+
+The **scanner's** duration comes from MediaStore. It is null more often than
+anyone expects: a file copied onto the device and indexed before its metadata
+was read has a row with no duration at all, and it stays that way until stage
+two of a scan reaches it. The **engine's** duration comes from the open file
+and is authoritative.
+
+`classifyListen(msPlayed, 0)` returns `partial` — the first line is
+`if (durationMs <= 0 || msPlayed <= 0) return 'partial'`. So a track with no
+stored duration recorded a `play_event` for every listen, moved neither
+counter, and disappeared from the play counts entirely. Listening to it ten
+times produced ten honest-looking rows and a play count of zero.
+
+`PlaybackState.durationMs` already preferred the engine's figure. The listen
+handed to the recorder did not — it carried `track.durationMs` straight off the
+row. **`FinishedListen.durationMs` is now the engine's, falling back to the
+scanner's only when the file never opened**, and the same preference decides
+`isRewindToRestart`, so a repeat is detected on the same number the outcome is
+judged against.
+
+This is the third report of "the loop count is wrong" and the first one with a
+mechanism that explains a partial failure rather than a total one: tracks with
+a good stored duration counted correctly all along, which is why the defect
+survived two rounds of device verification that happened to use them.
+
+Pinned by `src/services/audio/listenRecording.test.ts` — three cases that fail
+against the old behaviour.
 
 ---
 
@@ -223,6 +273,25 @@ totals.
 Verified on device as well as in tests: after playing ten tracks, the rollups
 reproduced exactly the ten most recent `play_events` — 10 plays and 365,560 ms,
 consistent across all three period types.
+
+### The repeat-listen device check, corrected
+
+An earlier version of this file said the repeat-listen behaviour had been
+"verified on device". It had — twice — and both reports were true about what
+they measured and wrong about what they implied, which is that the feature was
+correct. Every track used in those sessions had a good stored duration, and
+those counted correctly the whole time. The failure needs a track whose
+MediaStore duration is missing, which is the state a freshly copied file is in.
+
+Re-run 2026-08-02 against the real engine, with the matrix written down before
+it was run rather than after: a, b and c pass on hardware — a loop produces one
+event per pass, 27–30 s apart, with no duplicates — and d and e could not be
+driven on device at all, because seeking forward needs the scrubber's pan and
+no `adb input` sequence activates it. Full record in `docs/performance.md`.
+
+**Prefer the harness over another device session.** A device session cannot be
+re-run and so cannot catch the next regression; that is how this defect survived
+two of them.
 
 ### Events recorded before rollups existed are not backfilled
 

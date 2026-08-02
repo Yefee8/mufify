@@ -12,7 +12,7 @@ export interface PlaylistEntryRowProps {
   entry: PlaylistEntry;
   locale: string;
   onPress: (position: number) => void;
-  onRemove: (position: number) => void;
+  onRemove?: (position: number) => void;
 }
 
 /**
@@ -31,7 +31,7 @@ export const PlaylistEntryRow = memo(function PlaylistEntryRow({
   const colors = useThemeColors();
 
   const handlePress = useCallback(() => onPress(entry.position), [onPress, entry.position]);
-  const handleRemove = useCallback(() => onRemove(entry.position), [onRemove, entry.position]);
+  const handleRemove = useCallback(() => onRemove?.(entry.position), [onRemove, entry.position]);
 
   const artworkUri = entry.artworkPath ? `file://${entry.artworkPath}` : null;
   const subtitle = [
@@ -78,14 +78,16 @@ export const PlaylistEntryRow = memo(function PlaylistEntryRow({
         </Text>
       </Pressable>
 
-      <Pressable
-        onPress={handleRemove}
-        accessibilityRole="button"
-        accessibilityLabel={t('playlists.removeTrack', { title: entry.title })}
-        className="min-h-11 min-w-11 items-center justify-center"
-      >
-        <X color={colors.legend} size={18} strokeWidth={2} />
-      </Pressable>
+      {onRemove ? (
+        <Pressable
+          onPress={handleRemove}
+          accessibilityRole="button"
+          accessibilityLabel={t('playlists.removeTrack', { title: entry.title })}
+          className="min-h-11 min-w-11 items-center justify-center"
+        >
+          <X color={colors.legend} size={18} strokeWidth={2} />
+        </Pressable>
+      ) : null}
     </View>
   );
 });

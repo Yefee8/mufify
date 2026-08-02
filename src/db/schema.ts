@@ -92,6 +92,8 @@ export const trackStats = sqliteTable('track_stats', {
   msPlayedTotal: integer('ms_played_total').notNull().default(0),
   lastPlayedAt: integer('last_played_at'),
   isFavorite: integer('is_favorite').notNull().default(0),
+  /** Set only while favourited, so liked songs can be shown newest first. */
+  favoriteAt: integer('favorite_at'),
 });
 
 export const playlists = sqliteTable('playlists', {

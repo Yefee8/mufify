@@ -1,13 +1,19 @@
-import { and, asc, eq, gt, max, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, max, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 
-import { foldPlaylistRows, reorder, type PlaylistSummary } from '@/services/playlists/order';
+import {
+  foldPlaylistRows,
+  LIKED_SONGS_ID,
+  reorder,
+  type PlaylistSummary,
+} from '@/services/playlists/order';
 
 import { db } from '../client';
 import { albums, artists, playlistTracks, playlists, trackStats, tracks } from '../schema';
 
 /* Re-exported so screens keep importing playlist types from the query module. */
 export type { PlaylistSummary };
+export { LIKED_SONGS_ID };
 
 /**
  * Playlists and their contents.
@@ -30,6 +36,18 @@ export interface PlaylistEntry {
   playCount: number;
   isFavorite: boolean;
 }
+
+const entrySelection = {
+  trackId: tracks.id,
+  fileUri: tracks.fileUri,
+  title: tracks.title,
+  artistName: artists.name,
+  albumName: albums.name,
+  durationMs: tracks.durationMs,
+  artworkPath: tracks.artworkPath,
+  playCount: sql<number>`coalesce(${trackStats.playCount}, 0)`,
+  isFavorite: sql`coalesce(${trackStats.isFavorite}, 0)`.mapWith(Boolean),
+};
 
 /**
  * Live list of playlists, newest first, with their sizes and mosaic covers.
@@ -67,22 +85,14 @@ export function usePlaylists(): PlaylistSummary[] {
 export function usePlaylistEntries(playlistId: number): PlaylistEntry[] {
   const query = db
     .select({
-      trackId: tracks.id,
       position: playlistTracks.position,
-      fileUri: tracks.fileUri,
-      title: tracks.title,
-      artistName: artists.name,
-      albumName: albums.name,
-      durationMs: tracks.durationMs,
-      artworkPath: tracks.artworkPath,
+      ...entrySelection,
       /*
        * Real counts, not the zero this used to select. Shuffling a playlist
        * runs the same algorithms as shuffling the library, and `discovery` and
        * `favorites` both weight on these — fed constants they degrade silently
        * into `pure`, which looks like the setting being ignored.
        */
-      playCount: sql<number>`coalesce(${trackStats.playCount}, 0)`,
-      isFavorite: sql`coalesce(${trackStats.isFavorite}, 0)`.mapWith(Boolean),
     })
     .from(playlistTracks)
     .innerJoin(tracks, eq(tracks.id, playlistTracks.trackId))
@@ -93,6 +103,41 @@ export function usePlaylistEntries(playlistId: number): PlaylistEntry[] {
     .orderBy(asc(playlistTracks.position));
 
   const { data } = useLiveQuery(query, [playlistId]);
+  return data;
+}
+
+/**
+ * Live favourite tracks, newest favourite first, presented as a virtual playlist.
+ *
+ * **`from(trackStats)`, and the order of the joins is the whole point.**
+ * `useLiveQuery` re-runs a query when a table changes, and the only table it
+ * watches is the one in `FROM` — it reads `query.config.table` and compares the
+ * name, so joined tables are invisible to it. Selecting `from(tracks)` meant
+ * this list watched `tracks` and never `track_stats`, and liking a song writes
+ * only to `track_stats`.
+ *
+ * The result was the reported split: the Playlists tab showed "0 tracks" beside
+ * Liked Songs while the detail screen showed the real ones. Neither number was
+ * computed differently — this is one query, used by both — the tab simply had
+ * a copy from whenever it last mounted and was never told anything had changed.
+ *
+ * Favourites are `track_stats` rows, so watching that table is also the honest
+ * description of what this list is.
+ */
+export function useFavoriteEntries(): PlaylistEntry[] {
+  const query = db
+    .select({
+      position: sql<number>`row_number() over (order by ${trackStats.favoriteAt} desc, ${tracks.id} desc) - 1`,
+      ...entrySelection,
+    })
+    .from(trackStats)
+    .innerJoin(tracks, eq(tracks.id, trackStats.trackId))
+    .leftJoin(artists, eq(artists.id, tracks.artistId))
+    .leftJoin(albums, eq(albums.id, tracks.albumId))
+    .where(and(eq(trackStats.isFavorite, 1), eq(tracks.isMissing, 0)))
+    .orderBy(desc(trackStats.favoriteAt), desc(tracks.id));
+
+  const { data } = useLiveQuery(query);
   return data;
 }
 

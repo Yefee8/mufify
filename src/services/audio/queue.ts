@@ -10,6 +10,14 @@
 
 import type { RepeatMode } from './types';
 
+/** Previous restarts the current track at and after this position. */
+export const RESTART_THRESHOLD_MS = 10_000;
+
+/** Whether Previous must seek to zero instead of moving through the queue. */
+export function shouldRestartCurrentTrack(positionMs: number): boolean {
+  return positionMs >= RESTART_THRESHOLD_MS;
+}
+
 export interface QueuePosition {
   /** Index into the queue, or -1 when nothing is queued. */
   index: number;
@@ -25,7 +33,10 @@ export interface QueuePosition {
  * moves on — repeating the same track when someone asks for the next one
  * reads as a broken button, not as a respected setting.
  */
-export function nextIndex({ index, length, repeat }: QueuePosition, explicit: boolean): number | null {
+export function nextIndex(
+  { index, length, repeat }: QueuePosition,
+  explicit: boolean,
+): number | null {
   if (length === 0 || index < 0) return null;
   if (repeat === 'one' && !explicit) return index;
 
@@ -39,8 +50,8 @@ export function nextIndex({ index, length, repeat }: QueuePosition, explicit: bo
 /**
  * The previous index, or null when there is nowhere to go.
  *
- * Deliberately does not implement "restart the current track if more than
- * three seconds in" — that rule belongs to the button, which knows the
+ * Deliberately does not implement "restart the current track at ten seconds" —
+ * that rule belongs to the button, which knows the
  * playback position, not to the queue, which does not.
  */
 export function previousIndex({ index, length, repeat }: QueuePosition): number | null {

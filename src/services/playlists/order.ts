@@ -15,6 +15,16 @@
 /** How many covers the mosaic grid can show. */
 export const MOSAIC_SIZE = 4;
 
+/**
+ * Virtual route id for liked songs; it never exists in `playlists`.
+ *
+ * Here rather than beside the queries for the reason above: importing
+ * `src/db/queries/playlists.ts` opens SQLite, so a constant kept there drags a
+ * database into every test that needs to name this playlist. Re-exported from
+ * the query module, so screens still import it from where they always did.
+ */
+export const LIKED_SONGS_ID = -1;
+
 export interface PlaylistSummary {
   id: number;
   name: string;

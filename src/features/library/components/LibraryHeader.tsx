@@ -1,4 +1,4 @@
-import { CheckSquare, FolderPlus, RefreshCw } from 'lucide-react-native';
+import { FolderPlus, RefreshCw } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 
@@ -13,11 +13,10 @@ export interface LibraryHeaderProps {
   onScan: () => void;
   /** Open the system folder picker. */
   onAddFolder: () => void;
-  onStartSelecting: () => void;
 }
 
 /**
- * The count, and the three things you can do to the whole library.
+ * The count, and the two things you can do to the whole library.
  *
  * The count is always `tracks.length` of the array the list renders. Two live
  * queries over the same table drift, and the header once read "14 tracks" above
@@ -30,13 +29,7 @@ export interface LibraryHeaderProps {
  * than only in the empty state, is the other half of that: a user who adds music
  * later needs to reach it without emptying their library first.
  */
-export function LibraryHeader({
-  count,
-  isScanning,
-  onScan,
-  onAddFolder,
-  onStartSelecting,
-}: LibraryHeaderProps) {
+export function LibraryHeader({ count, isScanning, onScan, onAddFolder }: LibraryHeaderProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
 
@@ -45,20 +38,6 @@ export function LibraryHeader({
       <Text className="flex-1 font-mono text-sm text-muted">
         {isScanning ? '' : t('library.trackCount', { count })}
       </Text>
-
-      {/* Selection is reachable from here as well as from a long press: the
-          gesture is faster once you know it, and invisible until you do. */}
-      <Pressable
-        onPress={onStartSelecting}
-        disabled={count === 0}
-        android_ripple={{ color: colors.etch, borderless: true }}
-        accessibilityRole="button"
-        accessibilityLabel={t('track.select')}
-        accessibilityState={{ disabled: count === 0 }}
-        className="min-h-11 min-w-11 items-center justify-center"
-      >
-        <CheckSquare color={count === 0 ? colors.etch : colors.legend} size={20} strokeWidth={2} />
-      </Pressable>
 
       <Pressable
         onPress={onAddFolder}

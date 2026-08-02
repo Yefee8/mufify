@@ -3,7 +3,7 @@
 How music gets into the library. Two ways in, one pipeline.
 
 > **Phase 2 is closed.** The module, pipeline, queries and UI are written and
-> unit tested; the automatic sweep, manual add, incremental rescan, artwork
+> unit tested; the user-initiated scan, folder import, incremental rescan, artwork
 > extraction, tag reading and directory recursion are all verified on hardware.
 >
 > One item is carried forward rather than closed: frame timing over a large
@@ -15,8 +15,9 @@ How music gets into the library. Two ways in, one pipeline.
 
 ## Two entry points, deliberately
 
-**Automatic.** A MediaStore sweep runs in the background. It costs nothing and
-covers the common case: music the system already indexed.
+**Library scan.** The user starts a MediaStore sweep from the library. It covers
+the common case: music the system already indexed, without starting hidden work
+at launch.
 
 Both paths need the audio permission first, and the app **asks** for it rather
 than assuming it — see `docs/adr/008-permission-is-asked-not-assumed.md`.
@@ -24,9 +25,9 @@ Without the grant a MediaStore query does not fail, it returns nothing, so a
 scan without permission looks exactly like a device with no music on it. That
 distinction is the whole reason the request exists.
 
-**Manual — `Add music`.** Opens the system folder picker (SAF) and scans what
-was chosen. This is **not** a fallback for when the automatic scan
-disappoints. MediaStore does not index:
+**Folder import — `Add music`.** Opens the system folder picker (SAF), warns
+before starting, then scans what was chosen. This is **not** a fallback for
+when the library scan finds nothing. MediaStore does not index:
 
 - files the media scanner has not seen yet — a fresh `adb push`, a just-copied
   album

@@ -109,6 +109,19 @@ describe('migrations', () => {
     }
   });
 
+  it('stores the liked timestamp without making existing stats rows invalid', () => {
+    const db = freshDatabase();
+    const columns = db.prepare('PRAGMA table_info(track_stats)').all() as {
+      name: string;
+      notnull: number;
+      type: string;
+    }[];
+    const favoriteAt = columns.find((column) => column.name === 'favorite_at');
+
+    expect(favoriteAt?.type.toLowerCase()).toBe('integer');
+    expect(favoriteAt?.notnull).toBe(0);
+  });
+
   it('stores artwork as a path, never as bytes', () => {
     const db = freshDatabase();
     for (const table of ['tracks', 'albums', 'playlists']) {

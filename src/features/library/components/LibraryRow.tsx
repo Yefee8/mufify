@@ -9,12 +9,10 @@ import { TrackRow } from './TrackRow';
 export interface LibraryRowProps {
   track: TrackListItem;
   locale: string;
-  /** Stable. Selection state is passed as booleans, never as an object. */
+  /** Stable callbacks keep FlashList rows memoized. */
   onPress: (id: number) => void;
   onLongPress: (id: number) => void;
   onSwipeToQueue: (id: number) => void;
-  isSelecting: boolean;
-  isSelected: boolean;
   isCurrent: boolean;
   /** Already translated, for the swipe action's screen-reader label. */
   swipeLabel: string;
@@ -28,8 +26,7 @@ export interface LibraryRowProps {
  * including `onSwipe={() => onSwipeToQueue(item.id)}` — a fresh closure per row
  * per render, which defeats every memo below it.
  *
- * Memoized on primitives only. Nothing here takes the selection object, so a
- * render caused by something unrelated to this row cannot reach it.
+ * Memoized on primitives only, so an unrelated screen render cannot reach it.
  */
 const LibraryRowComponent = function LibraryRow({
   track,
@@ -37,8 +34,6 @@ const LibraryRowComponent = function LibraryRow({
   onPress,
   onLongPress,
   onSwipeToQueue,
-  isSelecting,
-  isSelected,
   isCurrent,
   swipeLabel,
 }: LibraryRowProps) {
@@ -51,20 +46,11 @@ const LibraryRowComponent = function LibraryRow({
         locale={locale}
         onPress={onPress}
         onLongPress={onLongPress}
-        isSelecting={isSelecting}
-        isSelected={isSelected}
         isCurrent={isCurrent}
       />
     ),
-    [track, locale, onPress, onLongPress, isSelecting, isSelected, isCurrent],
+    [track, locale, onPress, onLongPress, isCurrent],
   );
-
-  /*
-   * No swipe while selecting. Two horizontal gestures on one row means the user
-   * aiming for a checkbox occasionally queues a track instead, and during a
-   * multi-select that is both wrong and hard to undo.
-   */
-  if (isSelecting) return row;
 
   return (
     <SwipeableRow onSwipe={handleSwipe} icon={ListEnd} accessibilityLabel={swipeLabel}>
@@ -80,8 +66,6 @@ function isSameRow(previous: LibraryRowProps, next: LibraryRowProps): boolean {
     previous.onPress === next.onPress &&
     previous.onLongPress === next.onLongPress &&
     previous.onSwipeToQueue === next.onSwipeToQueue &&
-    previous.isSelecting === next.isSelecting &&
-    previous.isSelected === next.isSelected &&
     previous.isCurrent === next.isCurrent &&
     previous.swipeLabel === next.swipeLabel
   );

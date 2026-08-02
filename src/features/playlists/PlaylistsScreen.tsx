@@ -6,13 +6,21 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
-import { createPlaylist, usePlaylists, type PlaylistSummary } from '@/db/queries/playlists';
+import {
+  createPlaylist,
+  useFavoriteEntries,
+  usePlaylists,
+  type PlaylistSummary,
+} from '@/db/queries/playlists';
+import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { useMessages } from '@/i18n';
+import { SPACING } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/useTheme';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 
 import { NamePlaylistDialog } from './components/NamePlaylistDialog';
 import { PlaylistRow } from './components/PlaylistRow';
+import { buildPlaylistRows, shouldShowEmptyState } from './playlistRows';
 
 /**
  * The user's playlists.
@@ -25,10 +33,12 @@ export function PlaylistsScreen() {
   useLifecycleTrace('PlaylistsScreen');
   const { t } = useTranslation();
   const messages = useMessages('playlists.empty');
+  const bottomInset = useMiniPlayerInset();
   const colors = useThemeColors();
   const router = useRouter();
 
   const playlists = usePlaylists();
+  const likedEntries = useFavoriteEntries();
   const [naming, setNaming] = useState(false);
 
   const openNaming = useCallback(() => setNaming(true), []);
@@ -45,21 +55,21 @@ export function PlaylistsScreen() {
     [router],
   );
 
-  const openPlaylist = useCallback(
-    (id: number) => router.push(`/playlist/${id}`),
-    [router],
-  );
+  const openPlaylist = useCallback((id: number) => router.push(`/playlist/${id}`), [router]);
 
   const renderItem = useCallback(
     ({ item }: { item: PlaylistSummary }) => <PlaylistRow playlist={item} onPress={openPlaylist} />,
     [openPlaylist],
   );
 
+  const rows = buildPlaylistRows(likedEntries, playlists, t('playlists.likedSongs'));
+
   return (
     <Screen title={t('playlists.title')}>
       <View className="flex-row items-center justify-between px-6 pb-4">
+        {/* `rows.length`, so the number describes the list under it. */}
         <Text className="font-mono text-sm text-muted">
-          {t('playlists.count', { count: playlists.length })}
+          {t('playlists.count', { count: rows.length })}
         </Text>
 
         <Pressable
@@ -73,21 +83,22 @@ export function PlaylistsScreen() {
         </Pressable>
       </View>
 
-      {playlists.length === 0 ? (
-        <EmptyState
-          icon={ListMusic}
-          messages={messages}
-          actionLabel={t('playlists.create')}
-          onAction={openNaming}
-        />
-      ) : (
-        <FlatList
-          data={playlists}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          contentContainerClassName="pb-8"
-        />
-      )}
+      <FlatList
+        data={rows}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        contentContainerStyle={{ paddingBottom: SPACING[8] + bottomInset }}
+        ListFooterComponent={
+          shouldShowEmptyState(rows) ? (
+            <EmptyState
+              icon={ListMusic}
+              messages={messages}
+              actionLabel={t('playlists.create')}
+              onAction={openNaming}
+            />
+          ) : null
+        }
+      />
 
       <NamePlaylistDialog
         visible={naming}

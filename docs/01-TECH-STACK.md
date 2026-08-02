@@ -25,7 +25,7 @@ These are the four choices that shape everything else. Read §2 before locking t
 |---|---|---|
 | Framework | **Expo SDK 57** (RN 0.86, React 19.2) | SDK 56 (RN 0.85) is the conservative pick. SDK 55+ is New-Architecture-only. |
 | Language | **TypeScript**, `strict: true` | No `any` in committed code. |
-| Routing | **expo-router** (file-based) | Tabs + a modal route for Now Playing. |
+| Routing | **expo-router** (file-based) | Tabs and detail routes; Now Playing is a root overlay. |
 | Audio | **`expo-audio`** | Background playback, media notification, lock-screen controls, playlists. Media3/ExoPlayer on Android → native FLAC, ALAC, Opus, Vorbis, WAV support. |
 | Styling | **NativeWind** (Tailwind for RN) | Requested. Dark mode via `dark:` variant. |
 | Database | **`expo-sqlite`** + **Drizzle ORM** | Typed schema, `drizzle-kit` migrations, `useLiveQuery` for reactive lists. |
@@ -127,7 +127,6 @@ app/                          # expo-router routes ONLY — thin, no logic
     playlists.tsx
     stats.tsx
     settings.tsx
-  player.tsx                  # Now Playing (modal)
   playlist/[id].tsx
   album/[id].tsx
   artist/[id].tsx
@@ -140,6 +139,7 @@ src/
     stats/                    # StatCard, TopList, PeriodPicker, WrappedCard
   features/                   # feature-scoped hooks + orchestration
     library/ player/ playlists/ stats/ settings/ scanner/
+    player/PlayerLayer.tsx    # root Now Playing overlay, outside routes
   db/
     client.ts                 # openDatabaseSync + pragmas
     schema.ts                 # Drizzle schema

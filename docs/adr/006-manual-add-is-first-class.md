@@ -1,5 +1,8 @@
 # 006 — Manual adding is a first-class entry point
 
+> **Partly superseded by ADR 010.** Folder import remains a first-class path,
+> but the automatic launch sweep was removed. Every scan is now user-initiated.
+
 ## Context
 
 The original Phase 2 plan had automatic MediaStore scanning as the way music
@@ -24,8 +27,8 @@ Two equal entry points into one pipeline.
 action inside the empty state. It opens the system folder picker, records the
 chosen tree URI in `scan_folders`, and runs the same scan.
 
-The automatic MediaStore sweep still runs in the background without the user
-asking, because for the common case it costs nothing and needs no interaction.
+The library scan is explicit as well. The user starts it from the permanent
+Scan action; the common case stays one action without hidden work at launch.
 
 Both go through `enumerateLibrary` then `enrichLibrary`, write through the same
 queries, and report the same `ScanProgress`. There is no second code path to

@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import {
   ChevronDown,
   ListMusic,
@@ -14,7 +13,6 @@ import {
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AudioEngine } from '@/services/audio/AudioEngine';
@@ -34,13 +32,18 @@ import { useQueueNeighbours } from './hooks/useQueueNeighbours';
 /**
  * Now Playing.
  *
- * A modal route rather than a tab: it is a place you go from something, and
- * you leave it by dismissing rather than by choosing a different destination.
+ * The root player overlay rather than a route. It stays mounted above every
+ * screen so the mini player and this surface share one gesture progress value.
  */
-export function PlayerScreen() {
+export interface PlayerScreenProps {
+  onExpandedChange: (expanded: boolean, velocity?: number) => void;
+  /** The queue is a root-level surface, not a route. See `QueueOverlay`. */
+  onOpenQueue: () => void;
+}
+
+export function PlayerScreen({ onExpandedChange, onOpenQueue }: PlayerScreenProps) {
   const { t, i18n } = useTranslation();
   const colors = useThemeColors();
-  const router = useRouter();
 
   const { phase, track, positionMs, durationMs, error } = usePlayback();
   const { toggle, toggleShuffle, next, previous, seekTo } = usePlaybackControls();
@@ -48,10 +51,7 @@ export function PlayerScreen() {
   const [repeat, setRepeatState] = useState<RepeatMode>(() => AudioEngine.getRepeat());
   const [shuffled, setShuffledState] = useState(() => AudioEngine.isShuffled());
 
-  const close = useCallback(() => router.back(), [router]);
-  // `navigate` rather than `push`, for the same reason as the player itself:
-  // a double press must not leave two identical screens on the stack.
-  const openQueue = useCallback(() => router.navigate('/queue'), [router]);
+  const close = useCallback(() => onExpandedChange(false), [onExpandedChange]);
 
   const onShufflePress = useCallback(() => {
     toggleShuffle();
@@ -66,10 +66,10 @@ export function PlayerScreen() {
 
   if (track === null) {
     return (
-      <SafeAreaView edges={['top']} className="flex-1 bg-surface">
-        <Header onClose={close} onOpenQueue={openQueue} label={t('player.title')} />
+      <View className="flex-1 bg-surface">
+        <Header onClose={close} onOpenQueue={onOpenQueue} label={t('player.title')} />
         <EmptyState icon={Music} messages={[t('player.empty')]} />
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -79,10 +79,15 @@ export function PlayerScreen() {
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-surface">
-      <Header onClose={close} onOpenQueue={openQueue} label={t('player.title')} />
+    <View className="flex-1 bg-surface">
+      <Header onClose={close} onOpenQueue={onOpenQueue} label={t('player.title')} />
 
-      <View className="flex-1 justify-center gap-8">
+      {/*
+        `gap-6`, not `gap-8`. Three gaps of 32 between four blocks was 96 dp of
+        air the column did not have — see `artworkSize.ts` for what the overflow
+        did to both ends of the screen.
+      */}
+      <View className="flex-1 gap-6 pb-4">
         {/*
           The artwork carries the gestures, not the whole screen: the scrubber
           below owns a pan of its own, and two competing pans on one surface
@@ -96,7 +101,7 @@ export function PlayerScreen() {
           neighbours={neighbours}
           onNext={next}
           onPrevious={previous}
-          onDismiss={close}
+          onExpandedChange={onExpandedChange}
         />
 
         <View className="gap-2 px-6">
@@ -202,7 +207,7 @@ export function PlayerScreen() {
           </Pressable>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

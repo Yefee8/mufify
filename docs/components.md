@@ -51,17 +51,16 @@ it is repeated here because that is the thing a reader needs before touching it.
 | Component | What it is for |
 |---|---|
 | `LibraryScreen` | Owns the *library*: scanning, searching, which of the three views is showing. |
-| `LibraryTracks` | Owns *tracks*: selection, the sheets, playing. Split from the screen at the 300-line limit; the boundary is by subject, and it is reused verbatim by `CollectionDetailScreen`. |
+| `LibraryTracks` | Owns *tracks*: the sheets and playing. Split from the screen at the 300-line limit; the boundary is by subject, and it is reused verbatim by `CollectionDetailScreen`. |
 | `CollectionDetailScreen` | One artist or one album. Reuses `LibraryTracks` so a track has the same verbs everywhere. |
-| `LibraryHeader` | Count, select toggle, folder picker, Scan. The count is always `tracks.length` — never a second query. |
+| `LibraryHeader` | Count, folder picker, Scan. The count is always `tracks.length` — never a second query. |
 | `TrackList` | The FlashList. `drawDistance` is 1200 rather than the 250 default; at 64px rows the default is under four rows of buffer and a fling outruns it, which is what left blank rows behind the finger. |
-| `LibraryRow` | One row plus its swipe gesture. Memoized on primitives only — it takes no selection object, so a render elsewhere cannot reach it. |
+| `LibraryRow` | One row plus its swipe gesture. Memoized on primitives only, so a render elsewhere cannot reach it. |
 | `TrackRow` | Artwork, title, artist, duration. Compared by value, because a live query hands back fresh objects on every re-run. |
 | `CollectionCard` / `CollectionGrid` | An artist or album as a square card, and the two-column grid of them. |
 | `CollectionHeader` | Cover, name and size for a detail screen. |
 | `SearchField` | Debounced input. The field stays instant; only the query waits. |
 | `ScanBanner` | Progress above the list, never instead of it — the user can scroll throughout. Hides the counter until a total is known rather than showing "0 / 0". |
-| `SelectionBar` | What you can do with a selection. At the bottom, where the thumb already is. |
 | `TrackActionSheet` | Long-press actions. Its doc says which two items from the brief are deliberately absent, and why. |
 | `TrackInfoSheet` | Every technical field. Absent values render as an em dash rather than disappearing. |
 | `TrackListSkeleton` | Named wrapper over `SkeletonRows`, so row geometry stays in one place next to `TrackRow`. |
@@ -72,14 +71,16 @@ it is repeated here because that is the thing a reader needs before touching it.
 
 | Component | What it is for |
 |---|---|
-| `PlayerScreen` | Now Playing. A modal route: somewhere you go from something and dismiss. |
-| `ArtworkCarousel` | Three slots — previous, current, next — all mounted, so a neighbour slides in already decoded. Commits on distance **or** velocity. Rubber-bands at the ends of the queue. |
+| `PlayerLayer` | The root stacking order, and the only place that decides it: children, then the transport strip at `z-20`, then Now Playing at `z-30`, then the queue at `z-40`. Owns the one expansion value and publishes the strip's measured height for every scrollable screen to pad by. |
+| `NowPlayingOverlay` / `PlayerScreen` | The overlay and its content. The mini player and full screen share one Reanimated expansion value; no route transition sits between them. |
+| `QueueOverlay` | The queue as a root-level sheet above Now Playing. It was a route and could not be seen from under the overlay — `docs/adr/014`. Mounted only while open. |
+| `ArtworkCarousel` | Three slots — previous, current, next — all mounted, so a neighbour slides in already decoded. Commits on distance **or** velocity. Rubber-bands at the ends of the queue. Takes the height flex leaves it and sizes the cover from both axes, because a width-derived square overflowed the column. |
 | `MiniPlayer` | The persistent transport strip. Subscribes to phase and track only, never position; horizontal swipe changes tracks and vertical swipe opens Now Playing. |
 | `MiniProgress` | The progress hairline, and the only thing in the tab bar that hears about position. Width lives in a shared value; React renders it once. |
 | `Scrubber` | The seek bar. The drag runs entirely in a worklet; React hears about it once, on release. |
 | `SpecStrip` | The signature element — one monospaced line of a file's technical truth. |
 | `FavoriteButton` | The heart. It is also the only writer of `is_favorite`, which the `favorites` shuffle weights on. |
-| `QueueScreen` / `QueueRow` | What is playing and what follows. Subscribes to the engine's queue rather than its playback state, so it does not re-render at 2 Hz. |
+| `QueueScreen` / `QueueRow` | What is playing and what follows. Subscribes to the engine's queue rather than its playback state, so it does not re-render at 2 Hz. Dismissed through an `onClose` prop; it is not a route. |
 
 ---
 
@@ -91,7 +92,6 @@ it is repeated here because that is the thing a reader needs before touching it.
 | `PlaylistDetailScreen` / `PlaylistDetailHeader` | One playlist, laid out the way a streaming app does because that arrangement is already in everyone's hands. |
 | `PlaylistMosaic` | A playlist's cover: the first four album covers in a 2×2 grid. Each count is a deliberate case, not a degradation — one cover fills the square rather than repeating four times. |
 | `ReorderableEntry` | Drag by a handle, not by long-press: long-press is the action sheet everywhere else, and a list where holding sometimes does either is a list nobody trusts. |
-| `AddTracksSheet` | Pick tracks *from* the playlist. Mounted only while open, because it runs the full library query. |
 | `AddToPlaylistSheet` | Pick a playlist for some tracks, or make one. |
 | `NamePlaylistDialog` | A `Modal`, not `Alert.prompt`, which is iOS-only and silently does nothing on Android. |
 

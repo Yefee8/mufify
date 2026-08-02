@@ -1,12 +1,4 @@
-import {
-  CheckSquare,
-  Heart,
-  HeartOff,
-  Info,
-  ListEnd,
-  ListMusic,
-  ListStart,
-} from 'lucide-react-native';
+import { Heart, HeartOff, Info, ListEnd, ListMusic, ListStart } from 'lucide-react-native';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -14,13 +6,7 @@ import { ActionSheet, type ActionSheetAction } from '@/components/ui/ActionSheet
 import type { TrackListItem } from '@/db/queries/tracks';
 
 /** What the sheet can be asked to do. The screen decides how. */
-export type TrackAction =
-  | 'playNext'
-  | 'addToQueue'
-  | 'addToPlaylist'
-  | 'favorite'
-  | 'select'
-  | 'info';
+export type TrackAction = 'playNext' | 'addToQueue' | 'addToPlaylist' | 'favorite' | 'info';
 
 export interface TrackActionSheetProps {
   /** The track, or null when the sheet is closed. */
@@ -47,8 +33,6 @@ export interface TrackActionSheetProps {
  * Both are listed here rather than silently dropped, because a reader comparing
  * this against the brief deserves the reason.
  *
- * `select` is here as well as on the header, since long-press is where most
- * people look for multi-select first.
  */
 export function TrackActionSheet({ track, onSelect, onClose }: TrackActionSheetProps) {
   const { t } = useTranslation();
@@ -56,14 +40,13 @@ export function TrackActionSheet({ track, onSelect, onClose }: TrackActionSheetP
   const actions = useMemo<ActionSheetAction[]>(
     () => [
       { id: 'playNext', label: t('track.playNext'), icon: ListStart, emphasis: true },
-      { id: 'addToQueue', label: t('selection.addToQueue'), icon: ListEnd },
+      { id: 'addToQueue', label: t('track.addToQueue'), icon: ListEnd },
       { id: 'addToPlaylist', label: t('playlists.addTo'), icon: ListMusic },
       {
         id: 'favorite',
         label: track?.isFavorite ? t('player.unfavorite') : t('player.favorite'),
         icon: track?.isFavorite ? HeartOff : Heart,
       },
-      { id: 'select', label: t('track.select'), icon: CheckSquare },
       { id: 'info', label: t('track.info'), icon: Info },
     ],
     [t, track?.isFavorite],
