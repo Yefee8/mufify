@@ -1,13 +1,19 @@
 import { and, asc, desc, eq, gt, max, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 
-import { foldPlaylistRows, reorder, type PlaylistSummary } from '@/services/playlists/order';
+import {
+  foldPlaylistRows,
+  LIKED_SONGS_ID,
+  reorder,
+  type PlaylistSummary,
+} from '@/services/playlists/order';
 
 import { db } from '../client';
 import { albums, artists, playlistTracks, playlists, trackStats, tracks } from '../schema';
 
 /* Re-exported so screens keep importing playlist types from the query module. */
 export type { PlaylistSummary };
+export { LIKED_SONGS_ID };
 
 /**
  * Playlists and their contents.
@@ -30,9 +36,6 @@ export interface PlaylistEntry {
   playCount: number;
   isFavorite: boolean;
 }
-
-/** Virtual route id for liked songs; it never exists in `playlists`. */
-export const LIKED_SONGS_ID = -1;
 
 const entrySelection = {
   trackId: tracks.id,
@@ -103,15 +106,32 @@ export function usePlaylistEntries(playlistId: number): PlaylistEntry[] {
   return data;
 }
 
-/** Live favourite tracks, newest favourite first, presented as a virtual playlist. */
+/**
+ * Live favourite tracks, newest favourite first, presented as a virtual playlist.
+ *
+ * **`from(trackStats)`, and the order of the joins is the whole point.**
+ * `useLiveQuery` re-runs a query when a table changes, and the only table it
+ * watches is the one in `FROM` — it reads `query.config.table` and compares the
+ * name, so joined tables are invisible to it. Selecting `from(tracks)` meant
+ * this list watched `tracks` and never `track_stats`, and liking a song writes
+ * only to `track_stats`.
+ *
+ * The result was the reported split: the Playlists tab showed "0 tracks" beside
+ * Liked Songs while the detail screen showed the real ones. Neither number was
+ * computed differently — this is one query, used by both — the tab simply had
+ * a copy from whenever it last mounted and was never told anything had changed.
+ *
+ * Favourites are `track_stats` rows, so watching that table is also the honest
+ * description of what this list is.
+ */
 export function useFavoriteEntries(): PlaylistEntry[] {
   const query = db
     .select({
       position: sql<number>`row_number() over (order by ${trackStats.favoriteAt} desc, ${tracks.id} desc) - 1`,
       ...entrySelection,
     })
-    .from(tracks)
-    .innerJoin(trackStats, eq(trackStats.trackId, tracks.id))
+    .from(trackStats)
+    .innerJoin(tracks, eq(tracks.id, trackStats.trackId))
     .leftJoin(artists, eq(artists.id, tracks.artistId))
     .leftJoin(albums, eq(albums.id, tracks.albumId))
     .where(and(eq(trackStats.isFavorite, 1), eq(tracks.isMissing, 0)))

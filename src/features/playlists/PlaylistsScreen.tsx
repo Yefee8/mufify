@@ -13,12 +13,15 @@ import {
   usePlaylists,
   type PlaylistSummary,
 } from '@/db/queries/playlists';
+import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { useMessages } from '@/i18n';
+import { SPACING } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/useTheme';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 
 import { NamePlaylistDialog } from './components/NamePlaylistDialog';
 import { PlaylistRow } from './components/PlaylistRow';
+import { buildPlaylistRows, shouldShowEmptyState } from './playlistRows';
 
 /**
  * The user's playlists.
@@ -31,6 +34,7 @@ export function PlaylistsScreen() {
   useLifecycleTrace('PlaylistsScreen');
   const { t } = useTranslation();
   const messages = useMessages('playlists.empty');
+  const bottomInset = useMiniPlayerInset();
   const colors = useThemeColors();
   const router = useRouter();
 
@@ -59,24 +63,14 @@ export function PlaylistsScreen() {
     [openPlaylist],
   );
 
-  const rows = [
-    {
-      id: LIKED_SONGS_ID,
-      name: t('playlists.likedSongs'),
-      trackCount: likedEntries.length,
-      mosaic: likedEntries
-        .flatMap((entry) => (entry.artworkPath ? [entry.artworkPath] : []))
-        .slice(0, 4),
-      artworkPath: null,
-    },
-    ...playlists,
-  ];
+  const rows = buildPlaylistRows(likedEntries, playlists, t('playlists.likedSongs'));
 
   return (
     <Screen title={t('playlists.title')}>
       <View className="flex-row items-center justify-between px-6 pb-4">
+        {/* `rows.length`, so the number describes the list under it. */}
         <Text className="font-mono text-sm text-muted">
-          {t('playlists.count', { count: playlists.length })}
+          {t('playlists.count', { count: rows.length })}
         </Text>
 
         <Pressable
@@ -94,9 +88,9 @@ export function PlaylistsScreen() {
         data={rows}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
-        contentContainerClassName="pb-8"
+        contentContainerStyle={{ paddingBottom: SPACING[8] + bottomInset }}
         ListFooterComponent={
-          playlists.length === 0 ? (
+          shouldShowEmptyState(rows) ? (
             <EmptyState
               icon={ListMusic}
               messages={messages}
