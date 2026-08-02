@@ -17,17 +17,29 @@ npm run lint && npm run typecheck && npm test
 cd android && ./gradlew :audio-tags:testDebugUnitTest
 ```
 
-All four must be green — currently **292 tests / 20 suites**, working tree clean.
+All four must be green — currently **335 tests / 24 suites**, working tree clean.
 Do not build on red.
 
-## Do NOT branch from `main`
+`npm test` needs watchman to be usable. Where it is not, `npx jest --watchman=false`
+is the same run.
 
-`main` contains **3 files** (AGENTS.md and two docs). It is not the project. All
-225 files live on `fix/performance-ux-stats`, and `main` is an ancestor of it.
-Two previous sessions were told "the user merged to main, branch from there" —
-it was not true either time, and branching from `main` would discard everything.
-Stay on `fix/performance-ux-stats` unless `git ls-tree -r --name-only main | wc -l`
-says otherwise.
+## Check what `main` holds before branching from it
+
+This section used to say `main` contained three files and must never be branched
+from. **That is no longer true**: PR #2 merged the project into `main` on
+2026-08-02, and `main` is now the whole app.
+
+It is still worth checking rather than assuming, in either direction. As of
+2026-08-02 the newest work sits *ahead* of `main` on `fix/ux-round-2` — four
+commits including `listenCycle.ts`, migration 0003 and the removal of
+`app/player.tsx` — so a branch taken from `main` on that date would have
+silently dropped them. `fix/final-polish` was therefore taken from
+`fix/ux-round-2`, which is `main` plus those four.
+
+```bash
+git log --oneline main..HEAD          # what would be lost by branching from main
+git diff --stat main..HEAD | tail -1
+```
 
 ## State
 

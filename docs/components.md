@@ -71,14 +71,16 @@ it is repeated here because that is the thing a reader needs before touching it.
 
 | Component | What it is for |
 |---|---|
-| `PlayerLayer` / `PlayerScreen` | Root-mounted Now Playing overlay and its content. The mini player and full screen share one Reanimated expansion value; no route transition sits between them. |
-| `ArtworkCarousel` | Three slots — previous, current, next — all mounted, so a neighbour slides in already decoded. Commits on distance **or** velocity. Rubber-bands at the ends of the queue. |
+| `PlayerLayer` | The root stacking order, and the only place that decides it: children, then the transport strip at `z-20`, then Now Playing at `z-30`, then the queue at `z-40`. Owns the one expansion value and publishes the strip's measured height for every scrollable screen to pad by. |
+| `NowPlayingOverlay` / `PlayerScreen` | The overlay and its content. The mini player and full screen share one Reanimated expansion value; no route transition sits between them. |
+| `QueueOverlay` | The queue as a root-level sheet above Now Playing. It was a route and could not be seen from under the overlay — `docs/adr/014`. Mounted only while open. |
+| `ArtworkCarousel` | Three slots — previous, current, next — all mounted, so a neighbour slides in already decoded. Commits on distance **or** velocity. Rubber-bands at the ends of the queue. Takes the height flex leaves it and sizes the cover from both axes, because a width-derived square overflowed the column. |
 | `MiniPlayer` | The persistent transport strip. Subscribes to phase and track only, never position; horizontal swipe changes tracks and vertical swipe opens Now Playing. |
 | `MiniProgress` | The progress hairline, and the only thing in the tab bar that hears about position. Width lives in a shared value; React renders it once. |
 | `Scrubber` | The seek bar. The drag runs entirely in a worklet; React hears about it once, on release. |
 | `SpecStrip` | The signature element — one monospaced line of a file's technical truth. |
 | `FavoriteButton` | The heart. It is also the only writer of `is_favorite`, which the `favorites` shuffle weights on. |
-| `QueueScreen` / `QueueRow` | What is playing and what follows. Subscribes to the engine's queue rather than its playback state, so it does not re-render at 2 Hz. |
+| `QueueScreen` / `QueueRow` | What is playing and what follows. Subscribes to the engine's queue rather than its playback state, so it does not re-render at 2 Hz. Dismissed through an `onClose` prop; it is not a route. |
 
 ---
 
