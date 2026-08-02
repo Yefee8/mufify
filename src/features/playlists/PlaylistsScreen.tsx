@@ -8,7 +8,6 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import {
   createPlaylist,
-  LIKED_SONGS_ID,
   useFavoriteEntries,
   usePlaylists,
   type PlaylistSummary,
