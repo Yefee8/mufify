@@ -36,6 +36,14 @@ export function QueueOverlay({ visible, expanded, onClose }: QueueOverlayProps) 
       visible={visible}
       expanded={expanded}
       className="absolute inset-0 z-40 bg-surface"
+      /*
+        No fade. This arrives over Now Playing, which is already opaque, so
+        there is nothing to fade against — and not animating alpha keeps Android
+        from promoting the surface to a hardware layer and releasing it again,
+        which is the most likely reason the close chevron drew for a frame and
+        then vanished on the phone.
+      */
+      fade={false}
     >
       <QueueScreen onClose={onClose} />
     </Sheet>
