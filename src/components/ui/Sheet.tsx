@@ -9,6 +9,29 @@ import Animated, {
 
 import { SHEET_FADE_COMPLETE_AT } from '@/services/motion';
 
+/**
+ * Android Z for every root sheet, on top of the `zIndex` its caller sets.
+ *
+ * `zIndex` is not the whole story here. Android sorts siblings by Z first and
+ * uses the drawing order React Native derives from `zIndex` only as the
+ * tie-break, so anything the platform elevates outranks a sheet that is,
+ * as far as the layout is concerned, above it. react-navigation's bottom bar
+ * ships `elevation: 8` and its tab icons came out in front of the queue's
+ * rows — reported on a Mi 9T, and not reproducible on the Pixel_7 AVD, which
+ * is the part that makes a second line of defence worth having.
+ *
+ * One value for every sheet rather than one per sheet: equal Z leaves the
+ * order among them to the stable sort, which falls back to `zIndex` — so
+ * `PlayerLayer` stays the only place that ranks them, and this only decides
+ * that all of them sit above the app.
+ *
+ * `shadowColor` transparent because the shadow is not wanted with it. An
+ * elevated view casts one along its top edge as it arrives, and the theme's
+ * position — "elevation is surface value, not shadow" — is the whole reason
+ * the bar had to give its own elevation up.
+ */
+const SHEET_SURFACE = { elevation: 24, shadowColor: 'transparent' } as const;
+
 export interface SheetProps {
   /**
    * 0 closed, 1 open. Owned by the caller, not by this component.
@@ -83,7 +106,11 @@ export function Sheet({
   }));
 
   return (
-    <Animated.View pointerEvents={expanded ? 'auto' : 'none'} style={style} className={className}>
+    <Animated.View
+      pointerEvents={expanded ? 'auto' : 'none'}
+      style={[SHEET_SURFACE, style]}
+      className={className}
+    >
       {visible ? children : null}
     </Animated.View>
   );
