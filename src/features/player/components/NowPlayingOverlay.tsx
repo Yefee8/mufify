@@ -13,6 +13,8 @@ export interface NowPlayingOverlayProps {
   onExpandedChange: (expanded: boolean, velocity?: number) => void;
   /** Opens the queue, which is a root-level surface rather than a route. */
   onOpenQueue: () => void;
+  /** Mounts the queue on press-in, before the opening spring starts. */
+  onPrepareQueue: () => void;
 }
 
 /**
@@ -28,6 +30,7 @@ export function NowPlayingOverlay({
   expanded,
   onExpandedChange,
   onOpenQueue,
+  onPrepareQueue,
 }: NowPlayingOverlayProps) {
   return (
     <Sheet
@@ -37,7 +40,11 @@ export function NowPlayingOverlay({
       className="absolute inset-0 z-30 bg-surface"
     >
       <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
-        <PlayerScreen onExpandedChange={onExpandedChange} onOpenQueue={onOpenQueue} />
+        <PlayerScreen
+          onExpandedChange={onExpandedChange}
+          onOpenQueue={onOpenQueue}
+          onPrepareQueue={onPrepareQueue}
+        />
       </SafeAreaView>
     </Sheet>
   );

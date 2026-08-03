@@ -1,6 +1,6 @@
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import { ChevronDown, ListX, Music } from 'lucide-react-native';
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,9 +8,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AudioEngine, type QueueSnapshot } from '@/services/audio/AudioEngine';
 import type { PlayableTrack } from '@/services/audio/types';
+import * as perf from '@/services/perf';
 import { useThemeColors } from '@/theme/useTheme';
 
 import { QueueRow } from './components/QueueRow';
+
+/** Every row is exactly this tall, from `h-16` on `QueueRow`. Keep in step. */
+const ROW_HEIGHT = 64;
+
+/**
+ * How far beyond the viewport to render, in px.
+ *
+ * FlashList's default is 250, which with 64px rows is under four rows of
+ * buffer. The track list settled on 1200 for the same reason: a fling outruns
+ * a smaller buffer and leaves blank rows behind it.
+ */
+const DRAW_DISTANCE = 1_200;
 
 /** Rows carry their queue position, which is what every action needs. */
 interface QueueItem {
@@ -44,7 +57,24 @@ export function QueueScreen({ onClose }: QueueScreenProps) {
     onClose();
   }, [onClose]);
 
-  const items: QueueItem[] = snapshot.tracks.map((track, position) => ({ track, position }));
+  /*
+   * Memoized against the snapshot, which only changes when the queue or index
+   * really moves. Rebuilding it per render allocated one object per track —
+   * 531 of them on the library queue — every time anything on this screen
+   * changed, including the header's own re-render.
+   */
+  const items: QueueItem[] = useMemo(
+    () => snapshot.tracks.map((track, position) => ({ track, position })),
+    [snapshot],
+  );
+
+  useEffect(() => {
+    perf.measure('queue.toFirstRows', items.length);
+    // Mount only: this measures how long the sheet took to have content in it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onLoad = useCallback(() => perf.measure('queue.toFirstPaint'), []);
 
   const renderItem = useCallback<ListRenderItem<QueueItem>>(
     ({ item }) => (
@@ -103,11 +133,29 @@ export function QueueScreen({ onClose }: QueueScreenProps) {
         {items.length === 0 ? (
           <EmptyState icon={Music} messages={[t('queue.empty')]} />
         ) : (
-          <FlashList data={items} renderItem={renderItem} keyExtractor={keyExtractor} />
+          <FlashList
+            data={items}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            /*
+              Uniform rows, so FlashList never measures one. Without this it
+              lays out a batch, measures it, and lays it out again — which is
+              paid on the frames the sheet is arriving on, and is why the queue
+              seemed to show up late even though mounting it took 33ms.
+            */
+            overrideItemLayout={setRowHeight}
+            drawDistance={DRAW_DISTANCE}
+            onLoad={onLoad}
+          />
         )}
       </View>
     </SafeAreaView>
   );
+}
+
+/** Uniform rows, so FlashList can skip measurement entirely. */
+function setRowHeight(layout: { span?: number; size?: number }): void {
+  layout.size = ROW_HEIGHT;
 }
 
 function keyExtractor(item: QueueItem): string {

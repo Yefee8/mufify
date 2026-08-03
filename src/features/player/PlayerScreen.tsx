@@ -20,6 +20,7 @@ import { cycleRepeat } from '@/services/audio/queue';
 import { getShuffleAlgorithm } from '@/services/settings';
 import type { RepeatMode } from '@/services/audio/types';
 import { formatDuration } from '@/services/format/duration';
+import * as perf from '@/services/perf';
 import { useThemeColors } from '@/theme/useTheme';
 
 import { ArtworkCarousel } from './components/ArtworkCarousel';
@@ -39,9 +40,15 @@ export interface PlayerScreenProps {
   onExpandedChange: (expanded: boolean, velocity?: number) => void;
   /** The queue is a root-level surface, not a route. See `QueueOverlay`. */
   onOpenQueue: () => void;
+  /** Mounts the queue when the finger lands, not when it lifts. */
+  onPrepareQueue: () => void;
 }
 
-export function PlayerScreen({ onExpandedChange, onOpenQueue }: PlayerScreenProps) {
+export function PlayerScreen({
+  onExpandedChange,
+  onOpenQueue,
+  onPrepareQueue,
+}: PlayerScreenProps) {
   const { t, i18n } = useTranslation();
   const colors = useThemeColors();
 
@@ -52,6 +59,13 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue }: PlayerScreenProp
   const [shuffled, setShuffledState] = useState(() => AudioEngine.isShuffled());
 
   const close = useCallback(() => onExpandedChange(false), [onExpandedChange]);
+
+  /* Timed because "the queue takes ages to appear" needs a number, not a guess. */
+  const openQueue = useCallback(() => {
+    perf.mark('queue.toFirstRows');
+    perf.mark('queue.toFirstPaint');
+    onOpenQueue();
+  }, [onOpenQueue]);
 
   const onShufflePress = useCallback(() => {
     toggleShuffle();
@@ -67,7 +81,12 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue }: PlayerScreenProp
   if (track === null) {
     return (
       <View className="flex-1 bg-surface">
-        <Header onClose={close} onOpenQueue={onOpenQueue} label={t('player.title')} />
+        <Header
+          onClose={close}
+          onOpenQueue={openQueue}
+          onPrepareQueue={onPrepareQueue}
+          label={t('player.title')}
+        />
         <EmptyState icon={Music} messages={[t('player.empty')]} />
       </View>
     );
@@ -80,7 +99,12 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue }: PlayerScreenProp
 
   return (
     <View className="flex-1 bg-surface">
-      <Header onClose={close} onOpenQueue={onOpenQueue} label={t('player.title')} />
+      <Header
+        onClose={close}
+        onOpenQueue={openQueue}
+        onPrepareQueue={onPrepareQueue}
+        label={t('player.title')}
+      />
 
       {/*
         `gap-6`, not `gap-8`. Three gaps of 32 between four blocks was 96 dp of
@@ -214,10 +238,11 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue }: PlayerScreenProp
 interface HeaderProps {
   onClose: () => void;
   onOpenQueue: () => void;
+  onPrepareQueue: () => void;
   label: string;
 }
 
-function Header({ onClose, onOpenQueue, label }: HeaderProps) {
+function Header({ onClose, onOpenQueue, onPrepareQueue, label }: HeaderProps) {
   const colors = useThemeColors();
   const { t } = useTranslation();
 
@@ -234,6 +259,14 @@ function Header({ onClose, onOpenQueue, label }: HeaderProps) {
       <Text className="font-body-medium text-sm text-muted">{label}</Text>
       <Pressable
         onPress={onOpenQueue}
+        /*
+          Mount the queue when the finger lands rather than when it lifts. A
+          few hundred rows of FlashList is real work, and doing it on the frame
+          the spring starts means the sheet arrives before its contents do —
+          which is what "the queue takes ages" actually looked like. The same
+          trick the mini player uses to open Now Playing.
+        */
+        onPressIn={onPrepareQueue}
         accessibilityRole="button"
         accessibilityLabel={t('queue.title')}
         className="min-h-11 min-w-11 items-center justify-center"
