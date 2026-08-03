@@ -95,7 +95,8 @@ export function useScan(): UseScanResult {
 
   const ports: ScannerPorts = useMemo(
     () => ({
-      countAudioFiles: (minDurationMs) => AudioTags.countAudioFiles(minDurationMs),
+      countAudioFiles: (minDurationMs, pathPrefix) =>
+        AudioTags.countAudioFiles(minDurationMs, pathPrefix),
       queryAudioFiles: (options) => AudioTags.queryAudioFiles(options),
       readTags: (uris, options) => AudioTags.readTags(uris, options),
       saveEnumerated,
@@ -114,7 +115,7 @@ export function useScan(): UseScanResult {
     [],
   );
 
-  const run = useCallback(async () => {
+  const run = useCallback(async (pathPrefix: string | null = null) => {
     cancelled.current = false;
     const controller = { isCancelled: () => cancelled.current };
 
@@ -127,6 +128,7 @@ export function useScan(): UseScanResult {
       ...DEFAULT_SCAN_OPTIONS,
       minDurationMs: getIgnoreShortFiles() ? SHORT_FILE_MS : DEFAULT_SCAN_OPTIONS.minDurationMs,
       artworkDirectory: artworkDirectory(),
+      pathPrefix,
     };
 
     const enumerated = await enumerateLibrary(ports, options, setProgress, controller);
@@ -202,7 +204,20 @@ export function useScan(): UseScanResult {
         // would put SAF document URIs in `tracks.file_uri` alongside MediaStore
         // ones, and every consumer would then have to know which it was holding.
         await requestMediaScanFor(treeUri);
-        await run();
+
+        /*
+         * Scan that folder, not the device.
+         *
+         * This called `run()` with no argument, which swept everything
+         * MediaStore knows about — so picking one folder started a full-library
+         * scan the user did not ask for and then had to wait out.
+         *
+         * `treeUriToPath` returns null for an SD card or USB volume, whose tree
+         * URIs carry an opaque id no path can be derived from. A null falls
+         * back to the full sweep, which is the only thing that *can* find those
+         * files, and is why the fallback is deliberate rather than an oversight.
+         */
+        await run(treeUriToPath(treeUri));
       } finally {
         setFolderImporting(false);
       }

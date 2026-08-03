@@ -95,6 +95,14 @@ export interface AudioPermissionResult {
 }
 
 export interface MediaStoreQueryOptions {
+  /**
+   * Index only files under this filesystem path. Absent scans the volume.
+   *
+   * Set when the user imports a single folder, which has to index that folder
+   * and nothing else — the picker used to add the tree and then sweep the whole
+   * device.
+   */
+  pathPrefix?: string | null;
   /** Page size. The caller walks pages so the UI can paint between them. */
   limit: number;
   offset: number;

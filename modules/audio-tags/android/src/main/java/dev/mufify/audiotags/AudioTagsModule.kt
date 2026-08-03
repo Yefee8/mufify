@@ -83,16 +83,18 @@ class AudioTagsModule : Module() {
       }, permission)
     }
 
-    AsyncFunction("countAudioFiles") { minDurationMs: Int ->
-      MediaStoreScanner.count(context, minDurationMs)
+    AsyncFunction("countAudioFiles") { minDurationMs: Int, pathPrefix: String? ->
+      MediaStoreScanner.count(context, minDurationMs, pathPrefix)
     }
 
     AsyncFunction("queryAudioFiles") { options: Map<String, Any?> ->
       val limit = (options["limit"] as? Number)?.toInt() ?: 200
       val offset = (options["offset"] as? Number)?.toInt() ?: 0
       val minDuration = (options["minDurationMs"] as? Number)?.toInt() ?: 0
+      // Present only for a folder import, which must index that folder alone.
+      val pathPrefix = options["pathPrefix"] as? String
 
-      MediaStoreScanner.query(context, limit, offset, minDuration)
+      MediaStoreScanner.query(context, limit, offset, minDuration, pathPrefix)
     }
 
     /**

@@ -10,7 +10,7 @@ import type {
 
 declare class AudioTagsModuleType {
   /** How many audio files MediaStore currently knows about. */
-  countAudioFiles(minDurationMs: number): Promise<number>;
+  countAudioFiles(minDurationMs: number, pathPrefix?: string | null): Promise<number>;
 
   /** One page of the MediaStore cursor. All columns, one query. */
   queryAudioFiles(options: MediaStoreQueryOptions): Promise<MediaStoreTrack[]>;

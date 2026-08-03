@@ -57,7 +57,7 @@ object MediaStoreScanner {
    * A duration floor drops the stray one-second files that clutter a real
    * device.
    */
-  private fun selection(minDurationMs: Int): Pair<String, Array<String>> {
+  private fun selection(minDurationMs: Int, pathPrefix: String?): Pair<String, Array<String>> {
     val (excluded, excludedArgs) = MusicFilter.exclusionSelection()
 
     val clauses = mutableListOf("${MediaStore.Audio.Media.IS_MUSIC} != 0", excluded)
@@ -68,11 +68,30 @@ object MediaStoreScanner {
       args += minDurationMs.toString()
     }
 
+    /*
+     * Importing one folder must index that folder and nothing else. Without
+     * this the picker added the tree and then swept the whole device, which is
+     * both slow and not what the user asked for.
+     *
+     * `DATA` is deprecated and still the only column that answers "where is
+     * this file". The trailing `/%` keeps `/Music/Rock` from also matching
+     * `/Music/Rock-Live`, and the prefix is escaped because `_` and `%` are
+     * wildcards in LIKE and are both legal in a folder name.
+     */
+    if (!pathPrefix.isNullOrBlank()) {
+      clauses += "${MediaStore.Audio.Media.DATA} LIKE ? ESCAPE '\\'"
+      args += escapeLike(pathPrefix.trimEnd('/')) + "/%"
+    }
+
     return clauses.joinToString(" AND ") to args.toTypedArray()
   }
 
-  fun count(context: Context, minDurationMs: Int): Int {
-    val (where, args) = selection(minDurationMs)
+  /** `_` and `%` are LIKE wildcards and are both legal in a folder name. */
+  private fun escapeLike(value: String): String =
+    value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+  fun count(context: Context, minDurationMs: Int, pathPrefix: String? = null): Int {
+    val (where, args) = selection(minDurationMs, pathPrefix)
     context.contentResolver.query(
       collection(),
       arrayOf(MediaStore.Audio.Media._ID),
@@ -88,8 +107,9 @@ object MediaStoreScanner {
     limit: Int,
     offset: Int,
     minDurationMs: Int,
+    pathPrefix: String? = null,
   ): List<Map<String, Any?>> {
-    val (where, args) = selection(minDurationMs)
+    val (where, args) = selection(minDurationMs, pathPrefix)
     val results = mutableListOf<Map<String, Any?>>()
 
     pagedCursor(context, where, args, limit, offset)?.use { cursor ->
