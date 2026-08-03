@@ -95,6 +95,11 @@ from the bundle to a `file://` path, because the service loads artwork through
 `java.net.URL(...).openConnection()`, which knows nothing about `asset://` or a
 Metro URL.
 
+A track with no artist or album shows the same words the app shows —
+"Bilinmeyen sanatçı", not a blank line. The engine cannot call `t()`, so the
+strings are handed to it at startup by `app/_layout` and re-handed on a language
+change; `AudioEngine.setMetadataFallbacks` is the whole mechanism.
+
 **There is no favourite button, and there cannot be one through this engine.**
 `AudioLockScreenOptions` has three fields and none of them is a custom action;
 the MediaSession is a private field of expo-audio's own service. The options
@@ -142,20 +147,27 @@ See the table in `docs/scanner.md` for the scanner's equivalent. For playback:
 | Media-button controls driving the engine | verified — `KEYCODE_MEDIA_PAUSE`/`PLAY` moved the session PLAYING→PAUSED→PLAYING |
 | Listen recording | verified — 27 `play_events`, 15 `track_stats` rows, correctly classified |
 | Becoming-noisy receiver registered | verified — `dumpsys activity broadcasts` lists the filter under this package |
-| **Actual headphone unplug pausing playback** | **not verified — the broadcast is protected, so it cannot be simulated** |
-| **Pause on an incoming call** | **not verified — needs a real call** |
-| **Lock screen surface itself** | **not verified — the controls respond, but nobody has looked at a locked screen** |
+| Notification metadata | verified on the AVD through `dumpsys notification` — title, artist, album and a `largeIcon` bitmap |
+| Notification play/pause staying in step | **verified by hand on the Mi 9T**, 2026-08-03, including the interruptions below |
+| Actual headphone unplug pausing playback | **verified by hand on the Mi 9T** — it cannot be automated, the broadcast is protected |
+| Pause on an incoming call | **verified by hand on the Mi 9T** — needs a real call, so it needs a person |
+| Lock screen surface itself | verified by hand on the Mi 9T — the controls are drawn and respond |
 
 The background-playback result is the important one: the tech stack doc warns
 that Android stops background audio after roughly three minutes without
 `setActiveForLockScreen`, and sampling every 30 seconds showed playback
 continuing straight through that mark.
 
-What remains needs real hardware, and `AGENTS.md` is explicit that audio
-claims require it. Two of the three cannot be faked at all: `adb` cannot send
-`ACTION_AUDIO_BECOMING_NOISY` because it is a protected broadcast, and there is
-no call to receive. The receiver being registered proves the wiring, not the
+The last three sat unverified for a long time for a good reason: they cannot be
+faked. `adb` cannot send `ACTION_AUDIO_BECOMING_NOISY` because it is a protected
+broadcast, there is no call to receive, and nothing can look at a locked screen
+on your behalf. The receiver being registered proves the wiring, not the
 behaviour.
+
+They were closed on 2026-08-03 the only way they could be — a person with the
+phone in their hand. Worth remembering the next time something here looks
+unverifiable: some of it is, and the answer is to ask rather than to keep
+building automation around it.
 
 ## A note on diagnosing playback
 

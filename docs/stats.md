@@ -214,6 +214,31 @@ against the old behaviour.
 
 ---
 
+## The current period is often legitimately empty
+
+Reported as "this week is empty while this month and this year are full", which
+is exactly what a broken week key would look like. It was not one.
+
+Every event on that device had been recorded on the Saturday and Sunday of ISO
+week `2026-W31`; the report was written on the Monday morning that began
+`2026-W32`. The week cell was empty because the week was twenty minutes old. The
+month and year cells still contained those same two days, which is why they
+looked fine.
+
+Settled by doing it rather than reasoning about it: a track played during the
+session was written with `week_key = 2026-W32` and appeared in the week tab
+immediately, matching the rollup exactly. Both sides derive the key from
+`periodKeys`, so they cannot disagree — which is the only property that
+actually needed checking.
+
+Worth knowing because the two are indistinguishable on screen, and because it
+will happen again every Monday to anyone whose listening is bursty. The
+`the current period` block in `rollups.test.ts` pins the difference: a listen
+recorded now files under the key the screen asks for, a listen from eight days
+ago does not, and the boundary is the Monday rather than an arbitrary offset.
+
+---
+
 ## Recording
 
 `recordListen()` in `src/db/queries/playEvents.ts` does one insert into

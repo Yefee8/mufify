@@ -18,6 +18,8 @@ export const SETTINGS_KEYS = {
   haptics: 'settings.haptics',
   resumeOnLaunch: 'settings.resumeOnLaunch',
   ignoreShortFiles: 'settings.ignoreShortFiles',
+  statsEnabled: 'settings.statsEnabled',
+  animationSpeed: 'settings.animationSpeed',
   /** The queue and position, so playback can resume where it stopped. */
   lastSession: 'settings.lastSession',
 } as const;

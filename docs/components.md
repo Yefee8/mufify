@@ -39,6 +39,7 @@ it is repeated here because that is the thing a reader needs before touching it.
 | `OptionList` | One choice per row with a sentence explaining it. The right control when the names need explaining — which is why shuffle uses it and theme does not. |
 | `SettingGroup` / `SettingRow` / `SettingSwitch` | A titled block, a labelled row with a description line, and an on/off row. Every setting gets a description; a list of bare names makes the user guess. |
 | `ActionSheet` | A sheet of actions for one thing. Closes before running the action, so the sheet never lingers while a track loads. |
+| `Sheet` / `useSheet` | The one full-height surface that arrives from the bottom, and the open/close state machine behind it. Both root player sheets go through it, so a third one inherits the tuned spring, the fade and the velocity handoff instead of re-deriving them — `docs/adr/016`. |
 | `ConfirmDialog` | Asks before something slow or irreversible. The confirm button names the action — never "OK". |
 | `SwipeableRow` | Reveals one action when dragged left. **Transient by design**: it never stays open, because this lives in a recycling list and a row holding open state gets recycled with it. |
 | `Toaster` | Where transient confirmations appear. Reads a module-level store, so a toast re-renders this and nothing else. Sits above the mini player in the tab bar stack. |
@@ -73,7 +74,7 @@ it is repeated here because that is the thing a reader needs before touching it.
 |---|---|
 | `PlayerLayer` | The root stacking order, and the only place that decides it: children, then the transport strip at `z-20`, then Now Playing at `z-30`, then the queue at `z-40`. Owns the one expansion value and publishes the strip's measured height for every scrollable screen to pad by. |
 | `NowPlayingOverlay` / `PlayerScreen` | The overlay and its content. The mini player and full screen share one Reanimated expansion value; no route transition sits between them. |
-| `QueueOverlay` | The queue as a root-level sheet above Now Playing. It was a route and could not be seen from under the overlay — `docs/adr/014`. Mounted only while open. |
+| `QueueOverlay` | The queue as a root-level sheet above Now Playing. It was a route and could not be seen from under the overlay — `docs/adr/014`. Mounted on press-in, so its rows exist before the sheet arrives. |
 | `ArtworkCarousel` | Three slots — previous, current, next — all mounted, so a neighbour slides in already decoded. Commits on distance **or** velocity. Rubber-bands at the ends of the queue. Takes the height flex leaves it and sizes the cover from both axes, because a width-derived square overflowed the column. |
 | `MiniPlayer` | The persistent transport strip. Subscribes to phase and track only, never position; horizontal swipe changes tracks and vertical swipe opens Now Playing. |
 | `MiniProgress` | The progress hairline, and the only thing in the tab bar that hears about position. Width lives in a shared value; React renders it once. |

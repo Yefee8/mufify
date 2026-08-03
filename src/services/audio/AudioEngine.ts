@@ -135,6 +135,18 @@ class Engine {
   private lockScreenBound = false;
 
   /**
+   * What to show where a track has no artist or album.
+   *
+   * Set once at startup from `app/_layout`. The engine cannot call `t()` — it
+   * is a service and translating is not its job — but a notification that
+   * leaves the artist line blank while the app underneath says "Bilinmeyen
+   * sanatçı" for the same track is the inconsistency this whole surface was
+   * reported for. So the strings are handed in, the way the listen reporter and
+   * the week-start preference are.
+   */
+  private metadataFallbacks: { unknownArtist?: string; unknownAlbum?: string } = {};
+
+  /**
    * Claim the audio session.
    *
    * `doNotMix` is not a preference: the tech stack doc records that the
@@ -336,6 +348,19 @@ class Engine {
     this.reportListen = reporter;
   }
 
+  /**
+   * Names for a track with no artist or album, already translated.
+   *
+   * Re-pushes the metadata if something is already loaded, so changing the
+   * language updates the notification rather than leaving the previous one's
+   * words on screen until the next track.
+   */
+  setMetadataFallbacks(fallbacks: { unknownArtist?: string; unknownAlbum?: string }): void {
+    this.metadataFallbacks = fallbacks;
+    const track = this.state.track;
+    if (track !== null && this.lockScreenBound) this.bindLockScreen(track);
+  }
+
   /** Bank the time played so far and hand the listen over. */
   private flushListen(completed: boolean): void {
     this.reportClosedListen(this.listenCycle.close(), completed);
@@ -439,8 +464,9 @@ class Engine {
   private bindLockScreen(track: PlayableTrack): void {
     const metadata = {
       title: track.title,
-      artist: track.artistName ?? undefined,
-      albumTitle: track.albumName ?? undefined,
+      // The same words the app shows for the same track, not a blank line.
+      artist: track.artistName ?? this.metadataFallbacks.unknownArtist,
+      albumTitle: track.albumName ?? this.metadataFallbacks.unknownAlbum,
       // The app's own placeholder rather than nothing, so a track without a
       // cover looks the same in the notification as it does on screen.
       artworkUrl: lockScreenArtworkUri(track.artworkPath),

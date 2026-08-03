@@ -234,6 +234,48 @@ one Phase 10 item that needs a device.
   retires tracks MediaStore cannot see, and synthetic rows have no files. Seed
   and measure in the same session.
 
+## Round 3 — 2026-08-03
+
+**The Now Playing opening animation is closed.** The user watched it and said so:
+"Now Playing'in yeni animasyonu gayet güzel." That is the only kind of evidence
+that item could ever have had — it was never checkable from a screenshot — so it
+is settled and should not be reopened.
+
+The queue then turned out to have two separate problems behind the one
+complaint, and they needed different fixes:
+
+- **It did not move like Now Playing**, because it was never asked to. Both go
+  through one `Sheet` primitive now; `docs/adr/016` has the numbers and why
+  four look-alike values behaved differently.
+- **Its rows arrived after the sheet did.** Mounting `QueueScreen` costs ~30 ms
+  with 531 tracks; its rows do not paint until ~175 ms. Measuring only the first
+  number would have concluded "already fast" and shipped nothing.
+
+**"This week is empty" was not a bug.** Verified rather than argued: every event
+on the device was recorded on the Saturday and Sunday of ISO week 2026-W31, and
+the report was written on the Monday that began 2026-W32. A listen recorded
+during the session appeared in the week tab immediately. Pinned by tests in
+`rollups.test.ts` so the next person can tell the two apart without a device.
+
+**Item 8b is closed.** The user tested the remaining two interruptions by hand
+on the Mi 9T and reported it working. Nothing about the notification's
+play/pause state is outstanding.
+
+**Item 8a is as done as this engine allows.** Its content is now complete and
+matches the app: title, artist, album and artwork, with "Bilinmeyen sanatçı"
+where the app says it rather than a blank line — confirmed through
+`dumpsys notification`, including `largeIcon` being the placeholder bitmap. What
+cannot change is the notification's *chrome*: Android draws it from the
+MediaSession and MIUI draws it its own way, so it will keep looking like a
+system media notification because that is what it is. The favourite button
+remains blocked by `docs/adr/015` and needs a decision, not more investigation.
+
+One thing left open by this round: the queue header was reported as losing its
+close button and title on the Mi 9T, and **it could not be reproduced on the
+AVD**. The header was rebuilt to remove the fragility the report points at — it
+was positioned by `justify-between` against a phantom spacer — but that is a
+structural fix, not a watched one. Worth a look next time the phone is in hand.
+
 ## Working style
 
 Small verified increments, one logical change per commit, and a commit message

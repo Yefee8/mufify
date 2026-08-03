@@ -58,6 +58,9 @@ describe('locale files', () => {
       'queue.remaining_other',
       'stats.playCount_one',
       'stats.playCount_other',
+      // "Normal" is the Turkish word too. Renaming one side to break the tie
+      // would be worse Turkish for the sake of a green test.
+      'settings.motion.normal',
     ]);
 
     const identical = enPaths.filter(

@@ -1,3 +1,4 @@
+import { ANIMATION_SPEEDS, type AnimationSpeed } from '@/services/motion';
 import { DEFAULT_SHUFFLE, SHUFFLE_ALGORITHMS, type ShuffleAlgorithm } from '@/services/shuffle';
 import { WEEK_STARTS, type WeekStart } from '@/services/stats/periodKeys';
 
@@ -117,4 +118,43 @@ export function getIgnoreShortFiles(): boolean {
 
 export function setIgnoreShortFiles(enabled: boolean): void {
   settingsStorage.set(SETTINGS_KEYS.ignoreShortFiles, enabled);
+}
+
+/**
+ * Record listening history at all.
+ *
+ * On by default — the statistics are the reason half this app exists. Turning
+ * it off stops **new** events being written and leaves everything already
+ * recorded exactly where it is: this is a tap in Settings, not a destructive
+ * action, and a switch that silently deleted a year of history would be a
+ * different feature wearing this one's label. Clearing history stays its own
+ * deliberate, separately-worded action.
+ *
+ * Read through `shouldRecordListens` in `services/stats/recordingGate`, which
+ * is the only place playback consults it — see that file for why the check
+ * lives there rather than inside the recorder.
+ */
+export function getStatsEnabled(): boolean {
+  return readStoredFlag(SETTINGS_KEYS.statsEnabled, true);
+}
+
+export function setStatsEnabled(enabled: boolean): void {
+  settingsStorage.set(SETTINGS_KEYS.statsEnabled, enabled);
+}
+
+/**
+ * How long the sheet transitions take.
+ *
+ * Fixed steps, not a slider: every other scale in this project is a small set
+ * of named values, and "somewhere around 0.63" is not a design decision anyone
+ * can review. `instant` skips the animation outright rather than running a very
+ * stiff spring, which is also what Android's own "remove animations" setting
+ * asks for — see `useReducedMotion`, which forces this same path.
+ */
+export function getAnimationSpeed(): AnimationSpeed {
+  return readStoredValue(SETTINGS_KEYS.animationSpeed, ANIMATION_SPEEDS, 'normal');
+}
+
+export function setAnimationSpeed(speed: AnimationSpeed): void {
+  settingsStorage.set(SETTINGS_KEYS.animationSpeed, speed);
 }

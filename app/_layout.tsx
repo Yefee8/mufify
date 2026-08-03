@@ -6,12 +6,14 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useDatabase } from '@/db/useDatabase';
 import { PlayerLayer } from '@/features/player/PlayerLayer';
 import { startListenRecording } from '@/features/player/listenRecorder';
 import { initI18n } from '@/i18n';
+import { AudioEngine } from '@/services/audio/AudioEngine';
 import { APP_FONTS } from '@/theme/fonts';
 import { registerComponentInterop } from '@/theme/interop';
 import { applyStoredTheme, useTheme } from '@/theme/useTheme';
@@ -30,6 +32,7 @@ export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(APP_FONTS);
   const { ready: databaseReady, error: databaseError } = useDatabase();
   const { resolved, colors } = useTheme();
+  const { t } = useTranslation();
 
   // Paints behind the React tree, so rotation and keyboard insets do not
   // reveal a white gap in the dark theme.
@@ -40,6 +43,21 @@ export default function RootLayout() {
   // Listens are recorded for as long as the app is alive, not for as long as
   // a particular screen is mounted — playback outlives every screen.
   useEffect(() => startListenRecording(), []);
+
+  /*
+   * The words the media notification uses for a track with no artist or album.
+   *
+   * Handed to the engine rather than looked up inside it: `AudioEngine` is a
+   * service and translating is not its job. Re-run on a language change, so the
+   * notification follows rather than keeping the previous language's words
+   * until the next track loads.
+   */
+  useEffect(() => {
+    AudioEngine.setMetadataFallbacks({
+      unknownArtist: t('common.unknownArtist'),
+      unknownAlbum: t('common.unknownAlbum'),
+    });
+  }, [t]);
 
   const fontsSettled = fontsLoaded || fontError !== null;
   const databaseSettled = databaseReady || databaseError !== undefined;

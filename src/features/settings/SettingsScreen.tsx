@@ -1,5 +1,7 @@
 import {
+  BarChart3,
   Clock,
+  Gauge,
   Languages,
   Monitor,
   Moon,
@@ -20,16 +22,21 @@ import { SettingRow } from '@/components/ui/SettingRow';
 import { SettingSwitch } from '@/components/ui/SettingSwitch';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { changeLanguage } from '@/i18n';
+import { ANIMATION_SPEEDS, type AnimationSpeed } from '@/services/motion';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 import {
+  getAnimationSpeed,
   getHapticsEnabled,
   getIgnoreShortFiles,
   getLanguagePreference,
   getShuffleAlgorithm,
+  getStatsEnabled,
   LANGUAGE_PREFERENCES,
+  setAnimationSpeed,
   setHapticsEnabled,
   setIgnoreShortFiles,
   setShuffleAlgorithm,
+  setStatsEnabled,
   THEME_PREFERENCES,
   type LanguagePreference,
   type ThemePreference,
@@ -69,6 +76,8 @@ export function SettingsScreen() {
   const [shuffle, setShuffle] = useState<ShuffleAlgorithm>(getShuffleAlgorithm);
   const [haptics, setHaptics] = useState(getHapticsEnabled);
   const [ignoreShort, setIgnoreShort] = useState(getIgnoreShortFiles);
+  const [statsOn, setStatsOn] = useState(getStatsEnabled);
+  const [speed, setSpeed] = useState<AnimationSpeed>(getAnimationSpeed);
 
   const themeOptions: SegmentedControlOption<ThemePreference>[] = THEME_PREFERENCES.map(
     (value) => ({
@@ -86,6 +95,11 @@ export function SettingsScreen() {
     value,
     label: t(`settings.shuffle.${value}`),
     description: t(`settings.shuffle.${value}Hint`),
+  }));
+
+  const speedOptions: SegmentedControlOption<AnimationSpeed>[] = ANIMATION_SPEEDS.map((value) => ({
+    value,
+    label: t(`settings.motion.${value}`),
   }));
 
   function onShuffleChange(next: ShuffleAlgorithm) {
@@ -106,6 +120,16 @@ export function SettingsScreen() {
   function onIgnoreShortChange(next: boolean) {
     setIgnoreShort(next);
     setIgnoreShortFiles(next);
+  }
+
+  function onStatsChange(next: boolean) {
+    setStatsOn(next);
+    setStatsEnabled(next);
+  }
+
+  function onSpeedChange(next: AnimationSpeed) {
+    setSpeed(next);
+    setAnimationSpeed(next);
   }
 
   return (
@@ -180,6 +204,40 @@ export function SettingsScreen() {
             value={haptics}
             onChange={onHapticsChange}
           />
+        </SettingGroup>
+
+        {/*
+          A switch, not a slider or a retention window. The only question this
+          answers is whether new listens are written down; history already
+          recorded is left exactly where it is, and clearing it stays a separate
+          and separately-worded action.
+        */}
+        <SettingGroup title={t('settings.stats.title')}>
+          <SettingSwitch
+            icon={BarChart3}
+            label={t('settings.stats.record')}
+            description={t('settings.stats.recordHint')}
+            value={statsOn}
+            onChange={onStatsChange}
+          />
+        </SettingGroup>
+
+        <SettingGroup title={t('settings.motion.title')}>
+          <SettingRow
+            icon={Gauge}
+            label={t('settings.motion.speed')}
+            value={t(`settings.motion.${speed}`)}
+            description={t('settings.motion.speedHint')}
+          >
+            {/* Three fixed steps rather than a slider, like every other scale
+                here. "Somewhere around 0.63" is not a reviewable decision. */}
+            <SegmentedControl
+              options={speedOptions}
+              value={speed}
+              onChange={onSpeedChange}
+              accessibilityLabel={t('settings.motion.speed')}
+            />
+          </SettingRow>
         </SettingGroup>
 
         <SettingGroup title={t('settings.folders.title')}>
