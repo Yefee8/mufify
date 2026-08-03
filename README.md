@@ -7,6 +7,12 @@ already on the phone. It surfaces the technical truth of a file rather than
 hiding it. And it does not have a network layer — not a disabled one, not one
 behind a setting. Release builds ship without the `INTERNET` permission at all.
 
+## Download
+
+[**Latest release**](https://github.com/Yefee8/mufify/releases/latest) — an APK
+you can sideload. It ships without the `INTERNET` permission; the release notes
+say how to check that yourself, and what the build is signed with.
+
 ## Screenshots
 
 <p>
@@ -138,6 +144,17 @@ that.
 Both are currently signed with the debug key, which is fine for sideloading and
 not fine for the Play Store. A release key belongs in `~/.gradle/gradle.properties`,
 never in the repository.
+
+Publishing one:
+
+```bash
+gh release create v0.1.0 \
+  android/app/build/outputs/apk/release/app-release.apk#mufify-0.1.0.apk \
+  --title "Mufify 0.1.0" --notes-file <notes>
+```
+
+The artifacts are gitignored along with the rest of `android/` — a 128 MB binary
+does not belong in the history. The release is where it goes.
 
 What the release build is checked for, and what `assembleRelease` produced on
 2026-08-03:
