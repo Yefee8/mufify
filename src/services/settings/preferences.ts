@@ -120,6 +120,27 @@ export function setIgnoreShortFiles(enabled: boolean): void {
   settingsStorage.set(SETTINGS_KEYS.ignoreShortFiles, enabled);
 }
 
+/**
+ * Record listening history at all.
+ *
+ * On by default — the statistics are the reason half this app exists. Turning
+ * it off stops **new** events being written and leaves everything already
+ * recorded exactly where it is: this is a tap in Settings, not a destructive
+ * action, and a switch that silently deleted a year of history would be a
+ * different feature wearing this one's label. Clearing history stays its own
+ * deliberate, separately-worded action.
+ *
+ * Read through `shouldRecordListens` in `services/stats/recordingGate`, which
+ * is the only place playback consults it — see that file for why the check
+ * lives there rather than inside the recorder.
+ */
+export function getStatsEnabled(): boolean {
+  return readStoredFlag(SETTINGS_KEYS.statsEnabled, true);
+}
+
+export function setStatsEnabled(enabled: boolean): void {
+  settingsStorage.set(SETTINGS_KEYS.statsEnabled, enabled);
+}
 
 /**
  * How long the sheet transitions take.

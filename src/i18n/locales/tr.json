@@ -168,6 +168,11 @@
       "haptics": "Titreşim",
       "hapticsHint": "Çalma, duraklatma, sıraya ekleme ve sıralama değişiminde kısa bir titreşim."
     },
+    "stats": {
+      "title": "İstatistikler",
+      "record": "Dinleme geçmişini kaydet",
+      "recordHint": "Kapalıyken yeni hiçbir şey kaydedilmez. Kayıtlı olanlar durur."
+    },
     "motion": {
       "title": "Hareket",
       "speed": "Animasyon hızı",

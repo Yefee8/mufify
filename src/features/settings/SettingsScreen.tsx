@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Clock,
   Gauge,
   Languages,
@@ -29,11 +30,13 @@ import {
   getIgnoreShortFiles,
   getLanguagePreference,
   getShuffleAlgorithm,
+  getStatsEnabled,
   LANGUAGE_PREFERENCES,
   setAnimationSpeed,
   setHapticsEnabled,
   setIgnoreShortFiles,
   setShuffleAlgorithm,
+  setStatsEnabled,
   THEME_PREFERENCES,
   type LanguagePreference,
   type ThemePreference,
@@ -73,6 +76,7 @@ export function SettingsScreen() {
   const [shuffle, setShuffle] = useState<ShuffleAlgorithm>(getShuffleAlgorithm);
   const [haptics, setHaptics] = useState(getHapticsEnabled);
   const [ignoreShort, setIgnoreShort] = useState(getIgnoreShortFiles);
+  const [statsOn, setStatsOn] = useState(getStatsEnabled);
   const [speed, setSpeed] = useState<AnimationSpeed>(getAnimationSpeed);
 
   const themeOptions: SegmentedControlOption<ThemePreference>[] = THEME_PREFERENCES.map(
@@ -118,6 +122,10 @@ export function SettingsScreen() {
     setIgnoreShortFiles(next);
   }
 
+  function onStatsChange(next: boolean) {
+    setStatsOn(next);
+    setStatsEnabled(next);
+  }
 
   function onSpeedChange(next: AnimationSpeed) {
     setSpeed(next);
@@ -198,6 +206,21 @@ export function SettingsScreen() {
           />
         </SettingGroup>
 
+        {/*
+          A switch, not a slider or a retention window. The only question this
+          answers is whether new listens are written down; history already
+          recorded is left exactly where it is, and clearing it stays a separate
+          and separately-worded action.
+        */}
+        <SettingGroup title={t('settings.stats.title')}>
+          <SettingSwitch
+            icon={BarChart3}
+            label={t('settings.stats.record')}
+            description={t('settings.stats.recordHint')}
+            value={statsOn}
+            onChange={onStatsChange}
+          />
+        </SettingGroup>
 
         <SettingGroup title={t('settings.motion.title')}>
           <SettingRow

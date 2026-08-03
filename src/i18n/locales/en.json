@@ -168,6 +168,11 @@
       "haptics": "Haptics",
       "hapticsHint": "A short buzz on play, pause, queueing and reordering."
     },
+    "stats": {
+      "title": "Statistics",
+      "record": "Record listening history",
+      "recordHint": "Off, nothing new is written down. What is already there stays."
+    },
     "motion": {
       "title": "Motion",
       "speed": "Animation speed",
