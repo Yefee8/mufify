@@ -257,13 +257,24 @@ the report was written on the Monday that began 2026-W32. A listen recorded
 during the session appeared in the week tab immediately. Pinned by tests in
 `rollups.test.ts` so the next person can tell the two apart without a device.
 
-Still owed, and untouched this round on purpose:
+**Item 8b is closed.** The user tested the remaining two interruptions by hand
+on the Mi 9T and reported it working. Nothing about the notification's
+play/pause state is outstanding.
 
-- **Item 8b** — the notification's play/pause state. In-app pause and resume are
-  verified. Headphone unplug and audio-focus loss are being tested by hand on
-  the Mi 9T; update this file when that comes back.
-- **Item 8a** — a favourite button in the notification. `docs/adr/015` lists the
-  four options; it needs a decision, not more investigation.
+**Item 8a is as done as this engine allows.** Its content is now complete and
+matches the app: title, artist, album and artwork, with "Bilinmeyen sanatçı"
+where the app says it rather than a blank line — confirmed through
+`dumpsys notification`, including `largeIcon` being the placeholder bitmap. What
+cannot change is the notification's *chrome*: Android draws it from the
+MediaSession and MIUI draws it its own way, so it will keep looking like a
+system media notification because that is what it is. The favourite button
+remains blocked by `docs/adr/015` and needs a decision, not more investigation.
+
+One thing left open by this round: the queue header was reported as losing its
+close button and title on the Mi 9T, and **it could not be reproduced on the
+AVD**. The header was rebuilt to remove the fragility the report points at — it
+was positioned by `justify-between` against a phantom spacer — but that is a
+structural fix, not a watched one. Worth a look next time the phone is in hand.
 
 ## Working style
 
