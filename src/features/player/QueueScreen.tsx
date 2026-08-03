@@ -96,7 +96,17 @@ export function QueueScreen({ onClose }: QueueScreenProps) {
        inside a navigator that was insetting it, so the last queue row would sit
        under the navigation bar the way the transport row did. */
     <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
-      <View className="flex-row items-center justify-between px-4 pt-6">
+      {/*
+        Laid out rather than spaced apart. This was `justify-between` over three
+        children where the third was the clear button or, when the queue was
+        empty, an invisible box the same size — so the close button and the
+        title were positioned by whatever the far side happened to be, and were
+        reported missing on a device while the clear button beside them drew
+        fine. A fixed left slot, a title that takes the space that is left, and
+        a button that sizes to its own content cannot do that: nothing here
+        depends on what its neighbour is.
+      */}
+      <View className="flex-row items-center gap-2 px-4 pt-6">
         <Pressable
           onPress={onClose}
           accessibilityRole="button"
@@ -106,20 +116,27 @@ export function QueueScreen({ onClose }: QueueScreenProps) {
           <ChevronDown color={colors.label} size={26} strokeWidth={2} />
         </Pressable>
 
-        <Text className="font-body-medium text-sm text-muted">{t('queue.title')}</Text>
+        <Text numberOfLines={1} className="flex-1 font-body-medium text-base text-primary">
+          {t('queue.title')}
+        </Text>
 
+        {/*
+          A button with a word on it, not a bare glyph. Clearing the queue is
+          the one destructive thing on this screen and `ListX` is not a symbol
+          anybody recognises — the same reasoning that made "Yeni liste" on the
+          playlists screen a labelled button rather than a plus.
+        */}
         {items.length > 0 ? (
           <Pressable
             onPress={clear}
             accessibilityRole="button"
-            accessibilityLabel={t('queue.clear')}
-            className="min-h-11 min-w-11 items-center justify-center"
+            android_ripple={{ color: colors.etch }}
+            className="min-h-11 flex-row items-center gap-2 rounded-sm border border-subtle px-4"
           >
-            <ListX color={colors.legend} size={20} strokeWidth={2} />
+            <ListX color={colors.legend} size={18} strokeWidth={2} />
+            <Text className="font-body-medium text-sm text-primary">{t('queue.clear')}</Text>
           </Pressable>
-        ) : (
-          <View className="min-h-11 min-w-11" />
-        )}
+        ) : null}
       </View>
 
       <View className="px-6 py-4">
