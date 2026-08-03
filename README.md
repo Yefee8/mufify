@@ -148,10 +148,14 @@ never in the repository.
 Publishing one:
 
 ```bash
-gh release create v0.1.0 \
-  android/app/build/outputs/apk/release/app-release.apk#mufify-0.1.0.apk \
-  --title "Mufify 0.1.0" --notes-file <notes>
+gh release create v1.0.0 \
+  android/app/build/outputs/apk/release/app-release.apk#mufify-1.0.0.apk \
+  --title "Mufify 1.0.0" --notes-file <notes>
 ```
+
+Raise `version` and `android.versionCode` in `app.json` first. Android refuses
+an install whose `versionCode` does not climb, so shipping two builds on the
+same number makes the second one undownloadable in practice.
 
 The artifacts are gitignored along with the rest of `android/` — a 128 MB binary
 does not belong in the history. The release is where it goes.
@@ -164,7 +168,7 @@ What the release build is checked for, and what `assembleRelease` produced on
 | `INTERNET` permission | **absent** — this is the whole promise, and `plugins/withOfflineOnly.js` is what keeps it out |
 | `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, `WRITE_EXTERNAL_STORAGE` | absent, blocked in `app.json` |
 | Debuggable | no |
-| `versionCode` / `versionName` | 1 / 0.1.0 — both need raising before a real upload |
+| `versionCode` / `versionName` | 2 / 1.0.0 |
 
 One permission does survive that is worth knowing about: `ACCESS_NETWORK_STATE`,
 pulled in by a dependency rather than asked for here. It cannot open a
