@@ -6,6 +6,7 @@ export {
   type LanguagePreference,
 } from './language';
 export {
+  getAnimationSpeed,
   getHapticsEnabled,
   getIgnoreShortFiles,
   getLanguagePreference,
@@ -13,6 +14,7 @@ export {
   getShuffleAlgorithm,
   getThemePreference,
   getWeekStart,
+  setAnimationSpeed,
   setHapticsEnabled,
   setIgnoreShortFiles,
   setLanguagePreference,

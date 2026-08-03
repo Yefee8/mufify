@@ -1,3 +1,4 @@
+import { ANIMATION_SPEEDS, type AnimationSpeed } from '@/services/motion';
 import { DEFAULT_SHUFFLE, SHUFFLE_ALGORITHMS, type ShuffleAlgorithm } from '@/services/shuffle';
 import { WEEK_STARTS, type WeekStart } from '@/services/stats/periodKeys';
 
@@ -117,4 +118,22 @@ export function getIgnoreShortFiles(): boolean {
 
 export function setIgnoreShortFiles(enabled: boolean): void {
   settingsStorage.set(SETTINGS_KEYS.ignoreShortFiles, enabled);
+}
+
+
+/**
+ * How long the sheet transitions take.
+ *
+ * Fixed steps, not a slider: every other scale in this project is a small set
+ * of named values, and "somewhere around 0.63" is not a design decision anyone
+ * can review. `instant` skips the animation outright rather than running a very
+ * stiff spring, which is also what Android's own "remove animations" setting
+ * asks for — see `useReducedMotion`, which forces this same path.
+ */
+export function getAnimationSpeed(): AnimationSpeed {
+  return readStoredValue(SETTINGS_KEYS.animationSpeed, ANIMATION_SPEEDS, 'normal');
+}
+
+export function setAnimationSpeed(speed: AnimationSpeed): void {
+  settingsStorage.set(SETTINGS_KEYS.animationSpeed, speed);
 }

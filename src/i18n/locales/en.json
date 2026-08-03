@@ -81,7 +81,9 @@
       "Nothing in here yet. Add tracks from the library.",
       "An empty playlist. Long-press a track to put it here."
     ],
-    "likedEmpty": ["No liked songs yet. Use the heart on a track to keep it here."],
+    "likedEmpty": [
+      "No liked songs yet. Use the heart on a track to keep it here."
+    ],
     "addCount_one": "Add {{count}} track to a playlist",
     "addCount_other": "Add {{count}} tracks to a playlist",
     "shuffleAll": "Shuffle",
@@ -165,6 +167,14 @@
       "title": "Playback",
       "haptics": "Haptics",
       "hapticsHint": "A short buzz on play, pause, queueing and reordering."
+    },
+    "motion": {
+      "title": "Motion",
+      "speed": "Animation speed",
+      "speedHint": "How quickly panels arrive. Instant skips the movement entirely.",
+      "normal": "Normal",
+      "fast": "Fast",
+      "instant": "Instant"
     }
   },
   "player": {

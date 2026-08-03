@@ -192,3 +192,83 @@ describe('foldDeltas', () => {
     expect(folded.every((d) => d.msPlayed === 1200 && d.playCount === 1)).toBe(true);
   });
 });
+
+/**
+ * The current period, which is the one every screen opens on.
+ *
+ * Reported as "this week is empty while this month and this year are full".
+ * It was not a bug: every event on that device had been recorded on the
+ * Saturday and Sunday of the previous ISO week, and the report was written on
+ * the Monday — so the week cell was legitimately empty while the month and
+ * year cells, which both still contained those days, were not.
+ *
+ * That is indistinguishable from the real failure by looking at it, so these
+ * pin the difference. The rule the screens depend on is narrow: a listen
+ * recorded *now* lands in the cell the screen asks for *now*, because both
+ * sides derive the key from the same function.
+ */
+describe('the current period', () => {
+  const subject: ListenSubject = { trackId: 1, artistId: 2, albumId: 3 };
+
+  function deltasFor(startedAt: Date) {
+    return rollupDeltas({
+      subject,
+      keys: periodKeys(startedAt, 'monday'),
+      msPlayed: 200_000,
+      countsAsPlay: true,
+    });
+  }
+
+  function cell(deltas: RollupDelta[], periodType: string) {
+    return deltas.find(
+      (delta) => delta.periodType === periodType && delta.entityType === 'track',
+    );
+  }
+
+  it('files a listen recorded now under the key the screen is asking for', () => {
+    const now = new Date();
+    const deltas = deltasFor(now);
+    // What `StatsScreen` computes to query with, from the same clock.
+    const asked = periodKeys(now, 'monday');
+
+    expect(cell(deltas, 'week')?.periodKey).toBe(asked.week);
+    expect(cell(deltas, 'month')?.periodKey).toBe(asked.month);
+    expect(cell(deltas, 'year')?.periodKey).toBe(asked.year);
+    expect(cell(deltas, 'week')?.playCount).toBe(1);
+  });
+
+  it('accumulates a second listen into the same week cell rather than a new one', () => {
+    const now = new Date();
+    const folded = foldDeltas([...deltasFor(now), ...deltasFor(new Date(now.getTime() + 60_000))]);
+    const week = folded.filter(
+      (delta) => delta.periodType === 'week' && delta.entityType === 'track',
+    );
+
+    expect(week).toHaveLength(1);
+    expect(week[0]?.playCount).toBe(2);
+  });
+
+  it('leaves last week out of this week, which is what the report actually saw', () => {
+    const now = new Date();
+    const eightDaysAgo = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000);
+
+    const thisWeek = cell(deltasFor(now), 'week');
+    const lastWeek = cell(deltasFor(eightDaysAgo), 'week');
+
+    expect(lastWeek?.periodKey).not.toBe(thisWeek?.periodKey);
+    // ...while the year cell still holds both, which is why year looked full.
+    expect(cell(deltasFor(eightDaysAgo), 'year')?.periodKey).toBe(
+      cell(deltasFor(now), 'year')?.periodKey,
+    );
+  });
+
+  it('rolls the week over at the Monday boundary, not at an arbitrary offset', () => {
+    // 2026-08-02 is a Sunday and 2026-08-03 the Monday after it: the exact
+    // boundary the device crossed between the session and the report.
+    const sunday = new Date(2026, 7, 2, 23, 30);
+    const monday = new Date(2026, 7, 3, 0, 30);
+
+    expect(periodKeys(sunday, 'monday').week).not.toBe(periodKeys(monday, 'monday').week);
+    expect(periodKeys(sunday, 'monday').month).toBe(periodKeys(monday, 'monday').month);
+  });
+});

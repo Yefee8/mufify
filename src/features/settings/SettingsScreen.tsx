@@ -1,5 +1,6 @@
 import {
   Clock,
+  Gauge,
   Languages,
   Monitor,
   Moon,
@@ -20,13 +21,16 @@ import { SettingRow } from '@/components/ui/SettingRow';
 import { SettingSwitch } from '@/components/ui/SettingSwitch';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { changeLanguage } from '@/i18n';
+import { ANIMATION_SPEEDS, type AnimationSpeed } from '@/services/motion';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 import {
+  getAnimationSpeed,
   getHapticsEnabled,
   getIgnoreShortFiles,
   getLanguagePreference,
   getShuffleAlgorithm,
   LANGUAGE_PREFERENCES,
+  setAnimationSpeed,
   setHapticsEnabled,
   setIgnoreShortFiles,
   setShuffleAlgorithm,
@@ -69,6 +73,7 @@ export function SettingsScreen() {
   const [shuffle, setShuffle] = useState<ShuffleAlgorithm>(getShuffleAlgorithm);
   const [haptics, setHaptics] = useState(getHapticsEnabled);
   const [ignoreShort, setIgnoreShort] = useState(getIgnoreShortFiles);
+  const [speed, setSpeed] = useState<AnimationSpeed>(getAnimationSpeed);
 
   const themeOptions: SegmentedControlOption<ThemePreference>[] = THEME_PREFERENCES.map(
     (value) => ({
@@ -86,6 +91,11 @@ export function SettingsScreen() {
     value,
     label: t(`settings.shuffle.${value}`),
     description: t(`settings.shuffle.${value}Hint`),
+  }));
+
+  const speedOptions: SegmentedControlOption<AnimationSpeed>[] = ANIMATION_SPEEDS.map((value) => ({
+    value,
+    label: t(`settings.motion.${value}`),
   }));
 
   function onShuffleChange(next: ShuffleAlgorithm) {
@@ -106,6 +116,12 @@ export function SettingsScreen() {
   function onIgnoreShortChange(next: boolean) {
     setIgnoreShort(next);
     setIgnoreShortFiles(next);
+  }
+
+
+  function onSpeedChange(next: AnimationSpeed) {
+    setSpeed(next);
+    setAnimationSpeed(next);
   }
 
   return (
@@ -180,6 +196,25 @@ export function SettingsScreen() {
             value={haptics}
             onChange={onHapticsChange}
           />
+        </SettingGroup>
+
+
+        <SettingGroup title={t('settings.motion.title')}>
+          <SettingRow
+            icon={Gauge}
+            label={t('settings.motion.speed')}
+            value={t(`settings.motion.${speed}`)}
+            description={t('settings.motion.speedHint')}
+          >
+            {/* Three fixed steps rather than a slider, like every other scale
+                here. "Somewhere around 0.63" is not a reviewable decision. */}
+            <SegmentedControl
+              options={speedOptions}
+              value={speed}
+              onChange={onSpeedChange}
+              accessibilityLabel={t('settings.motion.speed')}
+            />
+          </SettingRow>
         </SettingGroup>
 
         <SettingGroup title={t('settings.folders.title')}>

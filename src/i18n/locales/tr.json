@@ -81,7 +81,9 @@
       "Burada henüz bir şey yok. Kitaplıktan parça ekle.",
       "Boş bir liste. Bir parçaya uzun bas ve buraya koy."
     ],
-    "likedEmpty": ["Henüz beğenilen parça yok. Burada tutmak için bir parçadaki kalbi kullan."],
+    "likedEmpty": [
+      "Henüz beğenilen parça yok. Burada tutmak için bir parçadaki kalbi kullan."
+    ],
     "addCount_one": "{{count}} parçayı bir listeye ekle",
     "addCount_other": "{{count}} parçayı bir listeye ekle",
     "shuffleAll": "Karıştır",
@@ -165,6 +167,14 @@
       "title": "Çalma",
       "haptics": "Titreşim",
       "hapticsHint": "Çalma, duraklatma, sıraya ekleme ve sıralama değişiminde kısa bir titreşim."
+    },
+    "motion": {
+      "title": "Hareket",
+      "speed": "Animasyon hızı",
+      "speedHint": "Panellerin ne kadar çabuk geldiği. Anında, hareketi tamamen atlar.",
+      "normal": "Normal",
+      "fast": "Hızlı",
+      "instant": "Anında"
     }
   },
   "player": {
