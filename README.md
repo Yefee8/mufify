@@ -7,6 +7,17 @@ already on the phone. It surfaces the technical truth of a file rather than
 hiding it. And it does not have a network layer — not a disabled one, not one
 behind a setting. Release builds ship without the `INTERNET` permission at all.
 
+## Screenshots
+
+<p>
+  <img src="docs/screenshots/now-playing.png" width="220" alt="Now Playing">
+  <img src="docs/screenshots/library-tracks.png" width="220" alt="Library">
+  <img src="docs/screenshots/stats-week.png" width="220" alt="Statistics">
+  <img src="docs/screenshots/settings-shuffle.png" width="220" alt="Shuffle settings">
+</p>
+
+More, with what each one is showing, in [docs/screenshots.md](docs/screenshots.md).
+
 ## What it does
 
 - **Playback** of local files, lossless first-class, with background playback,
@@ -96,16 +107,55 @@ cd android && ./gradlew :audio-tags:testDebugUnitTest
 
 ### Installing on a device
 
-`adb install` is enough on most phones and on the emulator. On **MIUI / HyperOS**
-(Xiaomi, Redmi, POCO) it fails with `INSTALL_FAILED_USER_RESTRICTED` regardless
-of what developer options say. Push and install from the device instead:
+`adb install -r` works on the emulator and, in practice, on MIUI too — including
+updating in place over an existing build without losing its data. If it does
+fail with `INSTALL_FAILED_USER_RESTRICTED`, which MIUI does depending on how the
+device is configured, push the file and install it from the phone instead:
 
 ```bash
 adb push android/app/build/outputs/apk/debug/app-debug.apk /sdcard/Download/
 ```
 
-MIUI also blocks `adb shell input` and `pm grant` with a `SecurityException`, so
-automated UI testing on those devices is not possible — taps need a human.
+MIUI does reliably block `adb shell input` and `pm grant` with a
+`SecurityException`, so **automated UI testing on those devices is not
+possible** — taps need a human. Use the emulator for behaviour and keep the
+phone for what only it can answer: old-API paths, real frame timing, the media
+notification, and anything involving headphones or a phone call.
+
+## Building a release
+
+```bash
+cd android
+./gradlew assembleRelease   # app/build/outputs/apk/release/app-release.apk
+./gradlew bundleRelease     # app/build/outputs/bundle/release/app-release.aab
+```
+
+The APK is universal — every ABI in one file, which is why it is around 130 MB.
+That is the one to sideload or hand to somebody. The **AAB is the one to
+upload**: Play splits it per device and what people download is a fraction of
+that.
+
+Both are currently signed with the debug key, which is fine for sideloading and
+not fine for the Play Store. A release key belongs in `~/.gradle/gradle.properties`,
+never in the repository.
+
+What the release build is checked for, and what `assembleRelease` produced on
+2026-08-03:
+
+| Check | Result |
+|---|---|
+| `INTERNET` permission | **absent** — this is the whole promise, and `plugins/withOfflineOnly.js` is what keeps it out |
+| `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, `WRITE_EXTERNAL_STORAGE` | absent, blocked in `app.json` |
+| Debuggable | no |
+| `versionCode` / `versionName` | 1 / 0.1.0 — both need raising before a real upload |
+
+One permission does survive that is worth knowing about: `ACCESS_NETWORK_STATE`,
+pulled in by a dependency rather than asked for here. It cannot open a
+connection — that needs `INTERNET`, which is absent — but a Play Store listing
+renders it as "view network connections", which reads oddly next to the claim on
+this page. It is deliberately **not** blocked yet: removing a permission a
+library expects is the kind of change that fails at runtime on a device rather
+than at build time, and it has not been tested on hardware.
 
 ## Architecture
 
@@ -136,6 +186,7 @@ the two flows worth tracing, and why there is no global state library.
 | | |
 |---|---|
 | [AGENTS.md](AGENTS.md) | the house style, binding on humans and agents alike |
+| [docs/screenshots.md](docs/screenshots.md) | what it looks like, with what each screen is doing |
 | [docs/architecture.md](docs/architecture.md) | how the pieces fit, and where state lives |
 | [docs/components.md](docs/components.md) | what each shared component is for |
 | [docs/theming.md](docs/theming.md) | the token system, and how to add a colour |
