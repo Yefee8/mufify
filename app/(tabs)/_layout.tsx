@@ -76,6 +76,21 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.chassis,
           borderTopColor: colors.etch,
+          /*
+           * The bar is a surface, not an object floating over one — the token
+           * comment in `theme/global.css` puts it as "elevation is surface
+           * value, not shadow". On Android that is not only a matter of taste.
+           *
+           * react-navigation's bottom bar ships `elevation: 8`
+           * (`expo-router/build/react-navigation/bottom-tabs/views/BottomTabBar`),
+           * and an elevated view is drawn above its siblings whatever their
+           * `zIndex` — Android sorts by Z first and takes the drawing order RN
+           * derives from `zIndex` only as the tie-break. The queue sheet is at
+           * `z-40` in `PlayerLayer` and the tab icons still came out in front
+           * of its rows. Zero puts the bar back in `zIndex` order, where
+           * `PlayerLayer` — the one place that decides stacking — can rank it.
+           */
+          elevation: 0,
         },
         tabBarLabelStyle: { fontFamily: 'Inter_500Medium' },
       }}
