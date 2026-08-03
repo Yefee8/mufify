@@ -106,7 +106,7 @@ export function QueueScreen({ onClose }: QueueScreenProps) {
         a button that sizes to its own content cannot do that: nothing here
         depends on what its neighbour is.
       */}
-      <View className="flex-row items-center gap-2 px-4 pt-6">
+      <View className="z-10 flex-row items-center gap-2 bg-surface px-4 pt-6">
         {/*
           `h-11 w-11`, not `min-h-11 min-w-11`, and `collapsable={false}`.
 
@@ -154,14 +154,25 @@ export function QueueScreen({ onClose }: QueueScreenProps) {
         ) : null}
       </View>
 
-      <View className="px-6 py-4">
+      <View className="z-10 bg-surface px-6 py-4">
         <Text className="font-mono text-sm text-muted">
           {t('queue.remaining', { count: Math.max(0, items.length - snapshot.index - 1) })}
         </Text>
       </View>
 
-      {/* Bounded, so the list re-lays out when the rows above it change. */}
-      <View className="flex-1">
+      {/*
+        Bounded *and clipped*, so the list re-lays out when the rows above it
+        change and cannot draw outside its own box while doing so.
+
+        Android does not clip children unless it is told to. With a draw
+        distance of 1200px this list renders well beyond the viewport, and the
+        header sits directly above it with nothing between them — which is the
+        best remaining explanation for a close button and a title that vanish
+        "especially when changing tracks from the queue", the moment the list
+        re-renders every row. The header is opaque and on a layer above for the
+        same reason: two independent ways for the same thing not to happen.
+      */}
+      <View className="flex-1 overflow-hidden">
         {items.length === 0 ? (
           <EmptyState icon={Music} messages={[t('queue.empty')]} />
         ) : (
