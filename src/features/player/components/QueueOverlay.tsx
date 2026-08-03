@@ -1,11 +1,13 @@
-import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
-
-import { useReducedMotion } from '@/theme/useReducedMotion';
+import { Sheet } from '@/components/ui/Sheet';
 
 import { QueueScreen } from '../QueueScreen';
+import { queueExpansion } from '../playerExpansion';
 
 export interface QueueOverlayProps {
+  /** Mounted. It carries a FlashList of the whole queue; closed, it costs nothing. */
   visible: boolean;
+  /** Settled open. */
+  expanded: boolean;
   onClose: () => void;
 }
 
@@ -13,33 +15,29 @@ export interface QueueOverlayProps {
  * The queue, as a root-level sheet rather than a route.
  *
  * It used to be `app/queue.tsx`, pushed with `router.navigate('/queue')`, and
- * it opened without ever becoming visible. Nothing was wrong with the screen:
- * `PlayerLayer` mounts the Now Playing overlay *outside* the router, absolutely
- * positioned over the whole app, and an opaque full-screen surface at that
- * level covers anything the navigator puts underneath it. The queue was
- * rendering correctly, one layer down, behind the player that opened it.
+ * it opened without ever becoming visible: `PlayerLayer` mounts Now Playing
+ * outside the router, and an opaque full-screen surface at that level covers
+ * anything the navigator puts underneath it. Full reasoning in
+ * `docs/adr/014`.
  *
- * That is a property of the overlay rather than of this screen — **any** route
- * pushed while Now Playing is open would have disappeared the same way — so the
- * fix is to give the queue the same treatment as Now Playing itself: a sibling
- * at the root, one layer above it, outside the overlay's transformed and
- * clipped container.
+ * It then had a second, quieter problem. Moving it to the root fixed *whether*
+ * it appeared and left *how* alone — Reanimated's `SlideInDown` on the way in,
+ * `SlideOutDown` on the way out — while Now Playing kept the hand-tuned spring
+ * beside it. A spring in and a plain timing out, no mass term so not the
+ * damping ratio that was tuned, no velocity handoff and no fade: the queue read
+ * badly next to a player that read well, and the difference was never taste.
  *
- * Mounted only while open. It carries a FlashList of the whole queue, and the
- * player has no reason to pay for that while nobody is looking at it.
+ * Both go through `Sheet` now, against their own progress values.
  */
-export function QueueOverlay({ visible, onClose }: QueueOverlayProps) {
-  const reducedMotion = useReducedMotion();
-
-  if (!visible) return null;
-
+export function QueueOverlay({ visible, expanded, onClose }: QueueOverlayProps) {
   return (
-    <Animated.View
-      entering={reducedMotion ? undefined : SlideInDown.springify().damping(22).stiffness(180)}
-      exiting={reducedMotion ? undefined : SlideOutDown}
+    <Sheet
+      progress={queueExpansion}
+      visible={visible}
+      expanded={expanded}
       className="absolute inset-0 z-40 bg-surface"
     >
       <QueueScreen onClose={onClose} />
-    </Animated.View>
+    </Sheet>
   );
 }

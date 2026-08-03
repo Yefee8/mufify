@@ -1,20 +1,9 @@
-import { useWindowDimensions } from 'react-native';
-import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { Sheet } from '@/components/ui/Sheet';
 
 import { PlayerScreen } from '../PlayerScreen';
 import { playerExpansion } from '../playerExpansion';
-
-/**
- * How much of the travel the fade takes.
- *
- * Opacity used to track the whole gesture, so the surface was still half
- * transparent at the midpoint and the screen underneath read straight through
- * it — a
- * cross-fade between two screens rather than one sheet arriving over another.
- * Reaching full opacity early makes it a sheet; the movement carries the rest.
- */
-const FADE_COMPLETE_AT = 0.4;
 
 export interface NowPlayingOverlayProps {
   /** Keeps the expensive player contents out of the collapsed render path. */
@@ -26,38 +15,30 @@ export interface NowPlayingOverlayProps {
   onOpenQueue: () => void;
 }
 
-/** Root-mounted Now Playing surface driven directly by the mini-player gesture. */
+/**
+ * Root-mounted Now Playing surface driven directly by the mini-player gesture.
+ *
+ * The motion moved into `Sheet`, which the queue now shares. What is left here
+ * is what is actually specific to this surface: its layer, and the safe area,
+ * which it insets on both edges because its transport row would otherwise sit
+ * under the navigation bar.
+ */
 export function NowPlayingOverlay({
   visible,
   expanded,
   onExpandedChange,
   onOpenQueue,
 }: NowPlayingOverlayProps) {
-  const { height } = useWindowDimensions();
-  const style = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      playerExpansion.value,
-      [0, FADE_COMPLETE_AT],
-      [0, 1],
-      Extrapolation.CLAMP,
-    ),
-    // Linear against the shared value on purpose: the easing belongs to the
-    // spring driving that value, and putting a curve here too would compound
-    // the two into something that reads as a stutter.
-    transform: [{ translateY: interpolate(playerExpansion.value, [0, 1], [height, 0]) }],
-  }));
-
   return (
-    <Animated.View
-      pointerEvents={expanded ? 'auto' : 'none'}
-      style={style}
+    <Sheet
+      progress={playerExpansion}
+      visible={visible}
+      expanded={expanded}
       className="absolute inset-0 z-30 bg-surface"
     >
-      {visible ? (
-        <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
-          <PlayerScreen onExpandedChange={onExpandedChange} onOpenQueue={onOpenQueue} />
-        </SafeAreaView>
-      ) : null}
-    </Animated.View>
+      <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
+        <PlayerScreen onExpandedChange={onExpandedChange} onOpenQueue={onOpenQueue} />
+      </SafeAreaView>
+    </Sheet>
   );
 }
