@@ -1,7 +1,9 @@
 import type { LucideIcon } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SPACING } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/useTheme';
 
 export interface ActionSheetAction {
@@ -46,6 +48,7 @@ export function ActionSheet({
 }: ActionSheetProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -55,10 +58,21 @@ export function ActionSheet({
         accessibilityLabel={t('common.cancel')}
         className="flex-1 justify-end bg-surface/80"
       >
-        {/* Absorbs taps so pressing the sheet does not dismiss it. */}
+        {/*
+          Absorbs taps so pressing the sheet does not dismiss it, and stands off
+          the navigation bar.
+
+          A sheet anchored to the bottom of the window sits *under* the system
+          buttons on a three-button device — the last action in the list was
+          behind them and could not be pressed. The padding goes on the panel
+          rather than around it so the surface still runs to the bottom edge and
+          only its contents stop short, which is what Now Playing's transport
+          row does for the same reason.
+        */}
         <Pressable
           onPress={absorb}
-          className="max-h-full gap-1 rounded-md border border-subtle bg-surface-elevated p-5"
+          style={{ paddingBottom: insets.bottom + SPACING[5] }}
+          className="max-h-full gap-1 rounded-md border border-subtle bg-surface-elevated px-5 pt-5"
         >
           <View className="gap-1 pb-3">
             <Text numberOfLines={1} className="font-body-semibold text-base text-primary">

@@ -2,10 +2,12 @@ import { ListMusic, Plus } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, ScrollView, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { addTracksToPlaylist, createPlaylist, usePlaylists } from '@/db/queries/playlists';
 import { commitFeedback } from '@/services/haptics';
 import { useThemeColors } from '@/theme/useTheme';
+import { SPACING } from '@/theme/tokens';
 
 import { NamePlaylistDialog } from './NamePlaylistDialog';
 
@@ -29,6 +31,7 @@ export interface AddToPlaylistSheetProps {
  */
 export function AddToPlaylistSheet({ trackIds, onClose }: AddToPlaylistSheetProps) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const playlists = usePlaylists();
   const [naming, setNaming] = useState(false);
@@ -63,9 +66,12 @@ export function AddToPlaylistSheet({ trackIds, onClose }: AddToPlaylistSheetProp
         accessibilityLabel={t('common.cancel')}
         className="flex-1 justify-end bg-surface/80"
       >
+        {/* Stands off the navigation bar, like every other sheet anchored to
+            the bottom of the window — see `ActionSheet`. */}
         <Pressable
           onPress={absorb}
-          className="max-h-full gap-4 rounded-md border border-subtle bg-surface-elevated p-5"
+          style={{ paddingBottom: insets.bottom + SPACING[5] }}
+          className="max-h-full gap-4 rounded-md border border-subtle bg-surface-elevated px-5 pt-5"
         >
           <Text className="font-body-semibold text-base text-primary">
             {trackIds.length > 1

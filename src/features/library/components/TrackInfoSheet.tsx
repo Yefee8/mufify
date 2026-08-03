@@ -1,4 +1,7 @@
 import { Modal, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { SPACING } from '@/theme/tokens';
 
 import type { TrackListItem } from '@/db/queries/tracks';
 import { useTrackSpec } from '@/db/queries/tracks';
@@ -26,6 +29,9 @@ export interface TrackInfoSheetProps {
 export function TrackInfoSheet({ track, onClose }: TrackInfoSheetProps) {
   const { t, i18n } = useTranslation();
   const spec = useTrackSpec(track?.id ?? null);
+  // Same reason as `ActionSheet`: anchored to the bottom, so the last rows sit
+  // under the system buttons on a three-button device without this.
+  const insets = useSafeAreaInsets();
 
   const rows: [string, string][] = [
     [t('track.field.title'), track?.title ?? '—'],
@@ -54,7 +60,8 @@ export function TrackInfoSheet({ track, onClose }: TrackInfoSheetProps) {
       >
         <Pressable
           onPress={absorb}
-          className="gap-4 rounded-md border border-subtle bg-surface-elevated p-5"
+          style={{ paddingBottom: insets.bottom + SPACING[5] }}
+          className="gap-4 rounded-md border border-subtle bg-surface-elevated px-5 pt-5"
         >
           <Text className="font-body-semibold text-base text-primary">{t('track.info')}</Text>
 
