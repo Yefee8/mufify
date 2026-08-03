@@ -109,6 +109,7 @@ export function PlayerLayer({ children }: PlayerLayerProps) {
         onExpandedChange={player.setOpen}
         onOpenQueue={openQueue}
         onPrepareQueue={queue.prepare}
+        obscured={queue.expanded}
       />
 
       {/* Above Now Playing, and outside its transformed container. */}

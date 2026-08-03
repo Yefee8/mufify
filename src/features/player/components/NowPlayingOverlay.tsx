@@ -15,6 +15,15 @@ export interface NowPlayingOverlayProps {
   onOpenQueue: () => void;
   /** Mounts the queue on press-in, before the opening spring starts. */
   onPrepareQueue: () => void;
+  /**
+   * The queue is open over this, so there is nothing here to see.
+   *
+   * Not a nicety. Two stacked full-screen sheets composite unreliably on some
+   * devices — the spec strip and the track duration from this screen were
+   * reported drawing *in front of* the queue's rows, and rows behind them came
+   * out black. Nothing draws through a surface that is not being rendered.
+   */
+  obscured: boolean;
 }
 
 /**
@@ -31,6 +40,7 @@ export function NowPlayingOverlay({
   onExpandedChange,
   onOpenQueue,
   onPrepareQueue,
+  obscured,
 }: NowPlayingOverlayProps) {
   return (
     <Sheet
@@ -39,13 +49,22 @@ export function NowPlayingOverlay({
       expanded={expanded}
       className="absolute inset-0 z-30 bg-surface"
     >
-      <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
-        <PlayerScreen
-          onExpandedChange={onExpandedChange}
-          onOpenQueue={onOpenQueue}
-          onPrepareQueue={onPrepareQueue}
-        />
-      </SafeAreaView>
+      {/*
+        Dropped while the queue covers it, and brought back the moment the queue
+        starts leaving rather than when it has left — `expanded` flips at the
+        start of the close, so the remount happens behind a sheet that is still
+        opaque and nobody sees it. It also stops this screen re-rendering twice
+        a second for a scrubber nobody can see.
+      */}
+      {obscured ? null : (
+        <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
+          <PlayerScreen
+            onExpandedChange={onExpandedChange}
+            onOpenQueue={onOpenQueue}
+            onPrepareQueue={onPrepareQueue}
+          />
+        </SafeAreaView>
+      )}
     </Sheet>
   );
 }
