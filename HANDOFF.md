@@ -234,6 +234,37 @@ one Phase 10 item that needs a device.
   retires tracks MediaStore cannot see, and synthetic rows have no files. Seed
   and measure in the same session.
 
+## Round 3 — 2026-08-03
+
+**The Now Playing opening animation is closed.** The user watched it and said so:
+"Now Playing'in yeni animasyonu gayet güzel." That is the only kind of evidence
+that item could ever have had — it was never checkable from a screenshot — so it
+is settled and should not be reopened.
+
+The queue then turned out to have two separate problems behind the one
+complaint, and they needed different fixes:
+
+- **It did not move like Now Playing**, because it was never asked to. Both go
+  through one `Sheet` primitive now; `docs/adr/016` has the numbers and why
+  four look-alike values behaved differently.
+- **Its rows arrived after the sheet did.** Mounting `QueueScreen` costs ~30 ms
+  with 531 tracks; its rows do not paint until ~175 ms. Measuring only the first
+  number would have concluded "already fast" and shipped nothing.
+
+**"This week is empty" was not a bug.** Verified rather than argued: every event
+on the device was recorded on the Saturday and Sunday of ISO week 2026-W31, and
+the report was written on the Monday that began 2026-W32. A listen recorded
+during the session appeared in the week tab immediately. Pinned by tests in
+`rollups.test.ts` so the next person can tell the two apart without a device.
+
+Still owed, and untouched this round on purpose:
+
+- **Item 8b** — the notification's play/pause state. In-app pause and resume are
+  verified. Headphone unplug and audio-focus loss are being tested by hand on
+  the Mi 9T; update this file when that comes back.
+- **Item 8a** — a favourite button in the notification. `docs/adr/015` lists the
+  four options; it needs a decision, not more investigation.
+
 ## Working style
 
 Small verified increments, one logical change per commit, and a commit message
