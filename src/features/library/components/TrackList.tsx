@@ -2,11 +2,9 @@ import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import type { ReactElement } from 'react';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshControl } from 'react-native';
 
 import type { TrackListItem } from '@/db/queries/tracks';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
-import { useThemeColors } from '@/theme/useTheme';
 
 import { LibraryRow } from './LibraryRow';
 
@@ -44,8 +42,6 @@ export interface TrackListProps {
   onSwipeToQueue: (id: number) => void;
   /** Id of the playing track, so one row can be marked. */
   currentTrackId: number | null;
-  isRefreshing: boolean;
-  onRefresh: () => void;
   empty: ReactElement | null;
 }
 
@@ -64,12 +60,9 @@ export function TrackList({
   onLongPress,
   onSwipeToQueue,
   currentTrackId,
-  isRefreshing,
-  onRefresh,
   empty,
 }: TrackListProps) {
   const { t } = useTranslation();
-  const colors = useThemeColors();
   /*
    * A runtime measurement, so it cannot be a Tailwind class — the config
    * compiles anything outside the spacing scale to nothing at all. This is the
@@ -106,19 +99,13 @@ export function TrackList({
       // So the last rows clear the transport strip instead of sitting under it.
       contentContainerStyle={{ paddingBottom: bottomInset }}
       /*
-        Pull to refresh re-indexes and sweeps. Without it a user who has just
-        copied files in has no way to make the app look again short of restarting
-        it — and Android's own scanner may not have noticed yet either.
+        No pull to refresh.
+
+        It ran a full rescan, which on a real library is a sweep of everything
+        MediaStore knows about — a minute of work started by a gesture people
+        make to see the top of a list. Scanning is something you press, and
+        there is a button that says so; see `docs/adr/010`.
       */
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefreshing}
-          onRefresh={onRefresh}
-          tintColor={colors.signal}
-          colors={[colors.signal]}
-          progressBackgroundColor={colors.panel}
-        />
-      }
       ListEmptyComponent={empty}
     />
   );

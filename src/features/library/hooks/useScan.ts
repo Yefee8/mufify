@@ -5,7 +5,6 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   addScanFolder,
   countUnenriched,
-  listScanFolders,
   listUnenrichedUris,
   retireUnseen,
   saveEnriched,
@@ -14,7 +13,7 @@ import {
 import { permissionErrorFor } from '@/services/scanner/permission';
 import { getIgnoreShortFiles } from '@/services/settings';
 import { isPickerDismissal } from '@/services/scanner/pickerError';
-import { PRIMARY_VOLUME_ROOT, treeUriToPath } from '@/services/scanner/treeUri';
+import { treeUriToPath } from '@/services/scanner/treeUri';
 import {
   DEFAULT_SCAN_OPTIONS,
   enrichLibrary,
@@ -34,8 +33,6 @@ const SHORT_FILE_MS = 30_000;
  */
 type PermissionOutcome = 'already-granted' | 'granted-now' | 'denied';
 
-/** Where music lands by default, and so always worth re-indexing. */
-const DEFAULT_MUSIC_PATH = `${PRIMARY_VOLUME_ROOT}/Music`;
 
 /** Where extracted artwork lives. Cache, not documents — it is rebuildable. */
 function artworkDirectory(): string {
@@ -49,14 +46,6 @@ export interface UseScanResult {
   /** True while either stage is running. */
   isScanning: boolean;
   /**
-   * True only for a scan the user pulled for.
-   *
-   * The refresh spinner is a response to a gesture, so it must not appear for a
-   * scan started from the button — that already has the scan banner, and showing
-   * both puts a spinner and a progress bar on screen for the same work.
-   */
-  isRefreshing: boolean;
-  /**
    * Sweep MediaStore. Asks for the audio permission first if it does not have
    * it. Only ever called from an explicit user action — see the note in the
    * body about there being no automatic sweep.
@@ -68,12 +57,6 @@ export interface UseScanResult {
   importFolder: (treeUri: string) => Promise<void>;
   /** True from confirmed folder import until enrichment has settled. */
   isFolderImporting: boolean;
-  /**
-   * Re-index the known folders and sweep again. This is the pull-to-refresh
-   * path: a user who has just copied files in should not have to restart the
-   * app, or wait for the system scanner to notice on its own.
-   */
-  rescan: () => Promise<void>;
   cancel: () => void;
 }
 
@@ -89,7 +72,6 @@ export interface UseScanResult {
  */
 export function useScan(): UseScanResult {
   const [progress, setProgress] = useState<ScanProgress>(IDLE);
-  const [pulled, setPulled] = useState(false);
   const [isFolderImporting, setFolderImporting] = useState(false);
   const cancelled = useRef(false);
 
@@ -225,40 +207,6 @@ export function useScan(): UseScanResult {
     [run],
   );
 
-  const runRescan = useCallback(async () => {
-    if ((await ensurePermission()) === 'denied') return;
-
-    // Re-index first, then sweep. Without the re-index a file copied a minute
-    // ago is still invisible to MediaStore and the sweep would find nothing,
-    // which reads as "the app is broken" rather than "Android has not looked
-    // yet". See ADR 007.
-    const folders = await listScanFolders();
-    const paths = folders
-      .map((folder) => treeUriToPath(folder.uri))
-      .filter((path): path is string => path !== null);
-
-    // Always re-index the standard music location, whether or not it was
-    // explicitly added — it is where files land by default.
-    const targets = [...new Set([...paths, DEFAULT_MUSIC_PATH])];
-
-    try {
-      await AudioTags.requestMediaScan(targets);
-    } catch {
-      // Best-effort. The sweep below still runs on whatever is indexed.
-    }
-
-    await run();
-  }, [ensurePermission, run]);
-
-  const rescan = useCallback(async () => {
-    setPulled(true);
-    try {
-      await runRescan();
-    } finally {
-      setPulled(false);
-    }
-  }, [runRescan]);
-
   const cancel = useCallback(() => {
     cancelled.current = true;
   }, []);
@@ -288,12 +236,10 @@ export function useScan(): UseScanResult {
   return {
     progress,
     isScanning,
-    isRefreshing: pulled && isScanning,
     scanLibrary,
     pickFolder,
     importFolder,
     isFolderImporting,
-    rescan,
     cancel,
   };
 }

@@ -130,8 +130,6 @@ export function CollectionDetailScreen({ kind, id }: CollectionDetailScreenProps
       <LibraryTracks
         tracks={tracks}
         isLoading={false}
-        isRefreshing={false}
-        onRefresh={noop}
         search=""
         /* Never empty in practice — the grid only offers rows that have tracks
            — and an empty state here would be about the wrong thing anyway. */

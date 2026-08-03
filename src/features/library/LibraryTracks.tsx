@@ -21,8 +21,6 @@ export interface LibraryTracksProps {
   tracks: TrackListItem[];
   /** Skeleton instead of a list while true. */
   isLoading: boolean;
-  isRefreshing: boolean;
-  onRefresh: () => void;
   /** The active search term, so "no results" can quote it. */
   search: string;
   /** Suppresses the empty state — the screen is already showing an error. */
@@ -43,8 +41,6 @@ export interface LibraryTracksProps {
 export function LibraryTracks({
   tracks,
   isLoading,
-  isRefreshing,
-  onRefresh,
   search,
   suppressEmpty,
   onScan,
@@ -149,8 +145,6 @@ export function LibraryTracks({
             onLongPress={onLongPress}
             onSwipeToQueue={onSwipeToQueue}
             currentTrackId={currentTrack?.id ?? null}
-            isRefreshing={isRefreshing}
-            onRefresh={onRefresh}
             empty={
               suppressEmpty ? null : search.trim() ? (
                 /* No hits is not an empty library — offering a scan here would

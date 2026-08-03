@@ -57,12 +57,10 @@ export function LibraryScreen() {
   const {
     progress,
     isScanning,
-    isRefreshing,
     scanLibrary,
     pickFolder,
     importFolder,
     isFolderImporting,
-    rescan,
     cancel,
   } = useScan();
 
@@ -168,8 +166,6 @@ export function LibraryScreen() {
         <LibraryTracks
           tracks={tracks}
           isLoading={waiting}
-          isRefreshing={isRefreshing}
-          onRefresh={rescan}
           search={search}
           suppressEmpty={hasFailed}
           onScan={askToScan}
