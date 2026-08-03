@@ -13,7 +13,7 @@
     "android": {
       "package": "dev.mufify.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0A0C11",
+        "backgroundColor": "#151922",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
@@ -42,9 +42,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0A0C11",
+          "backgroundColor": "#151922",
           "dark": {
-            "backgroundColor": "#0A0C11"
+            "backgroundColor": "#151922"
           },
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
