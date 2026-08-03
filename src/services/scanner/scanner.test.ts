@@ -60,20 +60,29 @@ interface Harness {
   retired: { seen: string[] } | null;
   enriched: { fileUri: string; fields: EnrichedFields }[];
   yields: number;
-  queries: { limit: number; offset: number }[];
+  queries: { limit: number; offset: number; pathPrefix?: string | null }[];
+  /** The prefix `countAudioFiles` was asked for, so a scoped count is visible. */
+  countedPrefix: string | null | undefined;
 }
 
 function harness(library: MediaStoreTrack[], pending: string[] = []): Harness {
   const saved: ScannedTrack[] = [];
   const enriched: { fileUri: string; fields: EnrichedFields }[] = [];
-  const queries: { limit: number; offset: number }[] = [];
+  const queries: { limit: number; offset: number; pathPrefix?: string | null }[] = [];
   const queue = [...pending];
-  const state = { yields: 0, retired: null as { seen: string[] } | null };
+  const state = {
+    yields: 0,
+    retired: null as { seen: string[] } | null,
+    countedPrefix: undefined as string | null | undefined,
+  };
 
   const ports: ScannerPorts = {
-    countAudioFiles: async () => library.length,
-    queryAudioFiles: async ({ limit, offset }) => {
-      queries.push({ limit, offset });
+    countAudioFiles: async (_minDurationMs, pathPrefix) => {
+      state.countedPrefix = pathPrefix;
+      return library.length;
+    },
+    queryAudioFiles: async ({ limit, offset, pathPrefix }) => {
+      queries.push({ limit, offset, pathPrefix });
       return library.slice(offset, offset + limit);
     },
     readTags: async (uris) => uris.map((uri) => tags(uri)),
@@ -103,6 +112,9 @@ function harness(library: MediaStoreTrack[], pending: string[] = []): Harness {
     },
     get retired() {
       return state.retired;
+    },
+    get countedPrefix() {
+      return state.countedPrefix;
     },
   };
 }
@@ -344,5 +356,60 @@ describe('retiring tracks the sweep did not see', () => {
     const bench = harness([]);
     await enumerateLibrary(bench.ports, options, () => {});
     expect(bench.retired?.seen).toEqual([]);
+  });
+});
+
+/**
+ * Importing one folder.
+ *
+ * Reported as: picking a folder indexes it and then starts scanning the whole
+ * device. It did — the import added the tree and called the same full sweep the
+ * Scan button runs.
+ *
+ * The dangerous half is not the wasted time. A sweep ends by retiring every
+ * track it did not see, so a scan scoped to one folder would mark the entire
+ * rest of the library missing: the library disappearing because somebody added
+ * to it.
+ */
+describe('a folder-scoped scan', () => {
+  const scoped = { ...options, pathPrefix: '/storage/emulated/0/Music/FLAC' };
+
+  it('asks MediaStore only for that folder', async () => {
+    const test = harness([row(1), row(2)]);
+
+    await enumerateLibrary(test.ports, scoped, () => undefined);
+
+    expect(test.countedPrefix).toBe('/storage/emulated/0/Music/FLAC');
+    for (const query of test.queries) {
+      expect(query.pathPrefix).toBe('/storage/emulated/0/Music/FLAC');
+    }
+  });
+
+  it('retires nothing, because it never looked at the rest of the library', async () => {
+    const test = harness([row(1)]);
+
+    await enumerateLibrary(test.ports, scoped, () => undefined);
+
+    expect(test.retired).toBeNull();
+  });
+
+  it('still saves what it found', async () => {
+    const test = harness([row(1), row(2)]);
+
+    const progress = await enumerateLibrary(test.ports, scoped, () => undefined);
+
+    expect(progress.phase).toBe('done');
+    expect(test.saved).toHaveLength(2);
+  });
+
+  it('sweeps and retires as before when no folder is given', async () => {
+    // The Scan button, and the fallback for an SD card whose tree URI carries
+    // an opaque volume id that no path can be derived from.
+    const test = harness([row(1)]);
+
+    await enumerateLibrary(test.ports, options, () => undefined);
+
+    expect(test.countedPrefix ?? null).toBeNull();
+    expect(test.retired).not.toBeNull();
   });
 });

@@ -34,10 +34,20 @@ export interface ScanOptions {
   /** Files opened per enrich batch. */
   enrichBatchSize: number;
   artworkDirectory: string;
+  /**
+   * Index only files under this filesystem path, or the whole volume when null.
+   *
+   * Set by a folder import. A scoped sweep **never retires**: it has not looked
+   * at the rest of the library, so it has no business declaring any of it
+   * missing — and doing so would mark every track outside the imported folder
+   * as gone, taking the library down to one folder in a single tap.
+   */
+  pathPrefix?: string | null;
 }
 
 export const DEFAULT_SCAN_OPTIONS: ScanOptions = {
   minDurationMs: 5_000,
+  pathPrefix: null,
   // Big enough that paging is not the bottleneck, small enough that the first
   // rows land almost immediately.
   enumerateBatchSize: 500,
@@ -47,11 +57,12 @@ export const DEFAULT_SCAN_OPTIONS: ScanOptions = {
 };
 
 export interface ScannerPorts {
-  countAudioFiles(minDurationMs: number): Promise<number>;
+  countAudioFiles(minDurationMs: number, pathPrefix?: string | null): Promise<number>;
   queryAudioFiles(options: {
     limit: number;
     offset: number;
     minDurationMs?: number;
+    pathPrefix?: string | null;
   }): Promise<MediaStoreTrack[]>;
   readTags(uris: string[], options: { artworkDirectory: string }): Promise<TrackTags[]>;
 
@@ -104,7 +115,7 @@ export async function enumerateLibrary(
   onProgress(progress);
 
   try {
-    const total = await ports.countAudioFiles(options.minDurationMs);
+    const total = await ports.countAudioFiles(options.minDurationMs, options.pathPrefix);
     progress = { ...progress, total };
     onProgress(progress);
 
@@ -119,6 +130,7 @@ export async function enumerateLibrary(
         limit: options.enumerateBatchSize,
         offset,
         minDurationMs: options.minDurationMs,
+        pathPrefix: options.pathPrefix,
       });
       if (page.length === 0) break;
 
@@ -138,13 +150,17 @@ export async function enumerateLibrary(
     }
 
     /*
-     * Only now, with the whole library seen. A track whose file is gone — or
-     * which no longer qualifies as music, since MIUI files call recordings as
-     * songs and those are excluded by folder now — is marked, never deleted.
-     * Deleting would take playlist entries and play history with it, and an
-     * unmounted SD card would read as a library wipe.
+     * Only now, and only when the whole library was in scope. A track whose
+     * file is gone — or which no longer qualifies as music, since MIUI files
+     * call recordings as songs and those are excluded by folder now — is
+     * marked, never deleted. Deleting would take playlist entries and play
+     * history with it, and an unmounted SD card would read as a library wipe.
+     *
+     * A folder import saw one folder. Retiring on that basis would mark every
+     * track outside it as missing, which is the library disappearing because
+     * somebody added to it.
      */
-    await ports.retireUnseen(seen);
+    if (options.pathPrefix == null) await ports.retireUnseen(seen);
 
     return finish({ ...progress, total: Math.max(progress.total, offset) }, 'done', onProgress);
   } catch (error) {

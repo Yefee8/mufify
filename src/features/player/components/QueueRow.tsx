@@ -48,11 +48,22 @@ export const QueueRow = memo(function QueueRow({
   ].join(' — ');
 
   return (
+    /*
+     * A played entry is dimmed and nothing else.
+     *
+     * One opacity on the row, rather than a different colour on the title and a
+     * separate opacity on the artwork: those two dimmed by different amounts,
+     * which read as a shadow across the row instead of as "already played", and
+     * left the artwork placeholder — a filled panel with no opacity of its own —
+     * at full strength in the middle of it.
+     */
     <View
       className={
         isCurrent
           ? 'h-16 flex-row items-center gap-3 border-l-2 border-accent bg-surface-elevated pl-5 pr-2'
-          : 'h-16 flex-row items-center gap-3 pl-6 pr-2'
+          : isPast
+            ? 'h-16 flex-row items-center gap-3 pl-6 pr-2 opacity-40'
+            : 'h-16 flex-row items-center gap-3 pl-6 pr-2'
       }
     >
       <Pressable
@@ -68,7 +79,7 @@ export const QueueRow = memo(function QueueRow({
             recyclingKey={`${track.id}-${position}`}
             cachePolicy="memory-disk"
             contentFit="cover"
-            className={isPast ? 'h-10 w-10 rounded-xs opacity-50' : 'h-10 w-10 rounded-xs'}
+            className="h-10 w-10 rounded-xs"
           />
         ) : (
           <View className="h-10 w-10 items-center justify-center rounded-xs bg-surface-elevated">
@@ -82,9 +93,7 @@ export const QueueRow = memo(function QueueRow({
             className={
               isCurrent
                 ? 'font-body-medium text-base text-accent'
-                : isPast
-                  ? 'font-body text-base text-muted'
-                  : 'font-body text-base text-primary'
+                : 'font-body text-base text-primary'
             }
           >
             {track.title}

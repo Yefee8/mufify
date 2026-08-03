@@ -270,11 +270,63 @@ MediaSession and MIUI draws it its own way, so it will keep looking like a
 system media notification because that is what it is. The favourite button
 remains blocked by `docs/adr/015` and needs a decision, not more investigation.
 
-One thing left open by this round: the queue header was reported as losing its
-close button and title on the Mi 9T, and **it could not be reproduced on the
-AVD**. The header was rebuilt to remove the fragility the report points at — it
-was positioned by `justify-between` against a phantom spacer — but that is a
-structural fix, not a watched one. Worth a look next time the phone is in hand.
+One thing left open by this round: the queue header lost its close button and
+title on the Mi 9T, and **neither symptom could be reproduced on the AVD**. Both
+were addressed structurally rather than by watching them fail — the row was
+positioned by `justify-between` against a phantom spacer, and the close button
+was a minimum-sized, collapsible box whose only child is an SVG. The title and
+the clear button came back on the phone after the first fix; the chevron needed
+the second, which has not been seen on hardware yet. **Check it next time the
+phone is in hand**, and if it is still going, the thing to suspect is two
+stacked opacity-animated full-screen layers rather than anything in that header.
+
+## Round 4 — 2026-08-03
+
+**Folder import no longer sweeps the device.** It added the tree, asked the
+platform to index it, then ran the same full-library scan the Scan button runs.
+The wasted time was the visible half; the dangerous half is that a sweep retires
+everything it did not see, so a folder-scoped scan would have marked the rest of
+the library missing. `ScanOptions.pathPrefix` carries the scope, and the scoped
+path deliberately does not retire — there is a test for exactly that.
+
+**Played queue entries are dimmed once.** They had a muted title *and* a
+half-opacity artwork *and* a placeholder with no opacity at all, which read as a
+shadow across the row.
+
+**The queue's close chevron, attempt three.** Reported again after attempt two.
+The sheet no longer animates its alpha — it arrives over an already-opaque Now
+Playing, so it had nothing to fade against, and an animated alpha promotes the
+surface to a hardware layer and releases it, which is a cycle an SVG child can
+fail to survive. **Still never reproduced on an emulator, in debug or release.**
+If it survives this: stop guessing at the header and replace that chevron's SVG
+with something that is not one.
+
+## Release, 2026-08-03
+
+`assembleRelease` and `bundleRelease` both build. The artifacts are gitignored
+along with the rest of `android/`, so they are rebuilt rather than kept:
+
+    android/app/build/outputs/apk/release/app-release.apk      ~128 MB, universal
+    android/app/build/outputs/bundle/release/app-release.aab   ~97 MB, upload this
+
+The APK was installed on the AVD with `adb reverse --remove-all` first, so it
+could not fall back to Metro, and driven end to end: cold boot, scan to 531
+tracks, play, Now Playing, the queue sheet. No crashes, and the sheet work holds
+up under release minification, which debug does not prove.
+
+Before an actual upload: raise `versionCode` and `versionName`, and sign with a
+real key — both artifacts currently carry the debug key, which is fine for
+sideloading and not for Play. `README.md` has the checked properties and the one
+permission worth explaining.
+
+**`v0.1.0` is published**, cut from this branch before it was merged:
+<https://github.com/Yefee8/mufify/releases/tag/v0.1.0>, with the universal APK
+attached. `README.md` links to it and carries the `gh release create` line that
+made it. The next one is a version bump, a rebuild, and that same command.
+
+Because it is debug-signed, anyone who installs it cannot later upgrade to a
+properly-signed build without uninstalling first. That is a one-time cost and it
+is worth paying before the app has users rather than after.
 
 ## Working style
 

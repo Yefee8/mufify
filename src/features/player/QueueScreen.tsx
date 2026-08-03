@@ -107,11 +107,26 @@ export function QueueScreen({ onClose }: QueueScreenProps) {
         depends on what its neighbour is.
       */}
       <View className="flex-row items-center gap-2 px-4 pt-6">
+        {/*
+          `h-11 w-11`, not `min-h-11 min-w-11`, and `collapsable={false}`.
+
+          This is the one control that kept vanishing after the header was
+          otherwise fixed — visible for a frame, then gone, on the phone but
+          never on the emulator. Both changes remove a way that can happen.
+          A minimum size still leaves the box to be measured, and a box whose
+          only child is an SVG measures to nothing if that child has not laid
+          out yet; an explicit 44 × 44 is the touch target we want anyway and
+          cannot be squeezed. `collapsable={false}` stops Android flattening
+          the view away, which is what it does to a container with no
+          background of its own — and this one sits inside two stacked,
+          opacity-animated, full-screen layers, which is where that goes wrong.
+        */}
         <Pressable
           onPress={onClose}
+          collapsable={false}
           accessibilityRole="button"
           accessibilityLabel={t('queue.close')}
-          className="min-h-11 min-w-11 items-center justify-center"
+          className="h-11 w-11 items-center justify-center"
         >
           <ChevronDown color={colors.label} size={26} strokeWidth={2} />
         </Pressable>

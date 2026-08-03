@@ -26,6 +26,18 @@ export interface SheetProps {
   expanded: boolean;
   /** Stacking order and surface colour, e.g. `absolute inset-0 z-30 bg-surface`. */
   className: string;
+  /**
+   * Fade in as well as slide.
+   *
+   * On for a sheet arriving over the app, where the movement alone reads as two
+   * screens sliding past each other. **Off for a sheet arriving over another
+   * opaque sheet**, which has nothing to fade against — and, on Android, an
+   * animated alpha promotes the surface to a hardware layer for the duration
+   * and releases it afterwards, which is a cycle SVG children have been seen
+   * not to survive. The queue's close chevron was drawing for one frame and
+   * then disappearing on a device, and this is the shape of that.
+   */
+  fade?: boolean;
   children: ReactNode;
 }
 
@@ -45,15 +57,25 @@ export interface SheetProps {
  * `useSheet`, which owns opening and closing; this draws whatever `progress`
  * currently says.
  */
-export function Sheet({ progress, visible, expanded, className, children }: SheetProps) {
+export function Sheet({
+  progress,
+  visible,
+  expanded,
+  className,
+  fade = true,
+  children,
+}: SheetProps) {
   const { height } = useWindowDimensions();
 
   const style = useAnimatedStyle(() => ({
     // Opaque well before the travel ends. Tracking the whole gesture leaves the
     // surface half transparent at the midpoint, and the screen underneath reads
     // straight through it — a cross-fade between two screens rather than one
-    // sheet arriving over another.
-    opacity: interpolate(progress.value, [0, SHEET_FADE_COMPLETE_AT], [0, 1], Extrapolation.CLAMP),
+    // sheet arriving over another. A sheet that never fades stays at 1, so the
+    // platform has no reason to give it a layer at all.
+    opacity: fade
+      ? interpolate(progress.value, [0, SHEET_FADE_COMPLETE_AT], [0, 1], Extrapolation.CLAMP)
+      : 1,
     // Linear against the shared value on purpose: the easing belongs to the
     // spring driving that value, and a curve here too would compound the two
     // into something that reads as a stutter.
