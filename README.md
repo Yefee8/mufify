@@ -157,9 +157,9 @@ never in the repository.
 Publishing one:
 
 ```bash
-gh release create v1.0.2 \
-  android/app/build/outputs/apk/release/app-release.apk#mufify-1.0.2.apk \
-  --title "Mufify 1.0.2" --notes-file <notes>
+gh release create v1.0.3 \
+  android/app/build/outputs/apk/release/app-release.apk#mufify-1.0.3.apk \
+  --title "Mufify 1.0.3" --notes-file <notes>
 ```
 
 Raise `version` and `android.versionCode` in `app.json` first. Android refuses
@@ -170,14 +170,14 @@ The artifacts are gitignored along with the rest of `android/` — a 128 MB bina
 does not belong in the history. The release is where it goes.
 
 What the release build is checked for, and what `assembleRelease` produced on
-2026-08-04:
+2026-08-05:
 
 | Check | Result |
 |---|---|
 | `INTERNET` permission | **absent** — this is the whole promise, and `plugins/withOfflineOnly.js` is what keeps it out |
 | `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, `WRITE_EXTERNAL_STORAGE` | absent, blocked in `app.json` |
 | Debuggable | no |
-| `versionCode` / `versionName` | 4 / 1.0.2 |
+| `versionCode` / `versionName` | 5 / 1.0.3 |
 
 One permission does survive that is worth knowing about: `ACCESS_NETWORK_STATE`,
 pulled in by a dependency rather than asked for here. It cannot open a
