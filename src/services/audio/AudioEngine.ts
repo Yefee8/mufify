@@ -1,4 +1,4 @@
-import { onAudioBecomingNoisy } from 'audio-focus';
+import { onAudioBecomingNoisy, onMediaSkip } from 'audio-focus';
 import {
   createAudioPlayer,
   setAudioModeAsync,
@@ -118,13 +118,22 @@ class Engine {
   /**
    * Set when a track has been handed to the player but is not open yet.
    *
-   * `replace()` returns before the new source is ready, so calling `play()`
-   * straight after it is a race the player usually loses: the source swaps,
-   * nothing starts, and playback stops dead on the second track of every
-   * queue. The intent to play is recorded here and acted on when a status
-   * update says the file is actually loaded.
+   * `replace()` returns before the new source is ready. The intent to play is
+   * recorded here, asked for immediately, and asked for again on each status
+   * update until the file is open — see `requestPlay`.
    */
   private playWhenReady = false;
+
+  /**
+   * Whether the audio session is claimed and has not been handed back.
+   *
+   * `setIsAudioActiveAsync` used to run on every track load. It is an async
+   * native call, and awaiting it sat directly between the track that had just
+   * ended and the file that should already have been opening — to re-enable a
+   * session that was, in the steady state, already enabled. It is worth
+   * exactly one round trip, on the first track after silence.
+   */
+  private audioActive = false;
 
   /**
    * Whether this player is already the lock screen's active player.
@@ -182,6 +191,24 @@ class Engine {
      * see the note in modules/audio-focus.
      */
     onAudioBecomingNoisy(() => this.pause());
+
+    /*
+     * Next and previous from outside the app — a Bluetooth remote, a headset
+     * button, a car.
+     *
+     * They arrive here rather than at the player because the queue is here.
+     * expo-audio's session refused both commands outright, so the buttons did
+     * nothing while play and pause worked; `patches/expo-audio` restores them
+     * and has the session announce them instead of seeking a timeline that
+     * holds one item. `docs/adr/017` has the whole of it.
+     *
+     * `explicit` is true: a remote's skip is a person pressing a button, and
+     * the play/skip rule should count it the same as pressing next in the app.
+     */
+    onMediaSkip((direction) => {
+      if (direction === 'next') void this.advance(true);
+      else void this.previous();
+    });
   }
 
   subscribe(listener: Listener): () => void {
@@ -399,43 +426,68 @@ class Engine {
     this.reportClosedListen(this.listenCycle.restart(), true);
   }
 
+  /**
+   * Point the player at a queue position.
+   *
+   * The order here is the gap between tracks, so it is deliberate. Everything
+   * the next file does not need happens *after* it has been handed over, and
+   * once the session is warm nothing is awaited in front of it at all.
+   *
+   * What used to be in front of it: `configure` and `setIsAudioActiveAsync`,
+   * two async native calls made on every single load, and `emit`, which
+   * re-renders the player UI. Then the file was handed over and playback
+   * waited for a status event to cross into JS and a `play()` to cross back —
+   * because `replace` resumes by itself only when the player *was* playing,
+   * and a track that reached its own end has already stopped. On a run of
+   * short tracks that read as roughly a third of a second of silence between
+   * every one of them.
+   */
   private async loadIndex(index: number, autoPlay: boolean): Promise<void> {
     const track = this.queue[index];
     if (!track) return;
 
-    // The outgoing track's listen closes before the incoming one starts.
+    // Closes before `emit` below replaces the track it is attributed to.
     this.flushListen(false);
     this.listenCycle.open();
 
     this.index = index;
     this.lastPositionMs = 0;
-    this.emitQueue();
-    this.emit({ phase: 'loading', track, positionMs: 0, durationMs: track.durationMs });
+    this.playWhenReady = autoPlay;
 
     try {
-      await this.configure();
-      await setIsAudioActiveAsync(true);
-
-      this.playWhenReady = autoPlay;
-
-      if (this.player === null) {
-        this.player = createAudioPlayer({ uri: track.uri }, { updateInterval: STATUS_INTERVAL_MS });
-        this.player.addListener('playbackStatusUpdate', this.onStatus);
-      } else {
+      if (this.player !== null && this.audioActive) {
+        // The warm path, and the only one that runs between two tracks.
         this.player.replace({ uri: track.uri });
+        this.requestPlay();
+      } else {
+        await this.configure();
+        await setIsAudioActiveAsync(true);
+        this.audioActive = true;
+
+        if (this.player === null) {
+          this.player = createAudioPlayer(
+            { uri: track.uri },
+            { updateInterval: STATUS_INTERVAL_MS },
+          );
+          this.player.addListener('playbackStatusUpdate', this.onStatus);
+        } else {
+          this.player.replace({ uri: track.uri });
+        }
+
+        this.requestPlay();
       }
 
       this.bindLockScreen(track);
-
-      // A freshly constructed player is ready synchronously; a replaced source
-      // is not. Try now and let `onStatus` retry once it reports loaded.
-      this.startIfReady();
     } catch (error) {
       this.emit({
         phase: 'error',
         error: error instanceof Error ? error.message : String(error),
       });
+      return;
     }
+
+    this.emitQueue();
+    this.emit({ phase: 'loading', track, positionMs: 0, durationMs: track.durationMs });
   }
 
   /**
@@ -484,18 +536,29 @@ class Engine {
     });
   }
 
-  /** Start playback once the source is actually open. Safe to call repeatedly. */
-  private startIfReady(): void {
-    if (!this.playWhenReady) return;
-    if (this.player === null || !this.player.isLoaded) return;
-
-    this.playWhenReady = false;
+  /**
+   * Ask to play, whether or not the file is open yet. Safe to call repeatedly.
+   *
+   * ExoPlayer treats `play()` as an intention: it sets `playWhenReady` and
+   * starts the moment the source is prepared, with no second round trip
+   * through JS. Waiting for `isLoaded` first, as this used to, spent a status
+   * interval doing nothing on every track change.
+   *
+   * What does not survive an early call is expo-audio's own guard — `play()`
+   * is dropped outright while the module's audio session is disabled, which is
+   * the race the old check was really protecting against. So the intent is
+   * kept rather than cleared, and re-asked on each status update, until the
+   * player reports the file open and the ask has plainly been heard.
+   */
+  private requestPlay(): void {
+    if (!this.playWhenReady || this.player === null) return;
     this.player.play();
+    if (this.player.isLoaded) this.playWhenReady = false;
   }
 
   private onStatus = (status: AudioStatus): void => {
-    // The pending start from `loadIndex`, now that the file may be open.
-    if (status.isLoaded) this.startIfReady();
+    // The pending start from `loadIndex`, in case the eager ask was too early.
+    this.requestPlay();
 
     const positionMs = Math.round(status.currentTime * 1000);
 
@@ -548,7 +611,7 @@ class Engine {
     // not dropped — otherwise the button does nothing and the user presses it
     // again, which is how a double-start happens.
     this.playWhenReady = true;
-    this.startIfReady();
+    this.requestPlay();
   }
 
   pause(): void {
@@ -686,6 +749,7 @@ class Engine {
     this.index = -1;
     this.emitQueue();
     this.emit({ ...IDLE_PLAYBACK });
+    this.audioActive = false;
     await setIsAudioActiveAsync(false);
   }
 }
