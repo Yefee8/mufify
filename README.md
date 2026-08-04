@@ -128,6 +128,15 @@ possible** — taps need a human. Use the emulator for behaviour and keep the
 phone for what only it can answer: old-API paths, real frame timing, the media
 notification, and anything involving headphones or a phone call.
 
+It blocks input, not the build, and that is enough for a rendering bug the
+emulator will not reproduce. Put the app into the state you need from code — a
+`setTimeout` in `PlayerLayer` that opens the sheet on launch — and add
+`android:showWhenLocked="true" android:turnScreenOn="true"` to `.MainActivity`
+in the generated manifest, so `am start` wakes a sleeping screen. Then
+`exec-out screencap` for what it drew and `dumpsys activity top` for the native
+view tree with bounds. Both patches are throwaway, and an incremental
+`assembleRelease` is about 35 seconds, so it is fast enough to bisect with.
+
 ## Building a release
 
 ```bash
@@ -161,7 +170,7 @@ The artifacts are gitignored along with the rest of `android/` — a 128 MB bina
 does not belong in the history. The release is where it goes.
 
 What the release build is checked for, and what `assembleRelease` produced on
-2026-08-03:
+2026-08-04:
 
 | Check | Result |
 |---|---|
