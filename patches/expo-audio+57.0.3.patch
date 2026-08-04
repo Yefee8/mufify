@@ -1,0 +1,146 @@
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
+@@ -371,7 +371,7 @@
+           updateMetadata(metadata)
+         }
+         val session = MediaSession.Builder(context, sessionPlayer)
+-          .setCallback(AudioMediaSessionCallback())
++          .setCallback(AudioMediaSessionCallback(context))
+           .build()
+ 
+         // Replace the basic media session with a session connected to our playback service.
+@@ -452,7 +452,7 @@
+           updateMetadata(metadata)
+         }
+         val session = MediaSession.Builder(context, sessionPlayer)
+-          .setCallback(AudioMediaSessionCallback())
++          .setCallback(AudioMediaSessionCallback(context))
+           .build()
+ 
+         player.mediaSession.release()
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
+@@ -1,5 +1,7 @@
+ package expo.modules.audio.service
+ 
++import android.content.Context
++import android.content.Intent
+ import android.os.Bundle
+ import androidx.media3.common.Player
+ import androidx.media3.session.MediaSession
+@@ -10,7 +12,7 @@
+ import com.google.common.util.concurrent.ListenableFuture
+ 
+ @OptIn(UnstableApi::class)
+-class AudioMediaSessionCallback : MediaSession.Callback {
++class AudioMediaSessionCallback(private val context: Context) : MediaSession.Callback {
+   override fun onConnect(
+     session: MediaSession,
+     controller: MediaSession.ControllerInfo
+@@ -24,11 +26,12 @@
+             .add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+             .add(Player.COMMAND_SEEK_FORWARD)
+             .add(Player.COMMAND_SEEK_BACK)
+-            // Remove track navigation commands
+-            .remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+-            .remove(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+-            .remove(Player.COMMAND_SEEK_TO_PREVIOUS)
+-            .remove(Player.COMMAND_SEEK_TO_NEXT)
++            // Track navigation, answered by the app rather than by the player:
++            // the queue lives in JavaScript and this player holds one item.
++            .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
++            .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
++            .add(Player.COMMAND_SEEK_TO_PREVIOUS)
++            .add(Player.COMMAND_SEEK_TO_NEXT)
+             .build()
+         )
+         .setAvailableSessionCommands(
+@@ -41,6 +44,37 @@
+     } catch (e: Exception) {
+       return MediaSession.ConnectionResult.reject()
+     }
++  }
++
++  /**
++   * Turn a skip into a broadcast instead of a seek.
++   *
++   * The session's player holds exactly one media item, so seeking to the next
++   * one means nothing to it — the queue is in JavaScript. The request is
++   * announced here and refused, and the app's own module hands it over.
++   */
++  override fun onPlayerCommandRequest(
++    session: MediaSession,
++    controller: MediaSession.ControllerInfo,
++    playerCommand: Int
++  ): Int {
++    val direction = when (playerCommand) {
++      Player.COMMAND_SEEK_TO_NEXT, Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM -> "next"
++      Player.COMMAND_SEEK_TO_PREVIOUS, Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> "previous"
++      else -> null
++    } ?: return super.onPlayerCommandRequest(session, controller, playerCommand)
++
++    context.sendBroadcast(
++      Intent(ACTION_MEDIA_SKIP)
++        .setPackage(context.packageName)
++        .putExtra(EXTRA_DIRECTION, direction)
++    )
++    return SessionResult.RESULT_ERROR_NOT_SUPPORTED
++  }
++
++  companion object {
++    const val ACTION_MEDIA_SKIP = "expo.modules.audio.MEDIA_SKIP"
++    const val EXTRA_DIRECTION = "direction"
+   }
+ 
+   override fun onCustomCommand(
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt
+@@ -35,6 +35,45 @@
+     }
+     super.removeListener(forwardingListener ?: listener)
+   }
++
++  /**
++   * Advertise track navigation even though this player holds one item.
++   *
++   * `MediaSession` intersects what the callback allows with what the player
++   * reports, and ExoPlayer reports no next item because there is none in its
++   * timeline — the queue is in JavaScript. Without this the session's legacy
++   * `PlaybackState` carries neither `ACTION_SKIP_TO_NEXT` nor
++   * `ACTION_SKIP_TO_PREVIOUS`, and a Bluetooth remote's skip buttons are
++   * dropped by the framework before anything here is consulted. The commands
++   * are never executed against this player: the callback answers and refuses
++   * them.
++   */
++  override fun getAvailableCommands(): Player.Commands =
++    super.getAvailableCommands()
++      .buildUpon()
++      .add(Player.COMMAND_SEEK_TO_NEXT)
++      .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
++      .add(Player.COMMAND_SEEK_TO_PREVIOUS)
++      .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
++      .build()
++
++  /** `ForwardingPlayer` answers this from the wrapped player, not from above. */
++  override fun isCommandAvailable(command: Int): Boolean = when (command) {
++    Player.COMMAND_SEEK_TO_NEXT,
++    Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
++    Player.COMMAND_SEEK_TO_PREVIOUS,
++    Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> true
++    else -> super.isCommandAvailable(command)
++  }
++
++  /*
++   * The legacy `PlaybackState` that Bluetooth reads sets its skip actions from
++   * the timeline, not only from the commands. One media item means no next and
++   * no previous, so both bits stayed clear whatever the commands said.
++   */
++  override fun hasNextMediaItem(): Boolean = true
++
++  override fun hasPreviousMediaItem(): Boolean = true
+ 
+   override fun getMediaMetadata(): MediaMetadata {
+     val metadata = injectedMetadata

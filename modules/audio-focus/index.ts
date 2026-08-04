@@ -1,6 +1,9 @@
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import type { EventSubscription } from 'expo-modules-core';
 
+/** Which way a remote asked to move through the queue. */
+export type MediaSkipDirection = 'next' | 'previous';
+
 interface AudioFocusEventsModule {
   /**
    * Fires just before Android reroutes playback to the speaker — headphones
@@ -8,6 +11,14 @@ interface AudioFocusEventsModule {
    * pauses; nothing else in the stack does it for us.
    */
   addListener(event: 'audioBecomingNoisy', listener: () => void): EventSubscription;
+  /**
+   * Fires when something outside the app asks for the next or previous track —
+   * a Bluetooth remote, a headset button, the notification, a car.
+   */
+  addListener(
+    event: 'mediaSkip',
+    listener: (payload: { direction: MediaSkipDirection }) => void,
+  ): EventSubscription;
 }
 
 /**
@@ -33,6 +44,32 @@ const AudioFocusEvents = requireOptionalNativeModule<AudioFocusEventsModule>('Au
 export function onAudioBecomingNoisy(listener: () => void): () => void {
   const subscription = AudioFocusEvents?.addListener('audioBecomingNoisy', listener);
   return () => subscription?.remove();
+}
+
+/**
+ * Subscribe to skip requests from outside the app, if this build has them.
+ *
+ * The queue is in JavaScript, so nothing native can answer these — expo-audio's
+ * `MediaSession` announces them and refuses them, and the engine decides what
+ * next and previous mean. See `docs/adr/017`.
+ */
+export function onMediaSkip(listener: (direction: MediaSkipDirection) => void): () => void {
+  /*
+   * Guarded, and not only against the module being absent. A dev client built
+   * before this event existed *has* the module and rejects the name, which
+   * throws — and this is called from `AudioEngine.configure`, inside the try
+   * that wraps loading a track. An unguarded throw there means the player is
+   * never created and nothing plays at all, which is a great deal worse than a
+   * Bluetooth remote whose skip buttons do nothing.
+   */
+  try {
+    const subscription = AudioFocusEvents?.addListener('mediaSkip', ({ direction }) =>
+      listener(direction),
+    );
+    return () => subscription?.remove();
+  } catch {
+    return () => undefined;
+  }
 }
 
 /** Whether this build can warn about audio routing changes at all. */

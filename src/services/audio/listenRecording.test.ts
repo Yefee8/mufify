@@ -1,5 +1,6 @@
 jest.mock('audio-focus', () => ({
   onAudioBecomingNoisy: () => () => undefined,
+  onMediaSkip: () => () => undefined,
   hasAudioFocusEvents: false,
 }));
 
