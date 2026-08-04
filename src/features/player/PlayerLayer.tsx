@@ -112,8 +112,13 @@ export function PlayerLayer({ children }: PlayerLayerProps) {
         obscured={queue.expanded}
       />
 
-      {/* Above Now Playing, and outside its transformed container. */}
-      <QueueOverlay visible={queue.visible} expanded={queue.expanded} onClose={closeQueue} />
+      {/* Above Now Playing, and — on Android — in a window of its own. */}
+      <QueueOverlay
+        visible={queue.visible}
+        presented={queue.presented}
+        expanded={queue.expanded}
+        onClose={closeQueue}
+      />
     </View>
   );
 }

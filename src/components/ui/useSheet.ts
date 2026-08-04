@@ -8,6 +8,17 @@ import { useReducedMotion } from '@/theme/useReducedMotion';
 export interface SheetController {
   /** Mounted. False once a close has finished, so contents stop costing anything. */
   visible: boolean;
+  /**
+   * On screen: opening, open, or still closing. Never true for a `prepare`.
+   *
+   * `visible` cannot answer this. It is also set by `prepare`, on press-in, so
+   * a press that never becomes a tap leaves a mounted sheet sitting closed —
+   * harmless for a view, which is off screen and takes no touches, and not
+   * harmless for anything that costs something merely by existing. The queue
+   * gets its own window, and a full-screen transparent window swallows every
+   * touch underneath it whether or not it is drawing anything.
+   */
+  presented: boolean;
   /** Settled open. Drives `pointerEvents`, so a closing sheet stops taking touches. */
   expanded: boolean;
   /**
@@ -71,6 +82,7 @@ function settleSheet(
 export function useSheet(progress: SharedValue<number>): SheetController {
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [presented, setPresented] = useState(false);
   const reducedMotion = useReducedMotion();
 
   const prepare = useCallback(() => setVisible(true), []);
@@ -83,10 +95,16 @@ export function useSheet(progress: SharedValue<number>): SheetController {
       const multiplier = reducedMotion ? 0 : SPEED_MULTIPLIERS[getAnimationSpeed()];
 
       setExpanded(open);
-      if (open) setVisible(true);
+      if (open) {
+        setVisible(true);
+        setPresented(true);
+      }
 
       settleSheet(progress, open ? 1 : 0, multiplier, velocity, () => {
-        if (!open) setVisible(false);
+        if (!open) {
+          setVisible(false);
+          setPresented(false);
+        }
       });
     },
     /*
@@ -99,5 +117,5 @@ export function useSheet(progress: SharedValue<number>): SheetController {
     [reducedMotion],
   );
 
-  return { visible, expanded, prepare, setOpen };
+  return { visible, expanded, presented, prepare, setOpen };
 }
