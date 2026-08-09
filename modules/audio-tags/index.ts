@@ -22,6 +22,15 @@ declare class AudioTagsModuleType {
    */
   readTags(uris: string[], options: ReadTagsOptions): Promise<TrackTags[]>;
 
+  /**
+   * Embedded lyrics for one file, raw, or null when it carries none.
+   *
+   * Reads only the metadata at the head of the file, so it is cheap enough to
+   * ask per track rather than to store for a whole library. FLAC's Vorbis
+   * comment and MP3's `USLT`; anything else answers null.
+   */
+  readLyrics(uri: string): Promise<string | null>;
+
   /** Whether READ_MEDIA_AUDIO (or its pre-33 equivalent) has been granted. */
   hasAudioPermission(): Promise<boolean>;
 

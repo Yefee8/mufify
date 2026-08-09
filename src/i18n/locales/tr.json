@@ -180,6 +180,35 @@
       "normal": "Normal",
       "fast": "Hızlı",
       "instant": "Anında"
+    },
+    "equalizer": {
+      "title": "Ekolayzer",
+      "enable": "Ekolayzer",
+      "enableHint": "Varsayılan olarak kapalı; sen istemedikçe parça masterlandığı gibi çalar.",
+      "preset": "Hazır ayar",
+      "band": "{{hz}} hertz bandı",
+      "noSession": "Önce bir şey çal — bantlar ses aygıtından geliyor, ses geçmeden okunacak bir şey yok.",
+      "missing": "Bu sürümde ekolayzer yok. Sonradan eklenen bir native modül gerekiyor; almak için uygulamayı yeniden kur.",
+      "presets": {
+        "flat": "Düz",
+        "bass": "Bas",
+        "treble": "Tiz",
+        "vocal": "Vokal",
+        "rock": "Rock",
+        "electronic": "Elektronik",
+        "acoustic": "Akustik",
+        "custom": "Özel"
+      },
+      "presetHints": {
+        "flat": "Hiçbir değişiklik yok. Dosya masterlandığı gibi.",
+        "bass": "Alt tarafı yükseltir, ortanın üstüne dokunmaz.",
+        "treble": "Ziller ve tiz havayı açar.",
+        "vocal": "Vokali öne alır, arkasındaki alt tarafı inceltir.",
+        "rock": "İki ucu yükseltip ortayı geri çeker — gitar ve davul.",
+        "electronic": "Derin alt taraf, parlak tiz, çukur orta.",
+        "acoustic": "Amplifiye olmayan kayıtlar için iki uçta hafif yükseltme.",
+        "custom": "Bantları kendi ayarladığın hâli."
+      }
     }
   },
   "player": {
@@ -205,7 +234,12 @@
       "on": "Karıştırma açık, {{algorithm}}",
       "off": "Karıştırma kapalı"
     },
-    "lossless": "Kayıpsız"
+    "lossless": "Kayıpsız",
+    "lyrics": {
+      "show": "Şarkı sözlerini göster",
+      "showArtwork": "Kapağı göster",
+      "seekTo": "Bu satırdan çal"
+    }
   },
   "common": {
     "cancel": "Vazgeç",

@@ -1,6 +1,8 @@
 import {
   ChevronDown,
+  Disc3,
   ListMusic,
+  MicVocal,
   Music,
   Pause,
   Play,
@@ -25,8 +27,10 @@ import { useThemeColors } from '@/theme/useTheme';
 
 import { ArtworkCarousel } from './components/ArtworkCarousel';
 import { FavoriteButton } from './components/FavoriteButton';
+import { LyricsPane } from './components/LyricsPane';
 import { Scrubber } from './components/Scrubber';
 import { SpecStrip } from './components/SpecStrip';
+import { useLyrics } from './hooks/useLyrics';
 import { usePlayback, usePlaybackControls } from './hooks/usePlayback';
 import { useQueueNeighbours } from './hooks/useQueueNeighbours';
 
@@ -57,6 +61,25 @@ export function PlayerScreen({
   const neighbours = useQueueNeighbours();
   const [repeat, setRepeatState] = useState<RepeatMode>(() => AudioEngine.getRepeat());
   const [shuffled, setShuffledState] = useState(() => AudioEngine.isShuffled());
+
+  const { lyrics } = useLyrics(track?.id ?? null, track?.uri ?? null);
+
+  /*
+   * Which track's words are open, rather than a boolean.
+   *
+   * The words close when the track changes, and holding the id is how that
+   * happens without an effect mirroring one piece of state onto another.
+   * Staying open across a track change would be defensible if the next track
+   * had lyrics, and most do not — the screen would empty out under the
+   * listener instead of showing them what is now playing.
+   */
+  const [lyricsFor, setLyricsFor] = useState<number | null>(null);
+  const showLyrics = track !== null && lyricsFor === track.id;
+
+  const toggleLyrics = useCallback(
+    () => setLyricsFor((open) => (open === null ? (track?.id ?? null) : null)),
+    [track?.id],
+  );
 
   const close = useCallback(() => onExpandedChange(false), [onExpandedChange]);
 
@@ -121,12 +144,16 @@ export function PlayerScreen({
           modal presentation does not give on its own. Sideways moves through the
           queue with the neighbouring covers already on screen.
         */}
-        <ArtworkCarousel
-          neighbours={neighbours}
-          onNext={next}
-          onPrevious={previous}
-          onExpandedChange={onExpandedChange}
-        />
+        {showLyrics && lyrics !== null ? (
+          <LyricsPane lyrics={lyrics} onSeek={seekTo} />
+        ) : (
+          <ArtworkCarousel
+            neighbours={neighbours}
+            onNext={next}
+            onPrevious={previous}
+            onExpandedChange={onExpandedChange}
+          />
+        )}
 
         <View className="gap-2 px-6">
           <Text numberOfLines={2} className="font-display text-3xl text-primary">
@@ -136,6 +163,30 @@ export function PlayerScreen({
             <Text numberOfLines={1} className="flex-1 font-body text-base text-muted">
               {track.artistName ?? t('common.unknownArtist')}
             </Text>
+            {/*
+              Only when the file actually carries words. A button that opens an
+              empty screen for most of a library is worse than no button — and
+              this is the whole affordance, because the artwork underneath owns
+              two pan gestures and a tap target on top of them is how a scrub
+              turns into a dismiss.
+            */}
+            {lyrics !== null ? (
+              <Pressable
+                onPress={toggleLyrics}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  showLyrics ? t('player.lyrics.showArtwork') : t('player.lyrics.show')
+                }
+                accessibilityState={{ selected: showLyrics }}
+                className="min-h-11 min-w-11 items-center justify-center"
+              >
+                {showLyrics ? (
+                  <Disc3 color={colors.signal} size={22} strokeWidth={2} />
+                ) : (
+                  <MicVocal color={colors.legend} size={22} strokeWidth={2} />
+                )}
+              </Pressable>
+            ) : null}
             <FavoriteButton trackId={track.id} />
           </View>
           <SpecStrip trackId={track.id} />

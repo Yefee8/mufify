@@ -148,6 +148,19 @@ class AudioTagsModule : Module() {
       }
     }
 
+    /**
+     * Embedded lyrics for one file, or null.
+     *
+     * One file at a time, unlike `readTags`: this is asked for when a track
+     * becomes the current one, not for a whole library, and only the metadata
+     * at the head of the file is read. Storing lyrics for every track would
+     * put megabytes of text in the database to answer a question the player
+     * asks about one track at a time.
+     */
+    AsyncFunction("readLyrics") { uri: String ->
+      LyricsReader.read(context, uri)
+    }
+
     AsyncFunction("readTags") { uris: List<String>, options: Map<String, Any?> ->
       val directory = File(
         (options["artworkDirectory"] as? String)

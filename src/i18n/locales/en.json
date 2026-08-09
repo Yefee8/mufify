@@ -180,6 +180,35 @@
       "normal": "Normal",
       "fast": "Fast",
       "instant": "Instant"
+    },
+    "equalizer": {
+      "title": "Equaliser",
+      "enable": "Equaliser",
+      "enableHint": "Off by default, so a track sounds the way it was mastered until you ask otherwise.",
+      "preset": "Preset",
+      "band": "{{hz}} hertz band",
+      "noSession": "Play something first — the bands come from the audio device, and there is nothing to read until sound is going through it.",
+      "missing": "This build has no equaliser. It needs a native module that was added later; reinstall the app to get it.",
+      "presets": {
+        "flat": "Flat",
+        "bass": "Bass",
+        "treble": "Treble",
+        "vocal": "Vocal",
+        "rock": "Rock",
+        "electronic": "Electronic",
+        "acoustic": "Acoustic",
+        "custom": "Custom"
+      },
+      "presetHints": {
+        "flat": "No change at all. The file as it was mastered.",
+        "bass": "Lifts the low end without touching anything above the mid-range.",
+        "treble": "Opens up cymbals and air at the top.",
+        "vocal": "Brings the voice forward and thins the low end behind it.",
+        "rock": "Lifts both ends and pulls the middle back — guitars and drums.",
+        "electronic": "Deep low end and a bright top, with a scooped middle.",
+        "acoustic": "A gentle lift at both ends for unamplified recordings.",
+        "custom": "Whatever you set the bands to yourself."
+      }
     }
   },
   "player": {
@@ -205,7 +234,12 @@
       "on": "Shuffle on, {{algorithm}}",
       "off": "Shuffle off"
     },
-    "lossless": "Lossless"
+    "lossless": "Lossless",
+    "lyrics": {
+      "show": "Show lyrics",
+      "showArtwork": "Show the artwork",
+      "seekTo": "Play from this line"
+    }
   },
   "common": {
     "cancel": "Cancel",
