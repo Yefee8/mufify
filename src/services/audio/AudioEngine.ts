@@ -7,6 +7,7 @@ import {
   type AudioStatus,
 } from 'expo-audio';
 
+import { attachToSession } from '@/services/equalizer/equalizerController';
 import { shuffleTracks, type ShuffleAlgorithm } from '@/services/shuffle';
 import { ListenCycle, type BankedListen } from '@/services/stats/listenCycle';
 import { isRewindToRestart } from '@/services/stats/repeatListen';
@@ -134,6 +135,14 @@ class Engine {
    * exactly one round trip, on the first track after silence.
    */
   private audioActive = false;
+
+  /**
+   * The session the equaliser is currently bound to.
+   *
+   * Held so the effect is not rebuilt for every track on the same player, and
+   * so it *is* rebuilt when the player hands out a new one.
+   */
+  private equalizedSession: number | null = null;
 
   /**
    * Whether this player is already the lock screen's active player.
@@ -537,6 +546,54 @@ class Engine {
   }
 
   /**
+   * Hand the player's audio session to the equaliser.
+   *
+   * On every load rather than once: `Equalizer` is an effect bound to one
+   * session id, and a session is replaced whenever the player is. An effect
+   * left on the old one is not an error — it is simply no longer in the signal
+   * path, which is the shape of "the equaliser stopped doing anything after a
+   * while". Attaching to a session already attached does nothing.
+   *
+   * Deliberately not awaited: the equaliser is not allowed to stand between a
+   * finished track and the next one, and a build without the native module is
+   * one that plays music without an equaliser.
+   */
+  private bindEqualizer(): void {
+    /*
+     * Its own guard, inside the caller's.
+     *
+     * `loadIndex` wraps the whole load in a try that turns anything thrown
+     * into a playback error, so a failure here would stop the music instead of
+     * losing an effect. That is not theoretical: reading the session id
+     * straight off ExoPlayer throws, because it is confined to the main looper
+     * and this runs on the JS thread — and for one build every track failed
+     * with an error and no sound. The effect is optional; playback is not.
+     */
+    try {
+      this.attachEqualizer();
+    } catch {
+      // No equaliser on this track. The music is what matters.
+    }
+  }
+
+  private attachEqualizer(): void {
+    /*
+     * `audioSessionId` is not in expo-audio's own types — it is the property
+     * `patches/expo-audio` adds, and the patch is Kotlin only. Declaring the
+     * shape here keeps the coupling visible in this file rather than hidden in
+     * a modified `.d.ts` inside `node_modules`, and optional means a build
+     * without the patch reads `undefined` and simply does not equalise.
+     */
+    const player: (AudioPlayer & { audioSessionId?: number }) | null = this.player;
+    const sessionId = player?.audioSessionId;
+    if (typeof sessionId !== 'number' || sessionId === 0) return;
+    if (sessionId === this.equalizedSession) return;
+
+    this.equalizedSession = sessionId;
+    void attachToSession(sessionId);
+  }
+
+  /**
    * Ask to play, whether or not the file is open yet. Safe to call repeatedly.
    *
    * ExoPlayer treats `play()` as an intention: it sets `playWhenReady` and
@@ -559,6 +616,17 @@ class Engine {
   private onStatus = (status: AudioStatus): void => {
     // The pending start from `loadIndex`, in case the eager ask was too early.
     this.requestPlay();
+
+    /*
+     * The equaliser, once there is audio to attach it to.
+     *
+     * Not during the load: ExoPlayer's session id is unset until its audio
+     * renderer is initialised, so asking then returns a zero that cannot be
+     * attached to anything. Reading it also costs a hop to the main thread,
+     * which is the one place a track transition must not spend time — see
+     * `loadIndex`. Here it is off that path and behind a cheap guard.
+     */
+    if (status.playing) this.bindEqualizer();
 
     const positionMs = Math.round(status.currentTime * 1000);
 
@@ -750,6 +818,7 @@ class Engine {
     this.emitQueue();
     this.emit({ ...IDLE_PLAYBACK });
     this.audioActive = false;
+    this.equalizedSession = null;
     await setIsAudioActiveAsync(false);
   }
 }

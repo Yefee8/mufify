@@ -1,3 +1,32 @@
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
+@@ -372,6 +372,25 @@
+         }
+       }
+ 
++      /**
++       * The ExoPlayer's audio session, for attaching an `AudioEffect`.
++       *
++       * `android.media.audiofx.Equalizer` is constructed against a session id
++       * and there is no other way to reach this one — the player is created
++       * inside this module and never handed out. Session 0, the global output
++       * mix, is not an answer: it has been restricted since Android 9 and an
++       * effect attached to it is silently ignored on most devices.
++       *
++       * Read on the main thread, because ExoPlayer is built with the main
++       * looper and throws on access from any other — and read on demand rather
++       * than captured at construction, because the id is `AUDIO_SESSION_ID_UNSET`
++       * until the audio renderer is initialised. Ask before anything has
++       * played and the answer is a useless zero.
++       */
++      Property("audioSessionId") { player: AudioPlayer ->
++        runOnMain { player.ref.audioSessionId }
++      }
++
+       Property("id") { player ->
+         player.id
+       }
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt

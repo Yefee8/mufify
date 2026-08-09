@@ -61,6 +61,8 @@ describe('locale files', () => {
       // "Normal" is the Turkish word too. Renaming one side to break the tie
       // would be worse Turkish for the sake of a green test.
       'settings.motion.normal',
+      // A genre, and the same word in Turkish.
+      'settings.equalizer.presets.rock',
     ]);
 
     const identical = enPaths.filter(

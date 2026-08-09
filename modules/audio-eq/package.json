@@ -1,0 +1,7 @@
+{
+  "name": "audio-eq",
+  "version": "0.1.0",
+  "description": "The platform equaliser, attached to the player's audio session.",
+  "main": "index.ts",
+  "private": true
+}

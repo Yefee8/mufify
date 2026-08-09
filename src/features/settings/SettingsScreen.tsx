@@ -46,6 +46,7 @@ import { SPACING } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 import { DevTools } from './components/DevTools';
+import { EqualizerSettings } from './components/EqualizerSettings';
 import { ScanFolderList } from './components/ScanFolderList';
 
 const THEME_ICONS: Record<ThemePreference, LucideIcon> = {
@@ -220,6 +221,15 @@ export function SettingsScreen() {
             value={statsOn}
             onChange={onStatsChange}
           />
+        </SettingGroup>
+
+        {/*
+          Below playback and above motion: it belongs with what the audio does,
+          and it is a longer section than a switch, so it does not sit inside a
+          group of one-line rows.
+        */}
+        <SettingGroup title={t('settings.equalizer.title')}>
+          <EqualizerSettings />
         </SettingGroup>
 
         <SettingGroup title={t('settings.motion.title')}>

@@ -7,6 +7,9 @@ export {
 } from './language';
 export {
   getAnimationSpeed,
+  getEqualizerEnabled,
+  getEqualizerLevels,
+  getEqualizerPreset,
   getHapticsEnabled,
   getIgnoreShortFiles,
   getLanguagePreference,
@@ -16,6 +19,9 @@ export {
   getThemePreference,
   getWeekStart,
   setAnimationSpeed,
+  setEqualizerEnabled,
+  setEqualizerLevels,
+  setEqualizerPreset,
   setHapticsEnabled,
   setIgnoreShortFiles,
   setLanguagePreference,

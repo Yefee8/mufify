@@ -20,6 +20,10 @@ export const SETTINGS_KEYS = {
   ignoreShortFiles: 'settings.ignoreShortFiles',
   statsEnabled: 'settings.statsEnabled',
   animationSpeed: 'settings.animationSpeed',
+  equalizerEnabled: 'settings.equalizerEnabled',
+  equalizerPreset: 'settings.equalizerPreset',
+  /** Custom band gains in millibels, by band index. Device-shaped, so JSON. */
+  equalizerLevels: 'settings.equalizerLevels',
   /** The queue and position, so playback can resume where it stopped. */
   lastSession: 'settings.lastSession',
 } as const;

@@ -1,3 +1,8 @@
+import {
+  DEFAULT_PRESET,
+  EQUALIZER_PRESET_IDS,
+  type EqualizerPresetId,
+} from '@/services/equalizer/presets';
 import { ANIMATION_SPEEDS, type AnimationSpeed } from '@/services/motion';
 import { DEFAULT_SHUFFLE, SHUFFLE_ALGORITHMS, type ShuffleAlgorithm } from '@/services/shuffle';
 import { WEEK_STARTS, type WeekStart } from '@/services/stats/periodKeys';
@@ -157,4 +162,58 @@ export function getAnimationSpeed(): AnimationSpeed {
 
 export function setAnimationSpeed(speed: AnimationSpeed): void {
   settingsStorage.set(SETTINGS_KEYS.animationSpeed, speed);
+}
+
+/**
+ * Whether the equaliser is applied at all.
+ *
+ * Off by default. An equaliser that is on out of the box changes what every
+ * track sounds like before the listener has asked for anything, and the first
+ * thing a careful listener wants from a lossless player is the file as it was
+ * mastered.
+ */
+export function getEqualizerEnabled(): boolean {
+  return readStoredFlag(SETTINGS_KEYS.equalizerEnabled, false);
+}
+
+export function setEqualizerEnabled(enabled: boolean): void {
+  settingsStorage.set(SETTINGS_KEYS.equalizerEnabled, enabled);
+}
+
+/** Which preset is selected, `custom` once the bands have been moved by hand. */
+export function getEqualizerPreset(): EqualizerPresetId {
+  return readStoredValue(SETTINGS_KEYS.equalizerPreset, EQUALIZER_PRESET_IDS, DEFAULT_PRESET);
+}
+
+export function setEqualizerPreset(preset: EqualizerPresetId): void {
+  settingsStorage.set(SETTINGS_KEYS.equalizerPreset, preset);
+}
+
+/**
+ * The custom band gains, in millibels, by band index.
+ *
+ * Per band rather than per frequency, because that is what the user dragged —
+ * and it is why `custom` is the one preset that cannot be resampled onto a
+ * device with a different number of bands. `fitLevels` handles the mismatch
+ * rather than this discarding the whole thing.
+ *
+ * JSON in a string: MMKV stores scalars, and a band count is the device's to
+ * decide, so there is no fixed set of keys to spread this across.
+ */
+export function getEqualizerLevels(): number[] {
+  const stored = settingsStorage.getString(SETTINGS_KEYS.equalizerLevels);
+  if (stored === undefined) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((level): level is number => typeof level === 'number');
+  } catch {
+    // A value written by an older build must never crash a newer one.
+    return [];
+  }
+}
+
+export function setEqualizerLevels(millibels: readonly number[]): void {
+  settingsStorage.set(SETTINGS_KEYS.equalizerLevels, JSON.stringify([...millibels]));
 }
