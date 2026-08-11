@@ -8,10 +8,10 @@
   "library": {
     "title": "Library",
     "empty": [
-      "No music found yet. Scan the device, or point Mufify at a folder.",
-      "Nothing here yet. One scan and it fills up.",
-      "Your library is one scan away.",
-      "Empty for now. Tell it where the music lives, or let it look."
+      "No music found yet. Choose a folder, or run a full scan from Settings.",
+      "Nothing here yet. Point Mufify at the folder your music lives in.",
+      "Your library is one folder away.",
+      "Empty for now. Choose a folder — or scan the whole device from Settings."
     ],
     "trackCount_one": "{{count}} track",
     "trackCount_other": "{{count}} tracks",
@@ -32,7 +32,7 @@
     "clearSearch": "Clear search",
     "noResults": "Nothing matches “{{term}}”.",
     "scan": "Scan",
-    "addFolder": "Add a folder",
+    "addFolder": "Choose a folder",
     "import": "Import",
     "scanConfirm": {
       "title": "Scan for music?",
@@ -147,7 +147,8 @@
       "remove": "Remove {{folder}}",
       "removeNote": "Removing a folder stops re-indexing it. Your tracks stay.",
       "ignoreShort": "Ignore short files",
-      "ignoreShortHint": "Skips anything under 30 seconds. Off by default: interludes and album segues are real tracks."
+      "ignoreShortHint": "Skips anything under 30 seconds. Off by default: interludes and album segues are real tracks.",
+      "scanHint": "Reads every audio file Android has indexed on this device. Adding a folder above is quicker if you know where your music is."
     },
     "shuffle": {
       "title": "Shuffle",
@@ -208,6 +209,22 @@
         "electronic": "Deep low end and a bright top, with a scooped middle.",
         "acoustic": "A gentle lift at both ends for unamplified recordings.",
         "custom": "Whatever you set the bands to yourself."
+      }
+    },
+    "data": {
+      "title": "Data",
+      "clear": "Clear",
+      "clearLibrary": "Clear the library",
+      "clearLibraryHint": "Removes every scanned track. Scan again, or add a folder, to bring them back.",
+      "clearStats": "Clear listening history",
+      "clearStatsHint": "Removes every play and the statistics built from them. Your music and your liked songs stay.",
+      "clearLibraryConfirm": {
+        "title": "Clear the library?",
+        "body": "Every scanned track goes, and the listening history goes with it — the statistics are counted per track. Playlists stay, but empty: a new scan gives the same files new identities. The files themselves are never touched."
+      },
+      "clearStatsConfirm": {
+        "title": "Clear listening history?",
+        "body": "Every play, and the statistics built from them, are deleted. This cannot be undone — nothing else has a copy. Your music, playlists and liked songs are untouched."
       }
     }
   },

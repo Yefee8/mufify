@@ -26,7 +26,14 @@ export interface LibraryTracksProps {
   /** Suppresses the empty state — the screen is already showing an error. */
   suppressEmpty: boolean;
   /** Offered by the empty state when the library has never been filled. */
-  onScan: () => void;
+  /**
+   * Open the system folder picker.
+   *
+   * The empty state's action, and the only way to add music from this screen —
+   * the device-wide sweep moved to Settings, because reading every audio file
+   * on the phone is a maintenance action rather than the ordinary way in.
+   */
+  onAddFolder: () => void;
 }
 
 /**
@@ -43,7 +50,7 @@ export function LibraryTracks({
   isLoading,
   search,
   suppressEmpty,
-  onScan,
+  onAddFolder,
 }: LibraryTracksProps) {
   const { t, i18n } = useTranslation();
   const messages = useMessages('library.empty');
@@ -154,8 +161,8 @@ export function LibraryTracks({
                 <EmptyState
                   icon={Music}
                   messages={messages}
-                  actionLabel={t('library.scan')}
-                  onAction={onScan}
+                  actionLabel={t('library.addFolder')}
+                  onAction={onAddFolder}
                 />
               )
             }

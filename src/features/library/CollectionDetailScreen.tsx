@@ -134,7 +134,7 @@ export function CollectionDetailScreen({ kind, id }: CollectionDetailScreenProps
         /* Never empty in practice — the grid only offers rows that have tracks
            — and an empty state here would be about the wrong thing anyway. */
         suppressEmpty
-        onScan={noop}
+        onAddFolder={noop}
       />
     </SafeAreaView>
   );

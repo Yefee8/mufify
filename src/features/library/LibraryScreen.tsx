@@ -15,7 +15,6 @@ import { isPermissionError } from '@/services/scanner/permission';
 import { CollectionGrid } from './components/CollectionGrid';
 import { LibraryHeader } from './components/LibraryHeader';
 import { FolderImportModal } from './components/FolderImportModal';
-import { ScanBanner } from './components/ScanBanner';
 import { SearchField } from './components/SearchField';
 import { LibraryTracks } from './LibraryTracks';
 import { useCollectionRouting } from './hooks/useCollectionRouting';
@@ -54,15 +53,7 @@ export function LibraryScreen() {
   const [search, setSearch] = useState('');
   // The field stays instant; only the query waits.
   const { tracks, isLoading } = useTracks(useDebounced(search));
-  const {
-    progress,
-    isScanning,
-    scanLibrary,
-    pickFolder,
-    importFolder,
-    isFolderImporting,
-    cancel,
-  } = useScan();
+  const { progress, isScanning, pickFolder, importFolder, isFolderImporting, cancel } = useScan();
 
   const artists = useArtistCards();
   const albums = useAlbumCards();
@@ -73,10 +64,7 @@ export function LibraryScreen() {
       ? tracks.length
       : collectionCards.reduce((total, card) => total + card.trackCount, 0);
 
-  /** True while the scan confirmation is on screen. */
-  const [confirmingScan, setConfirmingScan] = useState(false);
   const [pendingFolder, setPendingFolder] = useState<string | null>(null);
-  const askToScan = useCallback(() => setConfirmingScan(true), []);
   const chooseFolder = useCallback(async () => {
     const uri = await pickFolder();
     if (uri) setPendingFolder(uri);
@@ -113,7 +101,6 @@ export function LibraryScreen() {
       <LibraryHeader
         count={displayedTrackCount}
         isScanning={isScanning}
-        onScan={askToScan}
         onAddFolder={chooseFolder}
       />
 
@@ -129,10 +116,6 @@ export function LibraryScreen() {
       {/* Search filters tracks only. An artist grid of two cards does not need
           a search box, and hiding it makes that obvious rather than puzzling. */}
       {view === 'tracks' ? <SearchField value={search} onChange={setSearch} /> : null}
-
-      {isScanning && !isFolderImporting ? (
-        <ScanBanner progress={progress} onCancel={cancel} />
-      ) : null}
 
       {hasFailed ? (
         <ErrorState
@@ -152,7 +135,7 @@ export function LibraryScreen() {
           retryLabel={
             permissionBlocked ? t('library.scanError.openSettings') : t('library.scanError.retry')
           }
-          onRetry={permissionBlocked ? openAppSettings : scanLibrary}
+          onRetry={permissionBlocked ? openAppSettings : chooseFolder}
         />
       ) : null}
 
@@ -168,7 +151,7 @@ export function LibraryScreen() {
           isLoading={waiting}
           search={search}
           suppressEmpty={hasFailed}
-          onScan={askToScan}
+          onAddFolder={chooseFolder}
         />
       ) : (
         <View className="flex-1">
@@ -186,23 +169,6 @@ export function LibraryScreen() {
         </View>
       )}
 
-      {/*
-        Scanning reads every audio file on the device, so it says so before it
-        starts. There is no progress estimate to offer — MediaStore does not
-        report a count until it has been asked — so the copy promises a duration
-        proportional to the library rather than a number it cannot know.
-      */}
-      <ConfirmDialog
-        visible={confirmingScan}
-        title={t('library.scanConfirm.title')}
-        body={t('library.scanConfirm.body')}
-        confirmLabel={t('library.scan')}
-        onConfirm={() => {
-          setConfirmingScan(false);
-          void scanLibrary();
-        }}
-        onCancel={() => setConfirmingScan(false)}
-      />
       <ConfirmDialog
         visible={pendingFolder !== null}
         title={t('library.folderImportConfirm.title')}

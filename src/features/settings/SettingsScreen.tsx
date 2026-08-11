@@ -45,8 +45,10 @@ import { SHUFFLE_ALGORITHMS, type ShuffleAlgorithm } from '@/services/shuffle';
 import { SPACING } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
+import { DataControls } from './components/DataControls';
 import { DevTools } from './components/DevTools';
 import { EqualizerSettings } from './components/EqualizerSettings';
+import { ScanDeviceRow } from './components/ScanDeviceRow';
 import { ScanFolderList } from './components/ScanFolderList';
 
 const THEME_ICONS: Record<ThemePreference, LucideIcon> = {
@@ -259,6 +261,20 @@ export function SettingsScreen() {
             onChange={onIgnoreShortChange}
           />
           <ScanFolderList />
+          {/*
+            The device-wide sweep, filed as the maintenance action it is. It
+            was in the library header beside the folder picker, where it looked
+            like the ordinary way to add music and testers reached for it first.
+          */}
+          <ScanDeviceRow />
+        </SettingGroup>
+
+        {/*
+          Last, and on purpose: everything here destroys something, and the
+          things people came to Settings for should not be reached past it.
+        */}
+        <SettingGroup title={t('settings.data.title')}>
+          <DataControls />
         </SettingGroup>
 
         {__DEV__ ? (

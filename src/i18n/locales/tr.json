@@ -8,10 +8,10 @@
   "library": {
     "title": "Kitaplık",
     "empty": [
-      "Henüz müzik yok. Cihazı tara ya da bir klasör göster.",
-      "Burası şimdilik boş. Bir tarama yeter.",
-      "Kitaplığın tek bir tarama uzağında.",
-      "Şimdilik boş. Müziğin nerede olduğunu söyle ya da bulmasına izin ver."
+      "Henüz müzik yok. Bir klasör seç ya da Ayarlar'dan tüm cihazı tara.",
+      "Burası şimdilik boş. Müziğinin durduğu klasörü göster.",
+      "Kitaplığın tek bir klasör uzağında.",
+      "Şimdilik boş. Bir klasör seç — ya da Ayarlar'dan tüm cihazı tarat."
     ],
     "trackCount_one": "{{count}} parça",
     "trackCount_other": "{{count}} parça",
@@ -32,7 +32,7 @@
     "clearSearch": "Aramayı temizle",
     "noResults": "“{{term}}” ile eşleşen bir şey yok.",
     "scan": "Tara",
-    "addFolder": "Klasör ekle",
+    "addFolder": "Klasör seç",
     "import": "İçe aktar",
     "scanConfirm": {
       "title": "Müzik taransın mı?",
@@ -147,7 +147,8 @@
       "remove": "{{folder}} klasörünü kaldır",
       "removeNote": "Klasörü kaldırmak yeniden taranmasını durdurur. Parçaların kalır.",
       "ignoreShort": "Kısa dosyaları yok say",
-      "ignoreShortHint": "30 saniyeden kısa olanları atlar. Varsayılan olarak kapalı: ara parçalar ve geçişler de birer parçadır."
+      "ignoreShortHint": "30 saniyeden kısa olanları atlar. Varsayılan olarak kapalı: ara parçalar ve geçişler de birer parçadır.",
+      "scanHint": "Android'in bu cihazda indekslediği her ses dosyasını okur. Müziğinin nerede olduğunu biliyorsan yukarıdan klasör eklemek daha hızlı."
     },
     "shuffle": {
       "title": "Karıştırma",
@@ -208,6 +209,22 @@
         "electronic": "Derin alt taraf, parlak tiz, çukur orta.",
         "acoustic": "Amplifiye olmayan kayıtlar için iki uçta hafif yükseltme.",
         "custom": "Bantları kendi ayarladığın hâli."
+      }
+    },
+    "data": {
+      "title": "Veriler",
+      "clear": "Temizle",
+      "clearLibrary": "Kitaplığı temizle",
+      "clearLibraryHint": "Taranmış tüm parçaları siler. Geri getirmek için yeniden tara ya da klasör ekle.",
+      "clearStats": "Dinleme geçmişini temizle",
+      "clearStatsHint": "Tüm çalmaları ve onlardan üretilen istatistikleri siler. Müziğin ve beğendiklerin kalır.",
+      "clearLibraryConfirm": {
+        "title": "Kitaplık temizlensin mi?",
+        "body": "Taranmış tüm parçalar gider, dinleme geçmişi de onlarla birlikte — istatistikler parça başına tutuluyor. Listeler kalır ama boşalır: yeni tarama aynı dosyalara yeni kimlik verir. Dosyaların kendisine dokunulmaz."
+      },
+      "clearStatsConfirm": {
+        "title": "Dinleme geçmişi temizlensin mi?",
+        "body": "Tüm çalmalar ve onlardan üretilen istatistikler silinir. Geri alınamaz — başka bir kopyası yok. Müziğin, listelerin ve beğendiklerin etkilenmez."
       }
     }
   },
