@@ -28,13 +28,32 @@ import { shouldRecordListen } from '@/services/stats/recordingGate';
  * development, because a write that fails silently in both is a write nobody
  * finds out about until the statistics look wrong months later.
  */
+/**
+ * The writes that have been started and may not have landed.
+ *
+ * Recording is deliberately fire-and-forget — a statistics row must never sit
+ * between one track and the next — but there is one moment where the
+ * difference matters: the app is being shut down because its task was removed,
+ * and the process is about to end. Awaiting this before that happens is what
+ * keeps the last listen from being the one that never got written.
+ *
+ * Chained rather than collected, because they are writes to the same table in
+ * the order they happened, and a rejected one must not poison the chain.
+ */
+let pendingWrites: Promise<unknown> = Promise.resolve();
+
+/** Resolves when every listen handed over so far has been written, or failed. */
+export function pendingListenWrites(): Promise<unknown> {
+  return pendingWrites;
+}
+
 export function startListenRecording(): () => void {
   AudioEngine.setListenReporter((listen) => {
     if (!shouldRecordListen({ statsEnabled: getStatsEnabled(), msPlayed: listen.msPlayed })) {
       return;
     }
 
-    void recordListen(
+    const write = recordListen(
       {
         trackId: listen.track.id,
         // The engine's duration, not the track row's. See `FinishedListen`.
@@ -50,6 +69,9 @@ export function startListenRecording(): () => void {
     ).catch((error: unknown) => {
       if (__DEV__) console.warn('Failed to record a listen:', error);
     });
+
+    // Already caught above, so the chain cannot be poisoned by a failed write.
+    pendingWrites = pendingWrites.then(() => write);
   });
 
   return () => AudioEngine.setListenReporter(null);

@@ -12,6 +12,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useDatabase } from '@/db/useDatabase';
 import { PlayerLayer } from '@/features/player/PlayerLayer';
 import { startListenRecording } from '@/features/player/listenRecorder';
+import { installShutdownOnTaskRemoved } from '@/services/lifecycle/shutdown';
 import { initI18n } from '@/i18n';
 import { AudioEngine } from '@/services/audio/AudioEngine';
 import { APP_FONTS } from '@/theme/fonts';
@@ -25,6 +26,15 @@ initI18n();
 // Must run before any screen renders: a component whose interop is registered
 // late has already painted itself unstyled.
 registerComponentInterop();
+
+/*
+ * Swiping the app out of recents has to end it — the media service is allowed
+ * to outlive its task and did, playing on with no app behind it and coming back
+ * to a blank screen. Installed here rather than in an effect: removing the task
+ * unmounts the React tree, and an effect's cleanup would take this listener
+ * down just before the event it exists to catch.
+ */
+installShutdownOnTaskRemoved();
 
 void SplashScreen.preventAutoHideAsync();
 

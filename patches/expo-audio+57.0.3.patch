@@ -48,6 +48,40 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
            .build()
  
          player.mediaSession.release()
+@@ -508,6 +508,24 @@
+     val notificationManager: NotificationManager =
+       getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+     notificationManager.cancel(notificationId)
++  }
++
++  /**
++   * The app was swiped out of the recents list.
++   *
++   * A media service is allowed to outlive its task, and this one does: the
++   * notification carries on playing with no activity behind it, the process
++   * stays up, and the next launch comes back to a JavaScript runtime that has
++   * lost its host — a blank screen that only "force stop" clears.
++   *
++   * Backgrounding is not this. An app behind another app, or with the screen
++   * off, has its task intact and never gets here; only removing the task does.
++   * So the app is told, and it decides what to do about it — there are
++   * statistics to write before anything shuts down.
++   */
++  override fun onTaskRemoved(rootIntent: Intent?) {
++    sendBroadcast(Intent(ACTION_TASK_REMOVED).setPackage(packageName))
++    super.onTaskRemoved(rootIntent)
+   }
+ 
+   override fun onDestroy() {
+@@ -551,6 +569,8 @@
+   }
+ 
+   companion object {
++    /** Must match `AppLifecycleModule` in the app. See `onTaskRemoved`. */
++    const val ACTION_TASK_REMOVED = "expo.modules.audio.TASK_REMOVED"
+     private const val CHANNEL_ID = "expo_audio_channel"
+     private const val ACTION_PLAY = "expo.modules.audio.action.PLAY"
+     private const val ACTION_PAUSE = "expo.modules.audio.action.PAUSE"
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt

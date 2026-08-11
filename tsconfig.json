@@ -16,7 +16,8 @@
       "@/*": ["./src/*"],
       "audio-tags": ["./modules/audio-tags/index.ts"],
       "audio-focus": ["./modules/audio-focus/index.ts"],
-      "audio-eq": ["./modules/audio-eq/index.ts"]
+      "audio-eq": ["./modules/audio-eq/index.ts"],
+      "app-lifecycle": ["./modules/app-lifecycle/index.ts"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "nativewind-env.d.ts"],

@@ -1,0 +1,7 @@
+{
+  "name": "app-lifecycle",
+  "version": "0.1.0",
+  "description": "Task removal, which Android tells a service and not React Native.",
+  "main": "index.ts",
+  "private": true
+}
