@@ -215,6 +215,16 @@ export function SettingsScreen() {
           recorded is left exactly where it is, and clearing it stays a separate
           and separately-worded action.
         */}
+        {/*
+          Directly under playback, and above everything that is not about
+          sound. It was below the statistics switch, which put the faders off
+          the bottom of the screen — you chose a preset and then scrolled to
+          find out what it had done.
+        */}
+        <SettingGroup title={t('settings.equalizer.title')}>
+          <EqualizerSettings />
+        </SettingGroup>
+
         <SettingGroup title={t('settings.stats.title')}>
           <SettingSwitch
             icon={BarChart3}
@@ -223,15 +233,6 @@ export function SettingsScreen() {
             value={statsOn}
             onChange={onStatsChange}
           />
-        </SettingGroup>
-
-        {/*
-          Below playback and above motion: it belongs with what the audio does,
-          and it is a longer section than a switch, so it does not sit inside a
-          group of one-line rows.
-        */}
-        <SettingGroup title={t('settings.equalizer.title')}>
-          <EqualizerSettings />
         </SettingGroup>
 
         <SettingGroup title={t('settings.motion.title')}>

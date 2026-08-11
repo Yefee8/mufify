@@ -3,7 +3,7 @@ import { Text, View, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
-import { formatFrequency, formatGain, mbToDb } from '@/services/equalizer/curve';
+import { formatFrequency, mbToDb } from '@/services/equalizer/curve';
 
 export interface BandSliderProps {
   centerHz: number;
@@ -13,21 +13,28 @@ export interface BandSliderProps {
   maxLevelMb: number;
   /** Fires continuously while dragging — the effect is meant to be heard. */
   onChange: (levelMb: number) => void;
-  disabled: boolean;
   /** Already translated, names the band. */
   accessibilityLabel: string;
 }
 
+/** The tallest a column can be and still leave the section on one screen. */
+const TRACK_HEIGHT = 132;
+
 /**
- * One band, as a bar with zero in the middle.
+ * One band, as a vertical fader.
  *
- * Centred rather than filled from the left, because a band's resting state is
- * *no change* and a bar that fills from one end makes flat look like a setting
- * near the bottom rather than the middle.
+ * Vertical because that is what an equaliser looks like everywhere else, and
+ * because five horizontal rows with a frequency on each was most of a screen
+ * for a control whose whole point is being read at a glance: the shape of the
+ * curve is the information, and a column of bars shows it in one look.
+ *
+ * Zero is the middle of the track, not the bottom. A band's resting state is
+ * *no change*, and a fader that fills from the floor makes flat look like a
+ * setting near the bottom rather than the middle.
  *
  * The drag runs in a worklet, like `Scrubber`, but unlike a seek it reports on
- * every update: an equaliser that only applies on release cannot be adjusted
- * by ear, which is the only way anyone adjusts one.
+ * every update: an equaliser that only applies on release cannot be adjusted by
+ * ear, which is the only way anyone adjusts one.
  */
 export function BandSlider({
   centerHz,
@@ -35,14 +42,14 @@ export function BandSlider({
   minLevelMb,
   maxLevelMb,
   onChange,
-  disabled,
   accessibilityLabel,
 }: BandSliderProps) {
-  const [width, setWidth] = useState(0);
+  const [height, setHeight] = useState(TRACK_HEIGHT);
   const dragRatio = useSharedValue(-1);
 
   const onLayout = useCallback((event: LayoutChangeEvent) => {
-    setWidth(event.nativeEvent.layout.width);
+    const measured = event.nativeEvent.layout.height;
+    if (measured > 0) setHeight(measured);
   }, []);
 
   const commit = useCallback(
@@ -54,18 +61,16 @@ export function BandSlider({
 
   const pan = Gesture.Pan()
     .minDistance(0)
-    .enabled(!disabled)
+    // The section sits in a ScrollView; without this the list claims the drag
+    // and the fader only moves when the finger starts perfectly still.
+    .activeOffsetY([-4, 4])
     .onBegin((event) => {
-      if (width > 0) {
-        dragRatio.value = clamp(event.x / width);
-        runOnJS(commit)(dragRatio.value);
-      }
+      dragRatio.value = fromTop(event.y, height);
+      runOnJS(commit)(dragRatio.value);
     })
     .onUpdate((event) => {
-      if (width > 0) {
-        dragRatio.value = clamp(event.x / width);
-        runOnJS(commit)(dragRatio.value);
-      }
+      dragRatio.value = fromTop(event.y, height);
+      runOnJS(commit)(dragRatio.value);
     })
     .onFinalize(() => {
       dragRatio.value = -1;
@@ -76,49 +81,77 @@ export function BandSlider({
   // Where 0dB sits, which is the middle only when the range is symmetrical.
   const zero = span === 0 ? 0.5 : clampJs((0 - minLevelMb) / span);
 
+  /** The bar between the zero mark and the current value, in either direction. */
   const fillStyle = useAnimatedStyle(() => {
     const at = dragRatio.value >= 0 ? dragRatio.value : ratio;
-    const left = Math.min(at, zero);
-    const right = Math.max(at, zero);
-    return { left: `${left * 100}%`, width: `${(right - left) * 100}%` };
+    const low = Math.min(at, zero);
+    const high = Math.max(at, zero);
+    return { bottom: `${low * 100}%`, height: `${Math.max(high - low, 0.015) * 100}%` };
+  });
+
+  const thumbStyle = useAnimatedStyle(() => {
+    const at = dragRatio.value >= 0 ? dragRatio.value : ratio;
+    return { bottom: `${at * 100}%` };
   });
 
   return (
-    <View className={disabled ? 'opacity-40' : undefined}>
-      <View className="flex-row items-baseline justify-between">
-        <Text className="font-mono text-xs text-muted">{formatFrequency(centerHz)}</Text>
-        <Text className="font-mono text-xs text-primary">{formatGain(mbToDb(levelMb))}</Text>
-      </View>
+    <View className="flex-1 items-center gap-2">
+      <Text className="font-mono text-xs text-primary">{formatCompactGain(mbToDb(levelMb))}</Text>
 
       <GestureDetector gesture={pan}>
-        {/* Padded so the touch target clears 44px while the bar stays thin. */}
+        {/* Padded so the touch target is a column, not a two-pixel line. */}
         <View
           onLayout={onLayout}
           accessibilityRole="adjustable"
           accessibilityLabel={accessibilityLabel}
           accessibilityValue={{ min: minLevelMb, max: maxLevelMb, now: levelMb }}
-          accessibilityState={{ disabled }}
-          className="justify-center py-3"
+          style={{ height: TRACK_HEIGHT }}
+          className="w-full items-center justify-center px-1"
         >
-          <View className="h-1 w-full rounded-full bg-surface-elevated">
-            {/* The zero mark, so the middle is visible when nothing is set. */}
+          <View className="h-full w-2 overflow-hidden rounded-full bg-surface-elevated">
+            {/* The zero mark, so the middle is visible when nothing is set. A
+                hairline rule rather than a spacing step, like every other one. */}
             <View
-              style={{ left: `${zero * 100}%` }}
-              className="absolute h-3 w-0.5 -translate-y-1 bg-surface-elevated"
+              style={{ bottom: `${zero * 100}%` }}
+              className="absolute w-full border-t border-subtle"
             />
-            <Animated.View className="absolute h-1 rounded-full bg-accent" style={fillStyle} />
+            <Animated.View className="absolute w-full bg-accent" style={fillStyle} />
           </View>
+          {/* Outside the clipped track, so it reads as a handle on the bar.
+              The offset centres a 12px dot on the value it is pointing at. */}
+          <Animated.View
+            className="absolute h-3 w-3 rounded-full border border-accent bg-surface"
+            style={[thumbStyle, { marginBottom: -6 }]}
+          />
         </View>
       </GestureDetector>
+
+      <Text className="font-mono text-xs text-muted">{formatFrequency(centerHz)}</Text>
     </View>
   );
 }
 
-function clamp(value: number): number {
+/** Pan reports from the top; a fader reads from the bottom. */
+function fromTop(y: number, height: number): number {
   'worklet';
-  return Math.min(1, Math.max(0, value));
+  if (height <= 0) return 0.5;
+  return Math.min(1, Math.max(0, 1 - y / height));
 }
 
 function clampJs(value: number): number {
   return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
+}
+
+/**
+ * A gain, short enough to sit over a column two fingers wide.
+ *
+ * `formatGain` writes "+3 dB", which is right in a row and too wide here — the
+ * unit is on every one of them and says nothing the header does not.
+ */
+function formatCompactGain(db: number): string {
+  const rounded = Math.round(db * 10) / 10;
+  if (Object.is(rounded, -0) || rounded === 0) return '0';
+  const sign = rounded > 0 ? '+' : '−';
+  const magnitude = Math.abs(rounded);
+  return `${sign}${Number.isInteger(magnitude) ? magnitude : magnitude.toFixed(1)}`;
 }
