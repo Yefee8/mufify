@@ -87,7 +87,14 @@
     "addCount_one": "Add {{count}} track to a playlist",
     "addCount_other": "Add {{count}} tracks to a playlist",
     "shuffleAll": "Shuffle",
-    "addTracks": "Add tracks",
+    "addTracks": {
+      "title": "Add tracks",
+      "add_one": "Add {{count}} track",
+      "add_other": "Add {{count}} tracks",
+      "addNone": "Pick some tracks",
+      "alreadyIn": "Already in this playlist",
+      "empty": "Nothing in the library yet. Choose a folder on the Library tab."
+    },
     "reorder": "Reorder {{title}}"
   },
   "stats": {

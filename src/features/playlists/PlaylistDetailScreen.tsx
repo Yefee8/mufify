@@ -18,12 +18,14 @@ import {
   usePlaylists,
   type PlaylistEntry,
 } from '@/db/queries/playlists';
+import { useCurrentTrack } from '@/features/player/hooks/usePlayback';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { useMessages } from '@/i18n';
 import { AudioEngine } from '@/services/audio/AudioEngine';
 import { LIBRARY_SOURCE, type PlayableTrack, type QueueSource } from '@/services/audio/types';
 import { getShuffleAlgorithm } from '@/services/settings';
 
+import { AddTracksSheet } from './components/AddTracksSheet';
 import { NamePlaylistDialog } from './components/NamePlaylistDialog';
 import { PlaylistDetailHeader } from './components/PlaylistDetailHeader';
 import { PlaylistEntryRow } from './components/PlaylistEntryRow';
@@ -47,6 +49,24 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
   const playlist = usePlaylists().find((entry) => entry.id === playlistId);
 
   const [renaming, setRenaming] = useState(false);
+  const [adding, setAdding] = useState(false);
+
+  /*
+   * Which track is playing, so the row says so — the library has marked it
+   * since the beginning and a playlist did not, which made the same list look
+   * like two different features depending on where it was opened.
+   *
+   * `useCurrentTrack` rather than `usePlayback`: this list re-renders on the
+   * track changing and must not re-render twice a second for a position no row
+   * displays.
+   */
+  const currentTrack = useCurrentTrack();
+
+  /** What is already here, so the picker can say so rather than hide it. */
+  const existingIds = useMemo(
+    () => new Set(entries.map((entry) => entry.trackId)),
+    [entries],
+  );
 
   /*
    * User playlists declare themselves as the queue's source, which is
@@ -112,7 +132,12 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
   const renderItem = useCallback<ListRenderItem<PlaylistEntry>>(
     ({ item, index }) =>
       isLiked ? (
-        <PlaylistEntryRow entry={item} locale={i18n.language} onPress={playAt} />
+        <PlaylistEntryRow
+          entry={item}
+          locale={i18n.language}
+          onPress={playAt}
+          isCurrent={item.trackId === currentTrack?.id}
+        />
       ) : (
         <ReorderableEntry
           index={index}
@@ -125,10 +150,11 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
             locale={i18n.language}
             onPress={playAt}
             onRemove={remove}
+            isCurrent={item.trackId === currentTrack?.id}
           />
         </ReorderableEntry>
       ),
-    [entries.length, isLiked, move, playAt, remove, i18n.language, t],
+    [entries.length, isLiked, move, playAt, remove, i18n.language, t, currentTrack?.id],
   );
 
   const name = isLiked ? t('playlists.likedSongs') : (playlist?.name ?? '');
@@ -144,6 +170,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
         covers={covers}
         onPlay={playAll}
         onShuffle={() => void shuffleAll()}
+        onAddTracks={isLiked ? undefined : () => setAdding(true)}
         onRename={isLiked ? undefined : () => setRenaming(true)}
         onDelete={isLiked ? undefined : onDelete}
       />
@@ -151,7 +178,14 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
       {/* Bounded, so the list re-lays out when the rows above it change. */}
       <View className="flex-1">
         {entries.length === 0 ? (
-          <EmptyState icon={ListMusic} messages={detailMessages} />
+          <EmptyState
+            icon={ListMusic}
+            messages={detailMessages}
+            /* An empty playlist's one job is to be filled, so the way to fill
+               it is the thing on screen rather than an icon in the bar. */
+            actionLabel={isLiked ? undefined : t('playlists.addTracks.title')}
+            onAction={isLiked ? undefined : () => setAdding(true)}
+          />
         ) : (
           <FlashList
             data={entries}
@@ -162,6 +196,15 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
           />
         )}
       </View>
+
+      {isLiked ? null : (
+        <AddTracksSheet
+          visible={adding}
+          playlistId={playlistId}
+          existing={existingIds}
+          onClose={() => setAdding(false)}
+        />
+      )}
 
       {isLiked ? null : (
         <NamePlaylistDialog

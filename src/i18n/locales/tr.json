@@ -87,7 +87,14 @@
     "addCount_one": "{{count}} parçayı bir listeye ekle",
     "addCount_other": "{{count}} parçayı bir listeye ekle",
     "shuffleAll": "Karıştır",
-    "addTracks": "Parça ekle",
+    "addTracks": {
+      "title": "Parça ekle",
+      "add_one": "{{count}} parçayı ekle",
+      "add_other": "{{count}} parçayı ekle",
+      "addNone": "Birkaç parça seç",
+      "alreadyIn": "Bu listede zaten var",
+      "empty": "Kitaplıkta henüz bir şey yok. Kitaplık sekmesinden klasör seç."
+    },
     "reorder": "{{title}} sırasını değiştir"
   },
   "stats": {

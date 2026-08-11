@@ -13,6 +13,8 @@ export interface PlaylistEntryRowProps {
   locale: string;
   onPress: (position: number) => void;
   onRemove?: (position: number) => void;
+  /** Playing right now. Marked the same way the library marks it. */
+  isCurrent?: boolean;
 }
 
 /**
@@ -26,6 +28,7 @@ export const PlaylistEntryRow = memo(function PlaylistEntryRow({
   locale,
   onPress,
   onRemove,
+  isCurrent = false,
 }: PlaylistEntryRowProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -46,6 +49,7 @@ export const PlaylistEntryRow = memo(function PlaylistEntryRow({
         accessibilityRole="button"
         accessibilityLabel={entry.title}
         accessibilityHint={subtitle || undefined}
+        accessibilityState={{ selected: isCurrent }}
         className="h-16 flex-1 flex-row items-center gap-3"
       >
         {artworkUri ? (
@@ -63,7 +67,14 @@ export const PlaylistEntryRow = memo(function PlaylistEntryRow({
         )}
 
         <View className="flex-1">
-          <Text numberOfLines={1} className="font-body text-base text-primary">
+          <Text
+            numberOfLines={1}
+            className={
+              isCurrent
+                ? 'font-body-medium text-base text-accent'
+                : 'font-body text-base text-primary'
+            }
+          >
             {entry.title}
           </Text>
           {subtitle ? (

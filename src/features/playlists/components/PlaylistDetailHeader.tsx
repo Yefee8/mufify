@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Pencil, Shuffle, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, ListPlus, Pencil, Shuffle, Trash2 } from 'lucide-react-native';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
@@ -14,6 +14,8 @@ export interface PlaylistDetailHeaderProps {
   covers: readonly string[];
   onPlay: () => void;
   onShuffle: () => void;
+  /** Open the library picker. Absent for Liked Songs, which is not editable. */
+  onAddTracks?: () => void;
   onRename?: () => void;
   onDelete?: () => void;
 }
@@ -35,6 +37,7 @@ export function PlaylistDetailHeader({
   covers,
   onPlay,
   onShuffle,
+  onAddTracks,
   onRename,
   onDelete,
 }: PlaylistDetailHeaderProps) {
@@ -57,6 +60,17 @@ export function PlaylistDetailHeader({
         </Pressable>
 
         <View className="flex-1" />
+
+        {onAddTracks ? (
+          <Pressable
+            onPress={onAddTracks}
+            accessibilityRole="button"
+            accessibilityLabel={t('playlists.addTracks.title')}
+            className="min-h-11 min-w-11 items-center justify-center"
+          >
+            <ListPlus color={colors.signal} size={22} strokeWidth={2} />
+          </Pressable>
+        ) : null}
 
         {onRename ? (
           <Pressable
