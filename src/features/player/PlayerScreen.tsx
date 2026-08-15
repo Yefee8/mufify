@@ -189,7 +189,6 @@ export function PlayerScreen({
             ) : null}
             <FavoriteButton trackId={track.id} />
           </View>
-          <SpecStrip trackId={track.id} />
         </View>
 
         {phase === 'error' ? (
@@ -280,6 +279,18 @@ export function PlayerScreen({
           >
             <Shuffle color={shuffled ? colors.signal : colors.legend} size={22} strokeWidth={2} />
           </Pressable>
+        </View>
+
+        {/*
+          Below the transport, not under the title.
+          
+          It is reference material — container, rate, depth, bitrate — and it
+          was sitting between the track's name and the controls, which put the
+          two things a thumb reaches for furthest apart. Everything that is
+          pressed is now in the bottom third; the strip reads underneath it.
+        */}
+        <View className="px-6">
+          <SpecStrip trackId={track.id} />
         </View>
       </View>
     </View>

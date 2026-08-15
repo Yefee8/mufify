@@ -5,6 +5,7 @@ import { Text, View } from 'react-native';
 
 import type { TopEntry } from '@/db/queries/stats';
 import { formatListeningTime } from '@/services/format/listeningTime';
+import { useTimeUnits } from '@/services/format/useTimeUnits';
 import { useThemeColors } from '@/theme/useTheme';
 
 export interface TopListProps {
@@ -33,6 +34,7 @@ export interface TopListProps {
  */
 export function TopList({ title, entries, icon: Icon, unknownTitle }: TopListProps) {
   const { t, i18n } = useTranslation();
+  const units = useTimeUnits();
   const colors = useThemeColors();
 
   if (entries.length === 0) return null;
@@ -91,7 +93,7 @@ export function TopList({ title, entries, icon: Icon, unknownTitle }: TopListPro
                 })}
               </Text>
               <Text className="font-mono text-sm text-muted">
-                {formatListeningTime(entry.msPlayed, i18n.language)}
+                {formatListeningTime(entry.msPlayed, i18n.language, units)}
               </Text>
             </View>
           </View>

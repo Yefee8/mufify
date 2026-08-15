@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Play, Shuffle } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -11,6 +11,8 @@ import { AudioEngine } from '@/services/audio/AudioEngine';
 import type { QueueSource } from '@/services/audio/types';
 import { getShuffleAlgorithm } from '@/services/settings';
 import { useThemeColors } from '@/theme/useTheme';
+
+import { PlayShuffleBar } from '@/components/ui/PlayShuffleBar';
 
 import { toPlayable } from '../player/toPlayable';
 import { CollectionHeader } from './components/CollectionHeader';
@@ -99,33 +101,9 @@ export function CollectionDetailScreen({ kind, id }: CollectionDetailScreenProps
         </View>
       )}
 
-      {tracks.length > 0 ? (
-        <View className="flex-row gap-3 px-6 pb-4">
-          <Pressable
-            onPress={play}
-            accessibilityRole="button"
-            accessibilityLabel={t('playlists.playAll')}
-            className="min-h-11 flex-1 flex-row items-center justify-center gap-2 rounded-sm bg-accent px-4"
-          >
-            <Play color={colors.onSignal} size={18} strokeWidth={2} fill={colors.onSignal} />
-            <Text className="font-body-medium text-base text-on-accent">
-              {t('playlists.playAll')}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => void shuffle()}
-            accessibilityRole="button"
-            accessibilityLabel={t('playlists.shuffleAll')}
-            className="min-h-11 flex-1 flex-row items-center justify-center gap-2 rounded-sm border border-subtle px-4"
-          >
-            <Shuffle color={colors.signal} size={18} strokeWidth={2} />
-            <Text className="font-body-medium text-base text-accent">
-              {t('playlists.shuffleAll')}
-            </Text>
-          </Pressable>
-        </View>
-      ) : null}
+      {/* The same pair the library and a playlist use, so starting an album
+          is the gesture people already learned two screens ago. */}
+      <PlayShuffleBar onPlay={play} onShuffle={() => void shuffle()} disabled={tracks.length === 0} />
 
       <LibraryTracks
         tracks={tracks}

@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 
 import type { PeriodTotals } from '@/db/queries/stats';
 import { formatListeningTime } from '@/services/format/listeningTime';
+import { useTimeUnits } from '@/services/format/useTimeUnits';
 
 export interface StatTotalsProps {
   totals: PeriodTotals;
@@ -11,11 +12,12 @@ export interface StatTotalsProps {
 /** The headline numbers for the selected period. */
 export function StatTotals({ totals }: StatTotalsProps) {
   const { t, i18n } = useTranslation();
+  const units = useTimeUnits();
 
   return (
     <View className="flex-row gap-3">
       <Figure
-        value={formatListeningTime(totals.msPlayed, i18n.language)}
+        value={formatListeningTime(totals.msPlayed, i18n.language, units)}
         label={t('stats.totals.listening')}
       />
       <Figure

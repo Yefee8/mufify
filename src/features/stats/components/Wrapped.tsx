@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 
 import type { PeriodTotals, TopEntry } from '@/db/queries/stats';
 import { formatListeningTime } from '@/services/format/listeningTime';
+import { useTimeUnits } from '@/services/format/useTimeUnits';
 import type { PeriodType } from '@/services/stats/rollups';
 
 export interface WrappedProps {
@@ -33,8 +34,9 @@ export interface WrappedProps {
  */
 export function Wrapped({ period, totals, topTrack, topArtist, unknownArtist }: WrappedProps) {
   const { t, i18n } = useTranslation();
+  const units = useTimeUnits();
 
-  const time = formatListeningTime(totals.msPlayed, i18n.language);
+  const time = formatListeningTime(totals.msPlayed, i18n.language, units);
   const number = (value: number) => new Intl.NumberFormat(i18n.language).format(value);
 
   return (

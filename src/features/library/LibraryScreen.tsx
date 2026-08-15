@@ -7,14 +7,19 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
+import { PlayShuffleBar } from '@/components/ui/PlayShuffleBar';
 import { SkeletonCards } from '@/components/ui/Skeleton';
 import { useAlbumCards, useArtistCards } from '@/db/queries/tracks';
+import { AudioEngine } from '@/services/audio/AudioEngine';
+import { getShuffleAlgorithm } from '@/services/settings';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 import { isPermissionError } from '@/services/scanner/permission';
 
+import { toPlayable } from '../player/toPlayable';
 import { CollectionGrid } from './components/CollectionGrid';
 import { LibraryHeader } from './components/LibraryHeader';
 import { FolderImportModal } from './components/FolderImportModal';
+import { ScanBanner } from './components/ScanBanner';
 import { SearchField } from './components/SearchField';
 import { LibraryTracks } from './LibraryTracks';
 import { useCollectionRouting } from './hooks/useCollectionRouting';
@@ -53,7 +58,8 @@ export function LibraryScreen() {
   const [search, setSearch] = useState('');
   // The field stays instant; only the query waits.
   const { tracks, isLoading } = useTracks(useDebounced(search));
-  const { progress, isScanning, pickFolder, importFolder, isFolderImporting, cancel } = useScan();
+  const { progress, isScanning, scanLibrary, pickFolder, importFolder, isFolderImporting, cancel } =
+    useScan();
 
   const artists = useArtistCards();
   const albums = useAlbumCards();
@@ -64,6 +70,9 @@ export function LibraryScreen() {
       ? tracks.length
       : collectionCards.reduce((total, card) => total + card.trackCount, 0);
 
+  /** True while the scan confirmation is on screen. */
+  const [confirmingScan, setConfirmingScan] = useState(false);
+  const askToScan = useCallback(() => setConfirmingScan(true), []);
   const [pendingFolder, setPendingFolder] = useState<string | null>(null);
   const chooseFolder = useCallback(async () => {
     const uri = await pickFolder();
@@ -74,6 +83,27 @@ export function LibraryScreen() {
     setPendingFolder(null);
     if (uri) void importFolder(uri);
   }, [importFolder, pendingFolder]);
+
+  /*
+   * Start the whole library, from the top or shuffled.
+   *
+   * Whatever the list is currently showing, filtered search included: the bar
+   * sits under the search field and starting something other than what is on
+   * screen would be a different feature wearing the same button.
+   */
+  const playAll = useCallback(() => {
+    if (tracks.length > 0) void AudioEngine.setQueue(tracks.map(toPlayable), 0);
+  }, [tracks]);
+
+  const shuffleAll = useCallback(() => {
+    if (tracks.length === 0) return;
+    // Queue first, shuffle second: the engine keeps the unshuffled order, so
+    // turning shuffle off later restores the list's real order.
+    void (async () => {
+      await AudioEngine.setQueue(tracks.map(toPlayable), 0);
+      await AudioEngine.setShuffled(true, getShuffleAlgorithm());
+    })();
+  }, [tracks]);
 
   const hasFailed = !isScanning && progress.phase === 'failed';
   const permissionFailed = isPermissionError(progress.error);
@@ -102,6 +132,7 @@ export function LibraryScreen() {
         count={displayedTrackCount}
         isScanning={isScanning}
         onAddFolder={chooseFolder}
+        onScan={askToScan}
       />
 
       <View className="px-6 pb-4">
@@ -116,6 +147,16 @@ export function LibraryScreen() {
       {/* Search filters tracks only. An artist grid of two cards does not need
           a search box, and hiding it makes that obvious rather than puzzling. */}
       {view === 'tracks' ? <SearchField value={search} onChange={setSearch} /> : null}
+
+      {/* Starting the whole library from the top, rather than only by tapping a
+          row — which starts at that row. Hidden while there is nothing to play. */}
+      {view === 'tracks' ? (
+        <PlayShuffleBar onPlay={playAll} onShuffle={shuffleAll} disabled={tracks.length === 0} />
+      ) : null}
+
+      {isScanning && !isFolderImporting ? (
+        <ScanBanner progress={progress} onCancel={cancel} />
+      ) : null}
 
       {hasFailed ? (
         <ErrorState
@@ -169,6 +210,22 @@ export function LibraryScreen() {
         </View>
       )}
 
+      {/*
+        Scanning reads every audio file on the device, so it says so before it
+        starts. There is no progress estimate to offer — MediaStore does not
+        report a count until it has been asked.
+      */}
+      <ConfirmDialog
+        visible={confirmingScan}
+        title={t('library.scanConfirm.title')}
+        body={t('library.scanConfirm.body')}
+        confirmLabel={t('library.scan')}
+        onConfirm={() => {
+          setConfirmingScan(false);
+          void scanLibrary();
+        }}
+        onCancel={() => setConfirmingScan(false)}
+      />
       <ConfirmDialog
         visible={pendingFolder !== null}
         title={t('library.folderImportConfirm.title')}

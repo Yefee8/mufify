@@ -273,7 +273,15 @@
     "unknownArtist": "Bilinmeyen sanatçı",
     "unknownAlbum": "Bilinmeyen albüm",
     "unexpectedError": "Bir şeyler ters gitti. Tekrar dene.",
-    "tryAgain": "Tekrar dene"
+    "tryAgain": "Tekrar dene",
+    "units": {
+      "hour": "sa",
+      "minute": "dk",
+      "second": "sn",
+      "day": "g"
+    },
+    "playAll": "Çal",
+    "shuffle": "Karıştır"
   },
   "queue": {
     "title": "Sıra",

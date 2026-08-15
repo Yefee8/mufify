@@ -273,7 +273,15 @@
     "unknownArtist": "Unknown artist",
     "unknownAlbum": "Unknown album",
     "unexpectedError": "Something went wrong. Try again.",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "units": {
+      "hour": "h",
+      "minute": "m",
+      "second": "s",
+      "day": "d"
+    },
+    "playAll": "Play",
+    "shuffle": "Shuffle"
   },
   "queue": {
     "title": "Queue",
