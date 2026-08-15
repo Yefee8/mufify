@@ -48,6 +48,26 @@ object MusicFilter {
    * `Recordings of Brahms` should still be scanned, and an album named
    * "Voice Recorder" should not vanish because of its title.
    */
+  /**
+   * Extensions the platform decoder can open.
+   *
+   * Used when walking a folder the user picked, to decide what is worth
+   * handing to the media scanner. MediaStore does the real filtering
+   * afterwards — this only keeps the scan request from being a list of every
+   * photo and document in the folder.
+   */
+  val AUDIO_EXTENSIONS = setOf(
+    "mp3", "flac", "m4a", "aac", "ogg", "oga", "opus", "wav", "wma", "aiff", "aif", "alac", "mp4",
+    "m4b", "mka", "ape", "wv", "mpc", "3gp", "amr", "mid", "midi",
+  )
+
+  /** Whether a file name looks like audio. Case-insensitive, extension only. */
+  fun isAudio(name: String): Boolean {
+    val dot = name.lastIndexOf('.')
+    if (dot < 0 || dot == name.length - 1) return false
+    return name.substring(dot + 1).lowercase() in AUDIO_EXTENSIONS
+  }
+
   fun isExcludedPath(path: String?): Boolean {
     val normalized = path?.lowercase() ?: return false
     val segments = normalized.split('/').filter { it.isNotBlank() }

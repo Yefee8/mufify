@@ -31,10 +31,18 @@ describe('treeUriToPath', () => {
     ).toBe(`${PRIMARY_VOLUME_ROOT}/Music`);
   });
 
-  it('gives up on a removable volume rather than guessing a path', () => {
-    // SD cards carry an opaque volume id; there is no supported mapping.
-    expect(treeUriToPath(`${AUTHORITY}/tree/1AEF-2understanding%3AMusic`)).toBeNull();
-    expect(treeUriToPath(`${AUTHORITY}/tree/0000-1111%3A`)).toBeNull();
+  it('maps a removable volume to where Android mounts it', () => {
+    /*
+     * This used to return null, on the grounds that there is no supported
+     * mapping for an opaque volume id. Correct, and it meant picking a folder
+     * on an SD card indexed nothing and explained nothing. `/storage/<id>` is
+     * where every device puts them; a wrong guess finds no files, which is
+     * what null did anyway.
+     */
+    expect(treeUriToPath(`${AUTHORITY}/tree/1AEF-2understanding%3AMusic`)).toBe(
+      '/storage/1AEF-2understanding/Music',
+    );
+    expect(treeUriToPath(`${AUTHORITY}/tree/0000-1111%3A`)).toBe('/storage/0000-1111');
   });
 
   it('returns null for anything that is not a tree URI', () => {
@@ -97,5 +105,27 @@ describe('treeUriToLabel', () => {
     expect(treeUriToLabel(`${TREE}/primary%3AMusic/document/primary%3AMusic%2Fa.flac`)).toBe(
       'Music',
     );
+  });
+});
+
+describe('removable volumes', () => {
+  it('maps an SD card id to its mount point', () => {
+    expect(treeUriToPath('content://com.android.externalstorage.documents/tree/1A2B-3C4D%3AMusic'))
+      .toBe('/storage/1A2B-3C4D/Music');
+  });
+
+  it('maps a removable volume root', () => {
+    expect(treeUriToPath('content://com.android.externalstorage.documents/tree/1A2B-3C4D%3A')).toBe(
+      '/storage/1A2B-3C4D',
+    );
+  });
+
+  it('still maps the primary volume to its emulated root', () => {
+    expect(treeUriToPath('content://com.android.externalstorage.documents/tree/primary%3AMusic'))
+      .toBe('/storage/emulated/0/Music');
+  });
+
+  it('is null when there is no volume at all', () => {
+    expect(treeUriToPath('content://com.android.externalstorage.documents/tree/%3AMusic')).toBeNull();
   });
 });

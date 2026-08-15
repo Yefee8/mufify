@@ -64,3 +64,25 @@ class MusicFilterTest {
     assertTrue(args.all { it.startsWith("%/") && it.endsWith("/%") })
   }
 }
+
+class MusicFilterAudioTest {
+
+  @Test
+  fun `recognises the formats a library is made of`() {
+    for (name in listOf("a.mp3", "b.FLAC", "c.m4a", "d.opus", "e.wav", "f.Ogg")) {
+      assertTrue(name, MusicFilter.isAudio(name))
+    }
+  }
+
+  @Test
+  fun `rejects everything that is not audio`() {
+    for (name in listOf("cover.jpg", "notes.txt", "album.pdf", "video.mkv", "song", "song.")) {
+      assertFalse(name, MusicFilter.isAudio(name))
+    }
+  }
+
+  @Test
+  fun `is not fooled by a dot in a folder-like name`() {
+    assertFalse(MusicFilter.isAudio("The Beatles - 1962.1966"))
+  }
+}

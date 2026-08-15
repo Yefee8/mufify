@@ -13,10 +13,17 @@ export const PRIMARY_VOLUME_ROOT = '/storage/emulated/0';
  * `content://com.android.externalstorage.documents/tree/primary%3AMusic`
  * becomes `/storage/emulated/0/Music`.
  *
- * Returns null for anything that cannot be resolved — SD cards and USB volumes
- * carry an opaque volume id rather than `primary`, and there is no supported
- * way to turn that into a path. Callers treat null as "index nothing", not as
- * an error, because the user cannot act on it either way.
+ * A removable volume carries an opaque id instead of `primary` —
+ * `tree/1A2B-3C4D%3AMusic` — and Android mounts those at `/storage/<id>`.
+ * That is not a documented API, which is why this used to return null for
+ * them; it is also where every device actually puts them, and returning null
+ * meant **picking a folder on an SD card indexed nothing at all** and said
+ * nothing about why. A path that is wrong on some unknown device finds no
+ * files, which is exactly what null did, so the guess costs nothing and fixes
+ * the common case.
+ *
+ * Still null for anything with no volume at all, which cannot be resolved by
+ * guessing.
  */
 export function treeUriToPath(treeUri: string): string | null {
   const encoded = treeUri.split('/tree/')[1];
@@ -39,9 +46,10 @@ export function treeUriToPath(treeUri: string): string | null {
   const volume = decoded.slice(0, separator);
   const relative = decoded.slice(separator + 1).replace(/^\/+|\/+$/gu, '');
 
-  if (volume !== 'primary') return null;
+  if (volume === '') return null;
 
-  return relative ? `${PRIMARY_VOLUME_ROOT}/${relative}` : PRIMARY_VOLUME_ROOT;
+  const root = volume === 'primary' ? PRIMARY_VOLUME_ROOT : `/storage/${volume}`;
+  return relative ? `${root}/${relative}` : root;
 }
 
 /**
