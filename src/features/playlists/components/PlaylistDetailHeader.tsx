@@ -1,5 +1,13 @@
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Heart, ListPlus, Pencil, Shuffle, Trash2 } from 'lucide-react-native';
+import {
+  ChevronLeft,
+  Heart,
+  ImagePlus,
+  ListPlus,
+  Pencil,
+  Shuffle,
+  Trash2,
+} from 'lucide-react-native';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
@@ -12,6 +20,10 @@ export interface PlaylistDetailHeaderProps {
   name: string;
   trackCount: number;
   covers: readonly string[];
+  /** The cover the user chose, bare. Null means the mosaic. */
+  cover?: string | null;
+  /** Open the picker. Absent for Liked Songs, whose cover is its contents. */
+  onChangeCover?: () => void;
   onPlay: () => void;
   onShuffle: () => void;
   /** Open the library picker. Absent for Liked Songs, which is not editable. */
@@ -43,6 +55,8 @@ export function PlaylistDetailHeader({
   name,
   trackCount,
   covers,
+  cover,
+  onChangeCover,
   onPlay,
   onShuffle,
   onAddTracks,
@@ -123,7 +137,26 @@ export function PlaylistDetailHeader({
       </View>
 
       <View className="flex-row items-end gap-4 px-6">
-        <PlaylistMosaic covers={covers} size="lg" />
+        {/*
+          The artwork is the target, because that is where a hand goes to change
+          a picture. The badge is what says so — an image this size with no mark
+          on it reads as decoration, and the affordance would be a secret.
+        */}
+        {onChangeCover ? (
+          <Pressable
+            onPress={onChangeCover}
+            accessibilityRole="button"
+            accessibilityLabel={t('playlists.cover.change')}
+            className="aspect-square w-1/3"
+          >
+            <PlaylistMosaic covers={covers} cover={cover} size="fill" />
+            <View className="absolute bottom-1 right-1 rounded-full bg-accent p-2">
+              <ImagePlus color={colors.onSignal} size={14} strokeWidth={2} />
+            </View>
+          </Pressable>
+        ) : (
+          <PlaylistMosaic covers={covers} cover={cover} size="lg" />
+        )}
 
         <View className="flex-1 gap-1 pb-1">
           <Text numberOfLines={2} className="font-display text-2xl text-primary">

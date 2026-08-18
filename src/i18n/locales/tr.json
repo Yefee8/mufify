@@ -102,7 +102,16 @@
     "likedFilter": "Yalnızca beğenilen listeler",
     "noLiked": "Henüz beğenilen liste yok. Bir listeyi aç ve kalbe dokun.",
     "like": "Bu listeyi beğen",
-    "unlike": "Beğeniyi kaldır"
+    "unlike": "Beğeniyi kaldır",
+    "cover": {
+      "title": "Liste kapağı",
+      "choose": "Bir görsel seç",
+      "replace": "Başka bir görsel seç",
+      "remove": "Albüm kapaklarını kullan",
+      "change": "Liste kapağını değiştir",
+      "tooLarge": "Bu görsel çok büyük. 12 MB altında bir tane seç.",
+      "unreadable": "Bu görsel okunamadı. Başka bir tane dene."
+    }
   },
   "stats": {
     "title": "İstatistik",

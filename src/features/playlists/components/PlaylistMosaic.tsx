@@ -7,8 +7,23 @@ import { useThemeColors } from '@/theme/useTheme';
 export interface PlaylistMosaicProps {
   /** Up to four artwork paths, bare, in playlist order. */
   covers: readonly string[];
-  /** Rendered at this size, square. Tailwind size class, not a number. */
-  size?: 'sm' | 'lg';
+  /**
+   * A cover the user chose, bare. Replaces the grid outright.
+   *
+   * Separate from `covers` rather than being its first element: a chosen cover
+   * is a decision, and letting it share the grid would put it in a corner next
+   * to three album squares the moment the playlist gained a second record.
+   */
+  cover?: string | null;
+  /**
+   * Rendered at this size, square. Tailwind size class, not a number.
+   *
+   * `fill` takes the size of whatever contains it, for the one caller that
+   * needs to wrap the artwork in a pressable: `lg` sets its own width, and
+   * nesting that inside a box already a third of the screen wide would draw it
+   * at a ninth.
+   */
+  size?: 'sm' | 'lg' | 'fill';
 }
 
 /**
@@ -25,8 +40,11 @@ export interface PlaylistMosaicProps {
  *   playlist.
  * - **None** — the icon. An empty playlist, or one whose tracks have no
  *   embedded art.
+ *
+ * A cover the user chose overrides all four cases. It is the whole square,
+ * because a picture somebody picked is not one of a set.
  */
-export function PlaylistMosaic({ covers, size = 'sm' }: PlaylistMosaicProps) {
+export function PlaylistMosaic({ covers, cover, size = 'sm' }: PlaylistMosaicProps) {
   const colors = useThemeColors();
   /*
    * A fraction rather than a fixed size for the large variant. The obvious
@@ -34,12 +52,17 @@ export function PlaylistMosaic({ covers, size = 'sm' }: PlaylistMosaicProps) {
    * mosaic drew at zero by zero — see `src/theme/scale.test.ts`, which now fails
    * on any such class.
    */
-  const box = size === 'lg' ? 'aspect-square w-1/3' : 'h-12 w-12';
+  const box =
+    size === 'fill' ? 'h-full w-full' : size === 'lg' ? 'aspect-square w-1/3' : 'h-12 w-12';
+
+  if (cover) {
+    return <Cover path={cover} className={`${box} rounded-xs`} />;
+  }
 
   if (covers.length === 0) {
     return (
       <View className={`${box} items-center justify-center rounded-xs bg-surface-elevated`}>
-        <ListMusic color={colors.legend} size={size === 'lg' ? 40 : 20} strokeWidth={2} />
+        <ListMusic color={colors.legend} size={size === 'sm' ? 20 : 40} strokeWidth={2} />
       </View>
     );
   }

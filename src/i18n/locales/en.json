@@ -102,7 +102,16 @@
     "likedFilter": "Liked playlists only",
     "noLiked": "No liked playlists yet. Open one and tap the heart.",
     "like": "Like this playlist",
-    "unlike": "Unlike this playlist"
+    "unlike": "Unlike this playlist",
+    "cover": {
+      "title": "Playlist cover",
+      "choose": "Choose a picture",
+      "replace": "Choose another picture",
+      "remove": "Use the album covers",
+      "change": "Change the playlist cover",
+      "tooLarge": "That picture is too large. Pick one under 12 MB.",
+      "unreadable": "That picture could not be read. Try another one."
+    }
   },
   "stats": {
     "title": "Stats",

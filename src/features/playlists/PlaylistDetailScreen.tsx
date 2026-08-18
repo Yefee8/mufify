@@ -13,6 +13,7 @@ import {
   movePlaylistEntry,
   removeFromPlaylist,
   renamePlaylist,
+  setPlaylistCover,
   setPlaylistFavorite,
   useFavoriteEntries,
   usePlaylistEntries,
@@ -23,10 +24,13 @@ import { useCurrentTrack } from '@/features/player/hooks/usePlayback';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { useMessages } from '@/i18n';
 import { AudioEngine } from '@/services/audio/AudioEngine';
+import { pickPlaylistCover } from '@/services/playlists/cover';
+import { showToast } from '@/services/toast';
 import { LIBRARY_SOURCE, type PlayableTrack, type QueueSource } from '@/services/audio/types';
 import { getShuffleAlgorithm } from '@/services/settings';
 
 import { AddTracksSheet } from './components/AddTracksSheet';
+import { CoverActionSheet } from './components/CoverActionSheet';
 import { NamePlaylistDialog } from './components/NamePlaylistDialog';
 import { PlaylistDetailHeader } from './components/PlaylistDetailHeader';
 import { PlaylistEntryRow } from './components/PlaylistEntryRow';
@@ -51,6 +55,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
 
   const [renaming, setRenaming] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [choosingCover, setChoosingCover] = useState(false);
 
   /*
    * Which track is playing, so the row says so — the library has marked it
@@ -123,6 +128,27 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
     [playlistId],
   );
 
+  /*
+   * Picking is its own step, behind the sheet, because the other choice —
+   * removing the cover — has to be reachable and a picker cannot offer it.
+   * The sheet closes first: a modal still up while the system picker opens
+   * leaves two sheets stacked when the user comes back.
+   */
+  const onPickCover = useCallback(async () => {
+    setChoosingCover(false);
+    const { path, error } = await pickPlaylistCover(playlistId);
+    if (error !== null) {
+      showToast(t(`playlists.cover.${error === 'too-large' ? 'tooLarge' : 'unreadable'}`));
+      return;
+    }
+    if (path !== null) await setPlaylistCover(playlistId, path);
+  }, [playlistId, t]);
+
+  const onClearCover = useCallback(() => {
+    setChoosingCover(false);
+    void setPlaylistCover(playlistId, null);
+  }, [playlistId]);
+
   const onToggleFavorite = useCallback(() => {
     if (playlist) void setPlaylistFavorite(playlistId, !playlist.isFavorite);
   }, [playlist, playlistId]);
@@ -175,6 +201,8 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
         covers={covers}
         onPlay={playAll}
         onShuffle={() => void shuffleAll()}
+        cover={playlist?.coverPath ?? null}
+        onChangeCover={isLiked ? undefined : () => setChoosingCover(true)}
         onAddTracks={isLiked ? undefined : () => setAdding(true)}
         onRename={isLiked ? undefined : () => setRenaming(true)}
         onDelete={isLiked ? undefined : onDelete}
@@ -210,6 +238,16 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
           playlistId={playlistId}
           existing={existingIds}
           onClose={() => setAdding(false)}
+        />
+      )}
+
+      {isLiked ? null : (
+        <CoverActionSheet
+          visible={choosingCover}
+          hasCover={playlist?.coverPath != null}
+          onPick={() => void onPickCover()}
+          onClear={onClearCover}
+          onClose={() => setChoosingCover(false)}
         />
       )}
 

@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gt, max, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 
+import { deleteCoverFile } from '@/services/playlists/cover';
 import {
   foldPlaylistRows,
   LIKED_SONGS_ID,
@@ -188,6 +189,34 @@ export async function setPlaylistFavorite(id: number, isFavorite: boolean): Prom
     .where(eq(playlists.id, id));
 }
 
+/**
+ * Point a playlist at a cover the user chose, or back at the mosaic.
+ *
+ * The file the playlist was using is deleted after the row is updated, in that
+ * order: a delete that succeeds followed by an update that fails would leave a
+ * playlist pointing at nothing, and a missing image renders as a blank square
+ * with no way to tell it from a bug. The other order leaks a file at worst.
+ *
+ * `updatedAt` is bumped — unlike liking, choosing a cover *is* editing the
+ * playlist, and the tab orders unliked playlists by when they last changed.
+ */
+export async function setPlaylistCover(id: number, artworkPath: string | null): Promise<void> {
+  const [previous] = await db
+    .select({ artworkPath: playlists.artworkPath })
+    .from(playlists)
+    .where(eq(playlists.id, id))
+    .limit(1);
+
+  await db
+    .update(playlists)
+    .set({ artworkPath, updatedAt: Date.now() })
+    .where(eq(playlists.id, id));
+
+  if (previous?.artworkPath && previous.artworkPath !== artworkPath) {
+    deleteCoverFile(previous.artworkPath);
+  }
+}
+
 export async function renamePlaylist(id: number, name: string): Promise<void> {
   const trimmed = name.trim();
   if (!trimmed) return;
@@ -199,7 +228,16 @@ export async function renamePlaylist(id: number, name: string): Promise<void> {
 
 /** Entries go with it — `playlist_tracks` cascades on delete. */
 export async function deletePlaylist(id: number): Promise<void> {
+  // The cover does not cascade: it is a file, and nothing else will ever look
+  // at it again once this row is gone.
+  const [row] = await db
+    .select({ artworkPath: playlists.artworkPath })
+    .from(playlists)
+    .where(eq(playlists.id, id))
+    .limit(1);
+
   await db.delete(playlists).where(eq(playlists.id, id));
+  deleteCoverFile(row?.artworkPath);
 }
 
 /**
