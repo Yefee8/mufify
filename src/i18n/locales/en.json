@@ -56,7 +56,9 @@
       "tracks": "Tracks",
       "artists": "Artists",
       "albums": "Albums"
-    }
+    },
+    "likedFilter": "Liked tracks only",
+    "noLiked": "Nothing liked yet. Tap the heart on a track to keep it here."
   },
   "playlists": {
     "title": "Playlists",
@@ -95,7 +97,11 @@
       "alreadyIn": "Already in this playlist",
       "empty": "Nothing in the library yet. Choose a folder on the Library tab."
     },
-    "reorder": "Reorder {{title}}"
+    "reorder": "Reorder {{title}}",
+    "likedFilter": "Liked playlists only",
+    "noLiked": "No liked playlists yet. Open one and tap the heart.",
+    "like": "Like this playlist",
+    "unlike": "Unlike this playlist"
   },
   "stats": {
     "title": "Stats",
@@ -281,7 +287,8 @@
       "day": "d"
     },
     "playAll": "Play",
-    "shuffle": "Shuffle"
+    "shuffle": "Shuffle",
+    "likedOnly": "Show only liked"
   },
   "queue": {
     "title": "Queue",

@@ -4,8 +4,8 @@ import { buildPlaylistRows, shouldShowEmptyState, type FavoriteRow } from './pla
 
 const LIKED = 'Liked Songs';
 
-function playlist(id: number, trackCount = 0): PlaylistSummary {
-  return { id, name: `list-${id}`, trackCount, artworkPath: null, mosaic: [] };
+function playlist(id: number, trackCount = 0, isFavorite = false): PlaylistSummary {
+  return { id, name: `list-${id}`, trackCount, isFavorite, artworkPath: null, coverPath: null, mosaic: [] };
 }
 
 function favorites(count: number, withArtwork = 0): FavoriteRow[] {
@@ -74,5 +74,40 @@ describe('shouldShowEmptyState', () => {
         expect(shouldShowEmptyState(rows)).toBe(rows.length === 0);
       }
     }
+  });
+});
+
+describe('buildPlaylistRows, liked filter', () => {
+  it('drops the playlists that are not liked', () => {
+    const rows = buildPlaylistRows([], [playlist(1, 0, true), playlist(2)], LIKED, true);
+
+    expect(rows.map((row) => row.id)).toEqual([1]);
+  });
+
+  it('keeps Liked Songs, which is the liked collection itself', () => {
+    // Filtering to liked things and then hiding the liked things would leave an
+    // empty screen with a lit heart above it.
+    const rows = buildPlaylistRows(favorites(3), [playlist(1)], LIKED, true);
+
+    expect(rows.map((row) => row.id)).toEqual([LIKED_SONGS_ID]);
+  });
+
+  it('never marks Liked Songs as itself liked', () => {
+    // It has no heart to toggle, so claiming it is liked would render one.
+    const rows = buildPlaylistRows(favorites(1), [], LIKED);
+
+    expect(rows[0]?.isFavorite).toBe(false);
+  });
+
+  it('leaves the order alone — pinning is the query\'s job, not this one\'s', () => {
+    const given = [playlist(9, 0, true), playlist(4, 0, true), playlist(2, 0, true)];
+
+    expect(buildPlaylistRows([], given, LIKED, true).map((row) => row.id)).toEqual([9, 4, 2]);
+  });
+
+  it('is empty when nothing at all is liked, so the empty state fires', () => {
+    const rows = buildPlaylistRows([], [playlist(1), playlist(2)], LIKED, true);
+
+    expect(shouldShowEmptyState(rows)).toBe(true);
   });
 });

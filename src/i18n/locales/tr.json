@@ -56,7 +56,9 @@
       "tracks": "Parçalar",
       "artists": "Sanatçılar",
       "albums": "Albümler"
-    }
+    },
+    "likedFilter": "Yalnızca beğenilen parçalar",
+    "noLiked": "Henüz beğenilen parça yok. Bir parçadaki kalbe dokun, burada dursun."
   },
   "playlists": {
     "title": "Listeler",
@@ -95,7 +97,11 @@
       "alreadyIn": "Bu listede zaten var",
       "empty": "Kitaplıkta henüz bir şey yok. Kitaplık sekmesinden klasör seç."
     },
-    "reorder": "{{title}} sırasını değiştir"
+    "reorder": "{{title}} sırasını değiştir",
+    "likedFilter": "Yalnızca beğenilen listeler",
+    "noLiked": "Henüz beğenilen liste yok. Bir listeyi aç ve kalbe dokun.",
+    "like": "Bu listeyi beğen",
+    "unlike": "Beğeniyi kaldır"
   },
   "stats": {
     "title": "İstatistik",
@@ -281,7 +287,8 @@
       "day": "g"
     },
     "playAll": "Çal",
-    "shuffle": "Karıştır"
+    "shuffle": "Karıştır",
+    "likedOnly": "Yalnızca beğenilenleri göster"
   },
   "queue": {
     "title": "Sıra",

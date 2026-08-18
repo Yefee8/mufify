@@ -109,6 +109,8 @@ export function CollectionDetailScreen({ kind, id }: CollectionDetailScreenProps
         tracks={tracks}
         isLoading={false}
         search=""
+        /* No filter on this screen: an album is already the filter. */
+        likedOnly={false}
         /* Never empty in practice — the grid only offers rows that have tracks
            — and an empty state here would be about the wrong thing anyway. */
         suppressEmpty

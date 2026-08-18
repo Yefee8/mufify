@@ -36,20 +36,34 @@ export function buildPlaylistRows(
   favorites: readonly FavoriteRow[],
   playlists: readonly PlaylistSummary[],
   likedSongsName: string,
+  likedOnly = false,
 ): PlaylistSummary[] {
-  if (favorites.length === 0) return [...playlists];
+  // Ordering is the query's job — liked first, then most recently liked. This
+  // only drops the rest when the filter is on.
+  const listed = likedOnly ? playlists.filter((playlist) => playlist.isFavorite) : [...playlists];
+
+  if (favorites.length === 0) return listed;
 
   return [
     {
       id: LIKED_SONGS_ID,
       name: likedSongsName,
       trackCount: favorites.length,
+      /*
+       * Not itself liked, and it cannot be: Liked Songs *is* the liked
+       * collection, so a heart on it would be a switch with nothing behind it.
+       * It survives the Liked filter for the same reason — filtering the liked
+       * list down to nothing but hiding the liked list is not a thing anyone
+       * asked for.
+       */
+      isFavorite: false,
       mosaic: favorites
         .flatMap((entry) => (entry.artworkPath ? [entry.artworkPath] : []))
         .slice(0, MOSAIC_SIZE),
       artworkPath: null,
+      coverPath: null,
     },
-    ...playlists,
+    ...listed,
   ];
 }
 

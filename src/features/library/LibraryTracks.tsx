@@ -1,4 +1,4 @@
-import { Music, SearchX } from 'lucide-react-native';
+import { HeartOff, Music, SearchX } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
@@ -23,6 +23,8 @@ export interface LibraryTracksProps {
   isLoading: boolean;
   /** The active search term, so "no results" can quote it. */
   search: string;
+  /** The liked filter is on, so an empty list means "nothing liked". */
+  likedOnly: boolean;
   /** Suppresses the empty state — the screen is already showing an error. */
   suppressEmpty: boolean;
   /** Offered by the empty state when the library has never been filled. */
@@ -49,6 +51,7 @@ export function LibraryTracks({
   tracks,
   isLoading,
   search,
+  likedOnly,
   suppressEmpty,
   onAddFolder,
 }: LibraryTracksProps) {
@@ -157,6 +160,10 @@ export function LibraryTracks({
                 /* No hits is not an empty library — offering a scan here would
                    answer a question the user did not ask. */
                 <EmptyState icon={SearchX} messages={[t('library.noResults', { term: search })]} />
+              ) : likedOnly ? (
+                /* Same reasoning: the library is not empty, the filter is. The
+                   heart that emptied it is still on screen to turn back off. */
+                <EmptyState icon={HeartOff} messages={[t('library.noLiked')]} />
               ) : (
                 <EmptyState
                   icon={Music}

@@ -29,8 +29,20 @@ export interface PlaylistSummary {
   id: number;
   name: string;
   trackCount: number;
-  /** Cover of the first track, for the list thumbnail. Null when empty. */
+  /** Liked playlists are pinned above the rest by the query that reads them. */
+  isFavorite: boolean;
+  /**
+   * The single thumbnail: the cover the user chose, or failing that the first
+   * track's. Null when there is neither.
+   */
   artworkPath: string | null;
+  /**
+   * Only the cover the user chose. Kept apart from `artworkPath` because the
+   * mosaic is suppressed for a chosen cover and not for a borrowed one — the
+   * four-square grid *is* the default, and falling back to it would undo the
+   * choice the moment a playlist gained a second album.
+   */
+  coverPath: string | null;
   /**
    * Up to four covers, in playlist order, for the mosaic thumbnail.
    *
@@ -47,6 +59,9 @@ export interface PlaylistRow {
   /** Null when the playlist has no tracks at all. */
   position: number | null;
   artworkPath: string | null;
+  isFavorite: boolean;
+  /** The playlist's own cover, if the user chose one. */
+  coverPath: string | null;
 }
 
 /**
@@ -79,7 +94,15 @@ export function foldPlaylistRows(rows: readonly PlaylistRow[]): PlaylistSummary[
   for (const row of rows) {
     let summary = byId.get(row.id);
     if (!summary) {
-      summary = { id: row.id, name: row.name, trackCount: 0, artworkPath: null, mosaic: [] };
+      summary = {
+        id: row.id,
+        name: row.name,
+        trackCount: 0,
+        isFavorite: row.isFavorite,
+        artworkPath: row.coverPath,
+        coverPath: row.coverPath,
+        mosaic: [],
+      };
       byId.set(row.id, summary);
     }
 

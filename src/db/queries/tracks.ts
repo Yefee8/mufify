@@ -103,33 +103,60 @@ export async function countTracks(): Promise<number> {
  * `useLiveQuery` lives here rather than in a feature hook so Drizzle stays
  * behind the src/db boundary, which ESLint enforces.
  */
-export function useTracks(search = ''): { tracks: TrackListItem[]; isLoading: boolean } {
+export function useTracks(
+  search = '',
+  likedOnly = false,
+): { tracks: TrackListItem[]; isLoading: boolean } {
   const term = search.trim();
   // `%` and `_` are LIKE wildcards. Unescaped, typing "%" matches everything
   // and the list appears not to filter at all.
   const pattern = `%${term.replace(/[\\%_]/gu, (char) => `\\${char}`)}%`;
 
-  const query = db
-    .select(listSelection)
-    .from(tracks)
-    .leftJoin(artists, eq(tracks.artistId, artists.id))
-    .leftJoin(albums, eq(tracks.albumId, albums.id))
-    .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
-    .where(
-      term
-        ? and(
-            eq(tracks.isMissing, 0),
-            or(
-              sql`${tracks.title} LIKE ${pattern} ESCAPE '\\'`,
-              sql`${artists.name} LIKE ${pattern} ESCAPE '\\'`,
-              sql`${albums.name} LIKE ${pattern} ESCAPE '\\'`,
-            ),
-          )
-        : eq(tracks.isMissing, 0),
-    )
-    .orderBy(asc(sql`${tracks.title} COLLATE NOCASE`));
+  const matches = term
+    ? and(
+        eq(tracks.isMissing, 0),
+        or(
+          sql`${tracks.title} LIKE ${pattern} ESCAPE '\\'`,
+          sql`${artists.name} LIKE ${pattern} ESCAPE '\\'`,
+          sql`${albums.name} LIKE ${pattern} ESCAPE '\\'`,
+        ),
+      )
+    : eq(tracks.isMissing, 0);
 
-  const { data, updatedAt } = useLiveQuery(query, [term]);
+  /*
+   * Two queries rather than one with an extra predicate, and the difference
+   * that matters is which table they select **from**.
+   *
+   * `useLiveQuery` only watches the table in `FROM` — it reads
+   * `query.config.table` and compares that one name, so a joined table is
+   * invisible to it. Liking a track writes to `track_stats` and nothing else,
+   * so a filtered list built `from(tracks)` would show whatever was liked when
+   * it mounted and never notice a heart being tapped. `useFavoriteEntries` is
+   * built the same way for the same reason, and the bug it documents is the
+   * one this avoids.
+   *
+   * The inner join is also what applies the filter: a track with no
+   * `track_stats` row has never been liked, so there is nothing to match.
+   */
+  const query = likedOnly
+    ? db
+        .select(listSelection)
+        .from(trackStats)
+        .innerJoin(tracks, eq(tracks.id, trackStats.trackId))
+        .leftJoin(artists, eq(tracks.artistId, artists.id))
+        .leftJoin(albums, eq(tracks.albumId, albums.id))
+        .where(and(eq(trackStats.isFavorite, 1), matches))
+        .orderBy(asc(sql`${tracks.title} COLLATE NOCASE`))
+    : db
+        .select(listSelection)
+        .from(tracks)
+        .leftJoin(artists, eq(tracks.artistId, artists.id))
+        .leftJoin(albums, eq(tracks.albumId, albums.id))
+        .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
+        .where(matches)
+        .orderBy(asc(sql`${tracks.title} COLLATE NOCASE`));
+
+  const { data, updatedAt } = useLiveQuery(query, [term, likedOnly]);
 
   /*
    * Time to first rows, which is the number the cold-start investigation turned
@@ -140,7 +167,7 @@ export function useTracks(search = ''): { tracks: TrackListItem[]; isLoading: bo
    */
   useEffect(() => {
     perf.mark('useTracks.firstRows');
-  }, [term]);
+  }, [term, likedOnly]);
   useEffect(() => {
     if (updatedAt !== undefined) perf.measure('useTracks.firstRows', data.length);
   }, [updatedAt, data.length]);

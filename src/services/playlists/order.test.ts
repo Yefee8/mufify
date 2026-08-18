@@ -10,7 +10,14 @@ import { foldPlaylistRows, reorder, type PlaylistRow } from './order';
  */
 
 function row(partial: Partial<PlaylistRow> & { id: number }): PlaylistRow {
-  return { name: `list ${partial.id}`, position: null, artworkPath: null, ...partial };
+  return {
+    name: `list ${partial.id}`,
+    position: null,
+    artworkPath: null,
+    isFavorite: false,
+    coverPath: null,
+    ...partial,
+  };
 }
 
 describe('reorder', () => {
@@ -59,7 +66,15 @@ describe('foldPlaylistRows', () => {
     // A left join yields one row with a null position for a playlist with no
     // tracks. Counting that row is how "0 tracks" becomes "1 track".
     expect(foldPlaylistRows([row({ id: 1 })])).toEqual([
-      { id: 1, name: 'list 1', trackCount: 0, artworkPath: null, mosaic: [] },
+      {
+        id: 1,
+        name: 'list 1',
+        trackCount: 0,
+        isFavorite: false,
+        artworkPath: null,
+        coverPath: null,
+        mosaic: [],
+      },
     ]);
   });
 
@@ -115,5 +130,36 @@ describe('foldPlaylistRows', () => {
     ]);
 
     expect(folded.map((entry) => entry.id)).toEqual([7, 3, 5]);
+  });
+});
+
+describe('foldPlaylistRows, liked and chosen covers', () => {
+  it('carries the liked flag through', () => {
+    const folded = foldPlaylistRows([
+      row({ id: 1, position: 0, isFavorite: true }),
+      row({ id: 2, position: 0 }),
+    ]);
+
+    expect(folded.map((summary) => summary.isFavorite)).toEqual([true, false]);
+  });
+
+  it('prefers the chosen cover to the first track, and keeps the mosaic', () => {
+    // The chosen cover wins the single thumbnail; the mosaic is still collected
+    // so that clearing the cover falls straight back to it without a re-query.
+    const folded = foldPlaylistRows([
+      row({ id: 1, position: 0, artworkPath: '/a.jpg', coverPath: '/chosen.jpg' }),
+      row({ id: 1, position: 1, artworkPath: '/b.jpg', coverPath: '/chosen.jpg' }),
+    ]);
+
+    expect(folded[0]?.artworkPath).toBe('/chosen.jpg');
+    expect(folded[0]?.coverPath).toBe('/chosen.jpg');
+    expect(folded[0]?.mosaic).toEqual(['/a.jpg', '/b.jpg']);
+  });
+
+  it('leaves coverPath null when the user has chosen nothing', () => {
+    const folded = foldPlaylistRows([row({ id: 1, position: 0, artworkPath: '/a.jpg' })]);
+
+    expect(folded[0]?.coverPath).toBeNull();
+    expect(folded[0]?.artworkPath).toBe('/a.jpg');
   });
 });

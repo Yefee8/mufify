@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
+import { LikedFilter } from '@/components/ui/LikedFilter';
 import { PlayShuffleBar } from '@/components/ui/PlayShuffleBar';
 import { SkeletonCards } from '@/components/ui/Skeleton';
 import { useAlbumCards, useArtistCards } from '@/db/queries/tracks';
@@ -56,8 +57,9 @@ export function LibraryScreen() {
 
   const [view, setView] = useState<LibraryView>('tracks');
   const [search, setSearch] = useState('');
+  const [likedOnly, setLikedOnly] = useState(false);
   // The field stays instant; only the query waits.
-  const { tracks, isLoading } = useTracks(useDebounced(search));
+  const { tracks, isLoading } = useTracks(useDebounced(search), likedOnly);
   const { progress, isScanning, scanLibrary, pickFolder, importFolder, isFolderImporting, cancel } =
     useScan();
 
@@ -144,9 +146,19 @@ export function LibraryScreen() {
         />
       </View>
 
-      {/* Search filters tracks only. An artist grid of two cards does not need
-          a search box, and hiding it makes that obvious rather than puzzling. */}
-      {view === 'tracks' ? <SearchField value={search} onChange={setSearch} /> : null}
+      {/* Both narrow the track list, so they share a row. Artists and albums are
+          grids of a few cards and need neither, and hiding them there makes that
+          obvious rather than puzzling. */}
+      {view === 'tracks' ? (
+        <View className="mb-4 flex-row items-center gap-3 px-6">
+          <SearchField value={search} onChange={setSearch} inRow />
+          <LikedFilter
+            active={likedOnly}
+            onChange={setLikedOnly}
+            accessibilityLabel={t('library.likedFilter')}
+          />
+        </View>
+      ) : null}
 
       {/* Starting the whole library from the top, rather than only by tapping a
           row — which starts at that row. Hidden while there is nothing to play. */}
@@ -191,6 +203,7 @@ export function LibraryScreen() {
           tracks={tracks}
           isLoading={waiting}
           search={search}
+          likedOnly={likedOnly}
           suppressEmpty={hasFailed}
           onAddFolder={chooseFolder}
         />

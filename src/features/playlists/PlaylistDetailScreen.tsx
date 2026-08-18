@@ -13,6 +13,7 @@ import {
   movePlaylistEntry,
   removeFromPlaylist,
   renamePlaylist,
+  setPlaylistFavorite,
   useFavoriteEntries,
   usePlaylistEntries,
   usePlaylists,
@@ -122,6 +123,10 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
     [playlistId],
   );
 
+  const onToggleFavorite = useCallback(() => {
+    if (playlist) void setPlaylistFavorite(playlistId, !playlist.isFavorite);
+  }, [playlist, playlistId]);
+
   const onDelete = useCallback(() => {
     // Leave first: deleting under the screen would leave it rendering a playlist
     // that no longer exists for a frame.
@@ -173,6 +178,8 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
         onAddTracks={isLiked ? undefined : () => setAdding(true)}
         onRename={isLiked ? undefined : () => setRenaming(true)}
         onDelete={isLiked ? undefined : onDelete}
+        isFavorite={playlist?.isFavorite ?? false}
+        onToggleFavorite={isLiked ? undefined : onToggleFavorite}
       />
 
       {/* Bounded, so the list re-lays out when the rows above it change. */}

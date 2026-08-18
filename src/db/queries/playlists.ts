@@ -71,11 +71,26 @@ export function usePlaylists(): PlaylistSummary[] {
       name: playlists.name,
       position: playlistTracks.position,
       artworkPath: tracks.artworkPath,
+      coverPath: playlists.artworkPath,
+      isFavorite: sql`${playlists.isFavorite}`.mapWith(Boolean),
     })
     .from(playlists)
     .leftJoin(playlistTracks, eq(playlistTracks.playlistId, playlists.id))
     .leftJoin(tracks, eq(tracks.id, playlistTracks.trackId))
-    .orderBy(sql`${playlists.updatedAt} DESC`, asc(playlistTracks.position));
+    /*
+     * Liked first, then most recently liked, then the ordinary order.
+     *
+     * The second key is `favoriteAt` rather than `updatedAt` because liking a
+     * playlist is not editing it: sorting the pinned group by `updatedAt` would
+     * drop a freshly liked old playlist into the middle of the pins, so the
+     * heart would appear to have moved it somewhere arbitrary.
+     */
+    .orderBy(
+      sql`${playlists.isFavorite} DESC`,
+      sql`${playlists.favoriteAt} DESC`,
+      sql`${playlists.updatedAt} DESC`,
+      asc(playlistTracks.position),
+    );
 
   const { data } = useLiveQuery(query);
   return foldPlaylistRows(data);
@@ -152,6 +167,25 @@ export async function createPlaylist(name: string): Promise<number | null> {
     .returning({ id: playlists.id });
 
   return row?.id ?? null;
+}
+
+/**
+ * Like or unlike a playlist.
+ *
+ * `favoriteAt` is cleared on the way out rather than left behind, so a playlist
+ * liked, unliked and liked again sorts by when it was *last* liked. A stale
+ * timestamp would put it back where it used to be, which reads as the list
+ * ignoring the tap.
+ *
+ * `updatedAt` is deliberately untouched: it means "the contents changed", and
+ * the playlists list uses it for ordering. Bumping it here would shuffle the
+ * unliked part of the list every time somebody liked something.
+ */
+export async function setPlaylistFavorite(id: number, isFavorite: boolean): Promise<void> {
+  await db
+    .update(playlists)
+    .set({ isFavorite: isFavorite ? 1 : 0, favoriteAt: isFavorite ? Date.now() : null })
+    .where(eq(playlists.id, id));
 }
 
 export async function renamePlaylist(id: number, name: string): Promise<void> {

@@ -7,6 +7,14 @@ import { useThemeColors } from '@/theme/useTheme';
 export interface SearchFieldProps {
   value: string;
   onChange: (value: string) => void;
+  /**
+   * Sits in a row beside something else, so the parent owns the margins.
+   *
+   * Off by default because the sheet that uses this still wants a field on its
+   * own line, and changing the shape for both would move the sheet's search box
+   * for a reason belonging to the library.
+   */
+  inRow?: boolean;
 }
 
 /**
@@ -16,12 +24,18 @@ export interface SearchFieldProps {
  * the *query* is what waits. Debouncing the input itself makes typing feel
  * laggy, which is the mistake that gets debouncing a bad name.
  */
-export function SearchField({ value, onChange }: SearchFieldProps) {
+export function SearchField({ value, onChange, inRow = false }: SearchFieldProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
 
   return (
-    <View className="mx-6 mb-4 min-h-11 flex-row items-center gap-3 rounded-sm border border-subtle px-4">
+    <View
+      className={
+        inRow
+          ? 'min-h-11 flex-1 flex-row items-center gap-3 rounded-sm border border-subtle px-4'
+          : 'mx-6 mb-4 min-h-11 flex-row items-center gap-3 rounded-sm border border-subtle px-4'
+      }
+    >
       <Search color={colors.legend} size={18} strokeWidth={2} />
 
       <TextInput

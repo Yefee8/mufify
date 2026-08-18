@@ -100,9 +100,14 @@ export const playlists = sqliteTable('playlists', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
   description: text('description'),
+  /** A cover the user chose, in the artwork cache. Null means the mosaic. */
   artworkPath: text('artwork_path'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
+  /** Liked playlists sort above the rest, exactly as liked tracks do. */
+  isFavorite: integer('is_favorite').notNull().default(0),
+  /** Set only while liked, so the pinned ones keep a stable order. */
+  favoriteAt: integer('favorite_at'),
 });
 
 export const playlistTracks = sqliteTable(

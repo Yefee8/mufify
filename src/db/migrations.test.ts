@@ -122,6 +122,22 @@ describe('migrations', () => {
     expect(favoriteAt?.notnull).toBe(0);
   });
 
+  it('gives an existing playlist a liked flag it can survive the migration with', () => {
+    // Added to a table that already has rows on every upgraded install, so the
+    // default is what decides whether every playlist arrives pre-liked.
+    const db = freshDatabase();
+    const columns = db.prepare('PRAGMA table_info(playlists)').all() as {
+      name: string;
+      notnull: number;
+      dflt_value: string | null;
+    }[];
+    const byName = new Map(columns.map((column) => [column.name, column]));
+
+    expect(byName.get('is_favorite')?.notnull).toBe(1);
+    expect(Number(byName.get('is_favorite')?.dflt_value)).toBe(0);
+    expect(byName.get('favorite_at')?.notnull).toBe(0);
+  });
+
   it('stores artwork as a path, never as bytes', () => {
     const db = freshDatabase();
     for (const table of ['tracks', 'albums', 'playlists']) {

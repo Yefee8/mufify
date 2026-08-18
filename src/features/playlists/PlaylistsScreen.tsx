@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
-import { ListMusic, Plus } from 'lucide-react-native';
+import { HeartOff, ListMusic, Plus } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { EmptyState } from '@/components/ui/EmptyState';
+import { LikedFilter } from '@/components/ui/LikedFilter';
 import { Screen } from '@/components/ui/Screen';
 import {
   createPlaylist,
@@ -40,6 +41,7 @@ export function PlaylistsScreen() {
   const playlists = usePlaylists();
   const likedEntries = useFavoriteEntries();
   const [naming, setNaming] = useState(false);
+  const [likedOnly, setLikedOnly] = useState(false);
 
   const openNaming = useCallback(() => setNaming(true), []);
   const closeNaming = useCallback(() => setNaming(false), []);
@@ -62,15 +64,21 @@ export function PlaylistsScreen() {
     [openPlaylist],
   );
 
-  const rows = buildPlaylistRows(likedEntries, playlists, t('playlists.likedSongs'));
+  const rows = buildPlaylistRows(likedEntries, playlists, t('playlists.likedSongs'), likedOnly);
 
   return (
     <Screen title={t('playlists.title')}>
-      <View className="flex-row items-center justify-between px-6 pb-4">
+      <View className="flex-row items-center gap-3 px-6 pb-4">
         {/* `rows.length`, so the number describes the list under it. */}
-        <Text className="font-mono text-sm text-muted">
+        <Text className="flex-1 font-mono text-sm text-muted">
           {t('playlists.count', { count: rows.length })}
         </Text>
+
+        <LikedFilter
+          active={likedOnly}
+          onChange={setLikedOnly}
+          accessibilityLabel={t('playlists.likedFilter')}
+        />
 
         <Pressable
           onPress={openNaming}
@@ -90,12 +98,19 @@ export function PlaylistsScreen() {
         contentContainerStyle={{ paddingBottom: SPACING[8] + bottomInset }}
         ListFooterComponent={
           shouldShowEmptyState(rows) ? (
-            <EmptyState
-              icon={ListMusic}
-              messages={messages}
-              actionLabel={t('playlists.create')}
-              onAction={openNaming}
-            />
+            likedOnly ? (
+              /* Nothing liked is not "no playlists": offering Create here would
+                 answer a question the filter did not ask. The heart stays on
+                 screen above, which is the way back. */
+              <EmptyState icon={HeartOff} messages={[t('playlists.noLiked')]} />
+            ) : (
+              <EmptyState
+                icon={ListMusic}
+                messages={messages}
+                actionLabel={t('playlists.create')}
+                onAction={openNaming}
+              />
+            )
           ) : null
         }
       />

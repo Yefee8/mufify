@@ -1,8 +1,10 @@
+import { Heart } from 'lucide-react-native';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 
 import type { PlaylistSummary } from '@/db/queries/playlists';
+import { useThemeColors } from '@/theme/useTheme';
 
 import { PlaylistMosaic } from './PlaylistMosaic';
 
@@ -14,6 +16,7 @@ export interface PlaylistRowProps {
 /** One playlist: a mosaic of its first four covers, name, size. */
 export const PlaylistRow = memo(function PlaylistRow({ playlist, onPress }: PlaylistRowProps) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
   const handlePress = useCallback(() => onPress(playlist.id), [onPress, playlist.id]);
 
   return (
@@ -34,6 +37,14 @@ export const PlaylistRow = memo(function PlaylistRow({ playlist, onPress }: Play
           {t('playlists.trackCount', { count: playlist.trackCount })}
         </Text>
       </View>
+
+      {/* Why this row is above the others. Not a button — the row's whole job is
+          to open the playlist, and a target inside it that does something else
+          is how you like a playlist while trying to open it. The toggle lives
+          inside, in the header. */}
+      {playlist.isFavorite ? (
+        <Heart color={colors.signal} fill={colors.signal} size={16} strokeWidth={2} />
+      ) : null}
     </Pressable>
   );
 });

@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ChevronLeft, ListPlus, Pencil, Shuffle, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, Heart, ListPlus, Pencil, Shuffle, Trash2 } from 'lucide-react-native';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
@@ -18,6 +18,14 @@ export interface PlaylistDetailHeaderProps {
   onAddTracks?: () => void;
   onRename?: () => void;
   onDelete?: () => void;
+  isFavorite?: boolean;
+  /**
+   * Like or unlike the whole playlist, pinning it to the top of the tab.
+   *
+   * Absent for Liked Songs, which *is* the liked collection — a heart there
+   * would be a switch with nothing behind it.
+   */
+  onToggleFavorite?: () => void;
 }
 
 /**
@@ -40,6 +48,8 @@ export function PlaylistDetailHeader({
   onAddTracks,
   onRename,
   onDelete,
+  isFavorite = false,
+  onToggleFavorite,
 }: PlaylistDetailHeaderProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -60,6 +70,23 @@ export function PlaylistDetailHeader({
         </Pressable>
 
         <View className="flex-1" />
+
+        {onToggleFavorite ? (
+          <Pressable
+            onPress={onToggleFavorite}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: isFavorite }}
+            accessibilityLabel={isFavorite ? t('playlists.unlike') : t('playlists.like')}
+            className="min-h-11 min-w-11 items-center justify-center"
+          >
+            <Heart
+              color={isFavorite ? colors.signal : colors.legend}
+              fill={isFavorite ? colors.signal : 'transparent'}
+              size={20}
+              strokeWidth={2}
+            />
+          </Pressable>
+        ) : null}
 
         {onAddTracks ? (
           <Pressable
