@@ -117,6 +117,15 @@ export function setResumeOnLaunch(enabled: boolean): void {
  * tracks, and silently dropping a fifth of a classical library is worse than
  * showing a few ringtones.
  */
+/** See `SETTINGS_KEYS.audioPermissionAsked` for why this is remembered. */
+export function getAudioPermissionAsked(): boolean {
+  return readStoredFlag(SETTINGS_KEYS.audioPermissionAsked, false);
+}
+
+export function setAudioPermissionAsked(asked: boolean): void {
+  settingsStorage.set(SETTINGS_KEYS.audioPermissionAsked, asked);
+}
+
 export function getIgnoreShortFiles(): boolean {
   return readStoredFlag(SETTINGS_KEYS.ignoreShortFiles, false);
 }

@@ -1,4 +1,4 @@
-import { isPermissionError, permissionErrorFor } from './permission';
+import { permissionErrorFor } from './permission';
 
 describe('permissionErrorFor', () => {
   it('lets the scan proceed once the permission is granted', () => {
@@ -18,17 +18,5 @@ describe('permissionErrorFor', () => {
 
   it('reports a permanent denial separately, because retrying cannot fix it', () => {
     expect(permissionErrorFor({ granted: false, canAskAgain: false })).toBe('permission-blocked');
-  });
-});
-
-describe('isPermissionError', () => {
-  it('recognises both permission codes', () => {
-    expect(isPermissionError('permission-denied')).toBe(true);
-    expect(isPermissionError('permission-blocked')).toBe(true);
-  });
-
-  it('does not claim an ordinary scan failure', () => {
-    expect(isPermissionError('Cursor closed unexpectedly')).toBe(false);
-    expect(isPermissionError(undefined)).toBe(false);
   });
 });

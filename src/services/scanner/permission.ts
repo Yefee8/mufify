@@ -26,8 +26,3 @@ export function permissionErrorFor(result: AudioPermissionResult): PermissionErr
   if (result.granted) return null;
   return result.canAskAgain ? 'permission-denied' : 'permission-blocked';
 }
-
-/** Whether this error code is a permission problem rather than a scan failure. */
-export function isPermissionError(error: string | undefined): boolean {
-  return error === 'permission-denied' || error === 'permission-blocked';
-}

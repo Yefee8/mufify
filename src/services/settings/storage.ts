@@ -26,4 +26,12 @@ export const SETTINGS_KEYS = {
   equalizerLevels: 'settings.equalizerLevels',
   /** The queue and position, so playback can resume where it stopped. */
   lastSession: 'settings.lastSession',
+  /**
+   * Whether the audio permission dialog has ever been shown.
+   *
+   * Persisted so a first launch does not accuse anyone of refusing something
+   * they were never asked. Before the question has been put, "not granted"
+   * means "not yet asked", and the two need different words on screen.
+   */
+  audioPermissionAsked: 'settings.audioPermissionAsked',
 } as const;

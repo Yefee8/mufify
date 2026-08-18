@@ -1,12 +1,13 @@
 import { RefreshCw } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { WarningBanner } from '@/components/ui/WarningBanner';
 import { ScanBanner } from '@/features/library/components/ScanBanner';
+import { useAudioPermission } from '@/features/library/hooks/useAudioPermission';
 import { useScan } from '@/features/library/hooks/useScan';
-import { isPermissionError } from '@/services/scanner/permission';
 import { SPACING } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/useTheme';
 
@@ -26,7 +27,15 @@ export function ScanDeviceRow() {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const { progress, isScanning, scanLibrary, cancel } = useScan();
+  const permission = useAudioPermission();
   const [confirming, setConfirming] = useState(false);
+
+  const askAgain = useCallback(() => {
+    // Asking again after a permanent denial does nothing — the system drops the
+    // request without showing a dialog — so that case goes to the switch.
+    if (permission.blocked) void Linking.openSettings();
+    else void permission.request();
+  }, [permission]);
 
   const onConfirm = useCallback(() => {
     setConfirming(false);
@@ -62,12 +71,28 @@ export function ScanDeviceRow() {
 
       {isScanning ? <ScanBanner progress={progress} onCancel={cancel} /> : null}
 
+      {/*
+        A refusal used to print one muted line here with nothing to press, on
+        the screen whose whole job is to *be* where you fix things. The banner
+        carries the way out, and shows for as long as the permission is missing
+        rather than only after a scan has been attempted.
+      */}
+      {permission.denied ? (
+        <WarningBanner
+          message={
+            permission.blocked
+              ? t('library.scanError.permissionBlocked')
+              : t('library.scanError.permission')
+          }
+          actionLabel={
+            permission.blocked ? t('library.scanError.openSettings') : t('library.scanError.grant')
+          }
+          onAction={askAgain}
+        />
+      ) : null}
+
       {failed ? (
-        <Text className="font-body text-sm text-muted">
-          {isPermissionError(progress.error)
-            ? t('library.scanError.permission')
-            : t('library.scanError.generic')}
-        </Text>
+        <Text className="font-body text-sm text-muted">{t('library.scanError.generic')}</Text>
       ) : null}
 
       {/*

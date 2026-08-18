@@ -25,7 +25,8 @@
       "generic": "Tarama bitmeden durdu.",
       "permissionBlocked": "Mufify için izin kapalı. Ses erişimine izin vermek üzere sistem ayarlarını aç.",
       "openSettings": "Ayarları aç",
-      "retry": "Tekrar dene"
+      "retry": "Tekrar dene",
+      "grant": "İzin ver"
     },
     "search": "Ara",
     "searchPlaceholder": "Parça, sanatçı, albüm",

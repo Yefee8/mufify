@@ -7,6 +7,7 @@ export {
 } from './language';
 export {
   getAnimationSpeed,
+  getAudioPermissionAsked,
   getEqualizerEnabled,
   getEqualizerLevels,
   getEqualizerPreset,
@@ -19,6 +20,7 @@ export {
   getThemePreference,
   getWeekStart,
   setAnimationSpeed,
+  setAudioPermissionAsked,
   setEqualizerEnabled,
   setEqualizerLevels,
   setEqualizerPreset,

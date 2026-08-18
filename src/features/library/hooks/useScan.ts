@@ -10,7 +10,10 @@ import {
   saveEnriched,
   saveEnumerated,
 } from '@/db/queries/scanning';
-import { permissionErrorFor } from '@/services/scanner/permission';
+import {
+  refreshAudioPermission,
+  requestAudioPermission,
+} from '@/services/scanner/audioPermission';
 import { getIgnoreShortFiles } from '@/services/settings';
 import { isPickerDismissal } from '@/services/scanner/pickerError';
 import { treeUriToPath } from '@/services/scanner/treeUri';
@@ -134,17 +137,17 @@ export function useScan(): UseScanResult {
    * swept, and something has to sweep it even if the user goes on to cancel
    * whatever they were doing.
    *
-   * Sets the failure state itself on a denial, so callers only decide whether
-   * to continue.
+   * **A denial is not reported as a scan failure.** It used to be, and the
+   * result was a full-height error panel where the list should have been,
+   * whose Retry button re-opened the folder picker — so being refused while
+   * pressing Scan offered a way out of a different feature. The refusal is
+   * the permission store's to hold and the warning banner's to show, and both
+   * outlive this scan: it is still true tomorrow, and it is equally true on
+   * the Settings screen, which never ran a scan at all.
    */
   const ensurePermission = useCallback(async (): Promise<PermissionOutcome> => {
-    if (await AudioTags.hasAudioPermission()) return 'already-granted';
-
-    const error = permissionErrorFor(await AudioTags.requestAudioPermission());
-    if (error === null) return 'granted-now';
-
-    setProgress({ phase: 'failed', total: 0, processed: 0, error });
-    return 'denied';
+    if ((await refreshAudioPermission()) === 'granted') return 'already-granted';
+    return (await requestAudioPermission()) === 'granted' ? 'granted-now' : 'denied';
   }, []);
 
   const scanLibrary = useCallback(async () => {

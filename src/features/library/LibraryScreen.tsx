@@ -10,11 +10,11 @@ import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/S
 import { LikedFilter } from '@/components/ui/LikedFilter';
 import { PlayShuffleBar } from '@/components/ui/PlayShuffleBar';
 import { SkeletonCards } from '@/components/ui/Skeleton';
+import { WarningBanner } from '@/components/ui/WarningBanner';
 import { useAlbumCards, useArtistCards } from '@/db/queries/tracks';
 import { AudioEngine } from '@/services/audio/AudioEngine';
 import { getShuffleAlgorithm } from '@/services/settings';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
-import { isPermissionError } from '@/services/scanner/permission';
 
 import { toPlayable } from '../player/toPlayable';
 import { CollectionGrid } from './components/CollectionGrid';
@@ -25,6 +25,7 @@ import { SearchField } from './components/SearchField';
 import { LibraryTracks } from './LibraryTracks';
 import { useCollectionRouting } from './hooks/useCollectionRouting';
 import { useDebounced } from './hooks/useDebounced';
+import { useAudioPermission } from './hooks/useAudioPermission';
 import { useTracks } from './hooks/useLibrary';
 import { useScan } from './hooks/useScan';
 
@@ -62,6 +63,7 @@ export function LibraryScreen() {
   const { tracks, isLoading } = useTracks(useDebounced(search), likedOnly);
   const { progress, isScanning, scanLibrary, pickFolder, importFolder, isFolderImporting, cancel } =
     useScan();
+  const permission = useAudioPermission();
 
   const artists = useArtistCards();
   const albums = useAlbumCards();
@@ -108,8 +110,17 @@ export function LibraryScreen() {
   }, [tracks]);
 
   const hasFailed = !isScanning && progress.phase === 'failed';
-  const permissionFailed = isPermissionError(progress.error);
-  const permissionBlocked = progress.error === 'permission-blocked';
+
+  /*
+   * A permanent denial cannot be undone by asking again — the system drops the
+   * request without showing anything — so that case sends the user to the page
+   * where the switch actually is, rather than handing them a button that
+   * silently does nothing.
+   */
+  const askAgain = useCallback(() => {
+    if (permission.blocked) openAppSettings();
+    else void permission.request();
+  }, [permission]);
 
   const viewOptions: SegmentedControlOption<LibraryView>[] = VIEWS.map((value) => ({
     value,
@@ -166,29 +177,36 @@ export function LibraryScreen() {
         <PlayShuffleBar onPlay={playAll} onShuffle={shuffleAll} disabled={tracks.length === 0} />
       ) : null}
 
+      {/*
+        Above the list rather than in place of it, and present for as long as
+        the refusal is — not only in the seconds after a scan. Without the
+        permission MediaStore returns nothing rather than failing, so a library
+        that looks merely empty is the symptom this explains.
+      */}
+      {permission.denied ? (
+        <WarningBanner
+          message={
+            permission.blocked
+              ? t('library.scanError.permissionBlocked')
+              : t('library.scanError.permission')
+          }
+          actionLabel={
+            permission.blocked ? t('library.scanError.openSettings') : t('library.scanError.grant')
+          }
+          onAction={askAgain}
+        />
+      ) : null}
+
       {isScanning && !isFolderImporting ? (
         <ScanBanner progress={progress} onCancel={cancel} />
       ) : null}
 
       {hasFailed ? (
         <ErrorState
-          message={
-            permissionBlocked
-              ? t('library.scanError.permissionBlocked')
-              : permissionFailed
-                ? t('library.scanError.permission')
-                : t('library.scanError.generic')
-          }
-          detail={permissionFailed ? null : progress.error}
-          /*
-            A permanent denial cannot be undone by asking again, so retrying
-            would silently do nothing. Send the user where the switch actually
-            is instead.
-          */
-          retryLabel={
-            permissionBlocked ? t('library.scanError.openSettings') : t('library.scanError.retry')
-          }
-          onRetry={permissionBlocked ? openAppSettings : chooseFolder}
+          message={t('library.scanError.generic')}
+          detail={progress.error}
+          retryLabel={t('library.scanError.retry')}
+          onRetry={chooseFolder}
         />
       ) : null}
 

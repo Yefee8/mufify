@@ -25,7 +25,8 @@
       "generic": "The scan stopped before it finished.",
       "permissionBlocked": "Permission is turned off for Mufify. Open system settings to allow audio access.",
       "openSettings": "Open settings",
-      "retry": "Try again"
+      "retry": "Try again",
+      "grant": "Allow"
     },
     "search": "Search",
     "searchPlaceholder": "Title, artist, album",
