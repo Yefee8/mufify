@@ -66,7 +66,11 @@
       "selectAll": "Select everything listed",
       "start": "Select"
     },
-    "deleteCollection": "Delete from device"
+    "deleteCollection": "Delete from device",
+    "likeAlbum": "Like this album",
+    "unlikeAlbum": "Unlike this album",
+    "likedAlbumFilter": "Liked albums only",
+    "noLikedAlbums": "No liked albums yet. Long press one and tap the heart."
   },
   "playlists": {
     "title": "Playlists",

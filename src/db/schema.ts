@@ -31,6 +31,10 @@ export const albums = sqliteTable(
     year: integer('year'),
     /** Path into the artwork cache. Never image bytes. */
     artworkPath: text('artwork_path'),
+    /** Liked albums sort above the rest, exactly as liked tracks do. */
+    isFavorite: integer('is_favorite').notNull().default(0),
+    /** Set only while liked, so the pinned ones keep a stable order. */
+    favoriteAt: integer('favorite_at'),
   },
   (table) => [
     index('albums_artist_idx').on(table.artistId),

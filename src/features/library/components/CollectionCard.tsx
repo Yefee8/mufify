@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import type { LucideIcon } from 'lucide-react-native';
+import { Heart, type LucideIcon } from 'lucide-react-native';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
@@ -75,13 +75,23 @@ const CollectionCardComponent = function CollectionCard({
         </View>
       )}
 
-      <View>
-        <Text numberOfLines={1} className="font-body text-base text-primary">
-          {name}
-        </Text>
-        <Text numberOfLines={1} className="font-body text-sm text-muted">
-          {subtitle}
-        </Text>
+      <View className="flex-row items-start gap-2">
+        <View className="flex-1">
+          <Text numberOfLines={1} className="font-body text-base text-primary">
+            {name}
+          </Text>
+          <Text numberOfLines={1} className="font-body text-sm text-muted">
+            {subtitle}
+          </Text>
+        </View>
+
+        {/* Why this card is at the front. Not a button — the card's job is to
+            open the album, and a second target inside it is how you like a
+            record while trying to play it. The toggle is in the long-press
+            sheet, where every other whole-album action already lives. */}
+        {card.isFavorite ? (
+          <Heart color={colors.signal} fill={colors.signal} size={14} strokeWidth={2} />
+        ) : null}
       </View>
     </Pressable>
   );
@@ -99,6 +109,7 @@ function isSameCard(previous: CollectionCardProps, next: CollectionCardProps): b
     previous.card.isUnknown === next.card.isUnknown &&
     previous.card.isUnknownSubtitle === next.card.isUnknownSubtitle &&
     previous.card.trackCount === next.card.trackCount &&
+    previous.card.isFavorite === next.card.isFavorite &&
     previous.card.artworkPath === next.card.artworkPath
   );
 }

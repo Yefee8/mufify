@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useEffect } from 'react';
 
@@ -201,6 +201,44 @@ export async function listCollectionTracks(
 }
 
 /**
+ * Which albums are liked, and when they were liked.
+ *
+ * A second live query rather than a join, and `from(albums)` is the point: this
+ * is the one that watches the table the heart writes to, so tapping it refreshes
+ * the grid. `useAlbumCards` has to stay `from(tracks)` — it groups by
+ * `coalesce(album_id, 0)` so that tracks with no album still get a card, which
+ * cannot be expressed from the album table.
+ */
+export function useFavoriteAlbumIds(): { id: number; favoriteAt: number | null }[] {
+  const query = db
+    .select({ id: albums.id, favoriteAt: albums.favoriteAt })
+    .from(albums)
+    .where(eq(albums.isFavorite, 1))
+    .orderBy(desc(albums.favoriteAt), desc(albums.id));
+
+  const { data } = useLiveQuery(query);
+  return data;
+}
+
+/**
+ * Like or unlike an album.
+ *
+ * `favoriteAt` is cleared on the way out rather than left behind, so an album
+ * liked, unliked and liked again sorts by when it was *last* liked. A stale
+ * timestamp would put it back where it used to be, which reads as the grid
+ * ignoring the tap.
+ */
+export async function setAlbumFavorite(id: number, isFavorite: boolean): Promise<void> {
+  // Id 0 is the reserved "no album" card, which is the absence of an album
+  // rather than one. There is no row to write to.
+  if (id === 0) return;
+  await db
+    .update(albums)
+    .set({ isFavorite: isFavorite ? 1 : 0, favoriteAt: isFavorite ? Date.now() : null })
+    .where(eq(albums.id, id));
+}
+
+/**
  * Mark tracks whose files have been deleted from the device.
  *
  * Retired rather than deleted, which is the same thing a rescan does to a file
@@ -344,6 +382,11 @@ export interface CollectionCard {
   isUnknownSubtitle: boolean;
   trackCount: number;
   artworkPath: string | null;
+  /**
+   * Liked by the user. Albums only — an artist card has no row to write to,
+   * and the reserved unknown card has no row at all.
+   */
+  isFavorite: boolean;
 }
 
 /**
@@ -369,6 +412,8 @@ export function useArtistCards(): CollectionCard[] {
       isUnknownSubtitle: sql`false`.mapWith(Boolean),
       trackCount: count(tracks.id),
       artworkPath: sql<string | null>`min(${tracks.artworkPath})`,
+      // Artists are not likeable; the flag is here so one card type serves both.
+      isFavorite: sql`false`.mapWith(Boolean),
     })
     .from(tracks)
     .leftJoin(artists, eq(tracks.artistId, artists.id))
@@ -394,6 +439,15 @@ export function useAlbumCards(): CollectionCard[] {
       ),
       trackCount: count(tracks.id),
       artworkPath: sql<string | null>`min(${tracks.artworkPath})`,
+      /*
+       * Always false here, and filled in by `useFavoriteAlbumIds` above the
+       * query rather than joined into it. `useLiveQuery` watches only the table
+       * in `FROM`, which is `tracks` — liking an album writes to `albums` and
+       * nothing else, so a joined flag would show whatever was liked when this
+       * mounted and never notice a heart being tapped. The Playlists tab merges
+       * two live queries for exactly this reason.
+       */
+      isFavorite: sql`false`.mapWith(Boolean),
     })
     .from(tracks)
     .leftJoin(albums, eq(tracks.albumId, albums.id))
