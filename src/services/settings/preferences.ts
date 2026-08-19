@@ -3,6 +3,7 @@ import {
   EQUALIZER_PRESET_IDS,
   type EqualizerPresetId,
 } from '@/services/equalizer/presets';
+import { parseSavedPresets, type SavedPreset } from '@/services/equalizer/savedPresets';
 import { ANIMATION_SPEEDS, type AnimationSpeed } from '@/services/motion';
 import { DEFAULT_SHUFFLE, SHUFFLE_ALGORITHMS, type ShuffleAlgorithm } from '@/services/shuffle';
 import { WEEK_STARTS, type WeekStart } from '@/services/stats/periodKeys';
@@ -225,4 +226,25 @@ export function getEqualizerLevels(): number[] {
 
 export function setEqualizerLevels(millibels: readonly number[]): void {
   settingsStorage.set(SETTINGS_KEYS.equalizerLevels, JSON.stringify([...millibels]));
+}
+
+/**
+ * Presets the user saved, as curves.
+ *
+ * Parsed rather than trusted on the way out. This is the one preference whose
+ * contents can have come from outside the app — the import feature writes into
+ * it — so a malformed entry is dropped instead of reaching the audio path.
+ */
+export function getSavedEqualizerPresets(): SavedPreset[] {
+  const stored = settingsStorage.getString(SETTINGS_KEYS.equalizerSavedPresets);
+  if (stored === undefined) return [];
+  try {
+    return parseSavedPresets(JSON.parse(stored));
+  } catch {
+    return [];
+  }
+}
+
+export function setSavedEqualizerPresets(presets: readonly SavedPreset[]): void {
+  settingsStorage.set(SETTINGS_KEYS.equalizerSavedPresets, JSON.stringify(presets));
 }

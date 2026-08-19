@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { EmptyState } from '@/components/ui/EmptyState';
+import { NameDialog } from '@/components/ui/NameDialog';
 import { LikedFilter } from '@/components/ui/LikedFilter';
 import { Screen } from '@/components/ui/Screen';
 import {
@@ -19,7 +20,6 @@ import { SPACING } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/useTheme';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 
-import { NamePlaylistDialog } from './components/NamePlaylistDialog';
 import { PlaylistRow } from './components/PlaylistRow';
 import { buildPlaylistRows, shouldShowEmptyState } from './playlistRows';
 
@@ -115,7 +115,7 @@ export function PlaylistsScreen() {
         }
       />
 
-      <NamePlaylistDialog
+      <NameDialog
         visible={naming}
         title={t('playlists.create')}
         onCancel={closeNaming}

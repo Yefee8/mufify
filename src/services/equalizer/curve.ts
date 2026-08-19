@@ -125,3 +125,18 @@ export function formatGain(db: number): string {
   const text = Number.isInteger(magnitude) ? `${magnitude}` : magnitude.toFixed(1);
   return `${sign}${text} dB`;
 }
+
+/**
+ * A frequency short enough to sit under a fader two fingers wide.
+ *
+ * `formatFrequency` writes "16 kHz", which is right in a row of settings and
+ * far too wide here: ten bands across a phone leaves about three monospaced
+ * characters per column, and a label that overflows collides with its
+ * neighbour rather than truncating. The unit is the same for all ten and says
+ * nothing the row does not.
+ */
+export function formatFrequencyCompact(hz: number): string {
+  if (hz < 1000) return String(Math.round(hz));
+  const kilohertz = Math.round(hz / 100) / 10;
+  return `${Number.isInteger(kilohertz) ? kilohertz : kilohertz.toFixed(1)}k`;
+}

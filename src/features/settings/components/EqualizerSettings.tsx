@@ -24,6 +24,7 @@ import { SPACING } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/useTheme';
 
 import { BandSlider } from './BandSlider';
+import { SavedPresets } from './SavedPresets';
 
 /**
  * The equaliser, as far as the user is concerned.
@@ -231,6 +232,22 @@ export function EqualizerSettings() {
           ))}
         </View>
       )}
+
+      {/*
+        Below the faders, because saving is something you do *after* getting a
+        sound right, and loading one is a shortcut past the faders rather than
+        an alternative to the presets above them.
+      */}
+      <SavedPresets
+        levels={levels}
+        onLoaded={(next) => {
+          setDragged({ preset: 'custom', levels: next });
+          setPresetState('custom');
+          setEqualizerPreset('custom');
+          ensureEnabled();
+        }}
+        disabled={bandCount === 0}
+      />
     </View>
   );
 }

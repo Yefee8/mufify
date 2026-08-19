@@ -24,6 +24,8 @@ export const SETTINGS_KEYS = {
   equalizerPreset: 'settings.equalizerPreset',
   /** Custom band gains in millibels, by band index. Device-shaped, so JSON. */
   equalizerLevels: 'settings.equalizerLevels',
+  /** Presets the user saved, as curves. JSON; see services/equalizer. */
+  equalizerSavedPresets: 'settings.equalizerSavedPresets',
   /** The queue and position, so playback can resume where it stopped. */
   lastSession: 'settings.lastSession',
   /**

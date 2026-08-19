@@ -4,7 +4,7 @@ import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 
 import { useThemeColors } from '@/theme/useTheme';
 
-export interface NamePlaylistDialogProps {
+export interface NameDialogProps {
   visible: boolean;
   /** Already translated. Doubles as the confirm label. */
   title: string;
@@ -15,18 +15,22 @@ export interface NamePlaylistDialogProps {
 }
 
 /**
- * Ask for a playlist name.
+ * Ask for a name.
  *
  * A `Modal` rather than `Alert.prompt`, which is iOS-only — on Android it
  * silently does nothing, which is the kind of platform gap that ships.
+ *
+ * Written for playlists and moved here when the equaliser needed the same
+ * thing for a saved preset. Nothing about it was ever about playlists; the
+ * caller supplies the title, which doubles as the confirm label.
  */
-export function NamePlaylistDialog({
+export function NameDialog({
   visible,
   title,
   initialName = '',
   onCancel,
   onSubmit,
-}: NamePlaylistDialogProps) {
+}: NameDialogProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const [name, setName] = useState(initialName);

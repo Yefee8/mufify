@@ -7,6 +7,7 @@ import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
+import { NameDialog } from '@/components/ui/NameDialog';
 import {
   deletePlaylist,
   LIKED_SONGS_ID,
@@ -31,7 +32,6 @@ import { getShuffleAlgorithm } from '@/services/settings';
 
 import { AddTracksSheet } from './components/AddTracksSheet';
 import { CoverActionSheet } from './components/CoverActionSheet';
-import { NamePlaylistDialog } from './components/NamePlaylistDialog';
 import { PlaylistDetailHeader } from './components/PlaylistDetailHeader';
 import { PlaylistEntryRow } from './components/PlaylistEntryRow';
 import { ENTRY_HEIGHT, ReorderableEntry } from './components/ReorderableEntry';
@@ -252,7 +252,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
       )}
 
       {isLiked ? null : (
-        <NamePlaylistDialog
+        <NameDialog
           visible={renaming}
           title={t('playlists.rename')}
           initialName={playlist?.name ?? ''}

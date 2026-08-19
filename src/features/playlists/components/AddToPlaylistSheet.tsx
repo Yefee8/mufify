@@ -4,12 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, ScrollView, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { NameDialog } from '@/components/ui/NameDialog';
 import { addTracksToPlaylist, createPlaylist, usePlaylists } from '@/db/queries/playlists';
 import { commitFeedback } from '@/services/haptics';
 import { useThemeColors } from '@/theme/useTheme';
 import { SPACING } from '@/theme/tokens';
 
-import { NamePlaylistDialog } from './NamePlaylistDialog';
 
 export interface AddToPlaylistSheetProps {
   /**
@@ -108,7 +108,7 @@ export function AddToPlaylistSheet({ trackIds, onClose }: AddToPlaylistSheetProp
         </Pressable>
       </Pressable>
 
-      <NamePlaylistDialog
+      <NameDialog
         visible={naming}
         title={t('playlists.create')}
         onCancel={() => setNaming(false)}

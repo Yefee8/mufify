@@ -3,7 +3,7 @@ import { Text, View, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
-import { formatFrequency, mbToDb } from '@/services/equalizer/curve';
+import { formatFrequencyCompact, mbToDb } from '@/services/equalizer/curve';
 
 export interface BandSliderProps {
   centerHz: number;
@@ -96,7 +96,9 @@ export function BandSlider({
 
   return (
     <View className="flex-1 items-center gap-2">
-      <Text className="font-mono text-xs text-primary">{formatCompactGain(mbToDb(levelMb))}</Text>
+      <Text numberOfLines={1} className="font-mono text-xs text-primary">
+        {formatCompactGain(mbToDb(levelMb))}
+      </Text>
 
       <GestureDetector gesture={pan}>
         {/* Padded so the touch target is a column, not a two-pixel line. */}
@@ -126,7 +128,9 @@ export function BandSlider({
         </View>
       </GestureDetector>
 
-      <Text className="font-mono text-xs text-muted">{formatFrequency(centerHz)}</Text>
+      <Text numberOfLines={1} className="font-mono text-xs text-muted">
+        {formatFrequencyCompact(centerHz)}
+      </Text>
     </View>
   );
 }
@@ -147,11 +151,15 @@ function clampJs(value: number): number {
  *
  * `formatGain` writes "+3 dB", which is right in a row and too wide here — the
  * unit is on every one of them and says nothing the header does not.
+ *
+ * Whole decibels, at most three characters. Ten bands across a phone is about
+ * three monospaced characters per column, and the half-decibel that used to be
+ * shown was never the information anyway: the shape of the bars is what anyone
+ * reads off a graphic equaliser. The exact value is still in the accessibility
+ * value, where a screen reader can say it.
  */
 function formatCompactGain(db: number): string {
-  const rounded = Math.round(db * 10) / 10;
+  const rounded = Math.round(db);
   if (Object.is(rounded, -0) || rounded === 0) return '0';
-  const sign = rounded > 0 ? '+' : '−';
-  const magnitude = Math.abs(rounded);
-  return `${sign}${Number.isInteger(magnitude) ? magnitude : magnitude.toFixed(1)}`;
+  return `${rounded > 0 ? '+' : '−'}${Math.abs(rounded)}`;
 }

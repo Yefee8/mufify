@@ -13,7 +13,7 @@ import {
 } from '@/services/settings';
 
 import { curveForBands, fitLevels } from './curve';
-import { presetCurve, type EqualizerPresetId } from './presets';
+import { presetCurve, type CurvePoint, type EqualizerPresetId } from './presets';
 
 /**
  * The one place that decides what the equaliser is doing.
@@ -120,4 +120,40 @@ export async function applyPreset(preset: EqualizerPresetId): Promise<void> {
 export async function applyCustomLevels(millibels: readonly number[]): Promise<void> {
   setEqualizerLevels(millibels);
   await setEqualizerBandLevels(millibels);
+}
+
+/**
+ * Load a saved preset's curve onto this device's bands.
+ *
+ * Sampled rather than copied, which is the whole reason a saved preset is a
+ * curve: the bands it was drawn on are not necessarily the bands it is being
+ * applied to. Ten where `DynamicsProcessing` exists, five below API 28, and a
+ * preset that travelled here from another phone knows nothing about either.
+ *
+ * It lands as the custom levels, and the caller switches the selection to
+ * `custom` alongside — the levels and the name of the thing selected have to
+ * change together, or the screen shows a preset whose curve is not what is
+ * playing.
+ */
+export async function applySavedCurve(points: readonly CurvePoint[]): Promise<number[]> {
+  const device = capabilities;
+  if (device === null) return [];
+
+  const levels = curveForBands(
+    points,
+    device.bands.map((band) => band.centerHz),
+    device,
+  );
+  await applyCustomLevels(levels);
+  return levels;
+}
+
+/** The curve the bands are currently drawn at, for saving or sharing. */
+export function currentCurve(levelsMb: readonly number[]): CurvePoint[] {
+  const device = capabilities;
+  if (device === null) return [];
+  return device.bands.map((band, index) => ({
+    hz: band.centerHz,
+    db: (levelsMb[index] ?? 0) / 100,
+  }));
 }
