@@ -31,8 +31,8 @@ More, with what each one is showing, in [docs/screenshots.md](docs/screenshots.m
   [ADR 023](docs/adr/023-no-crossfade.md) says why, and what one would cost.
 - **Five shuffle algorithms**, chosen in Settings, each explained where you
   choose it. Not one shuffle behind a toggle — see [docs/shuffle.md](docs/shuffle.md).
-- **Local playlists** with drag-reorder, a cover mosaic or a picture you chose,
-  and shuffle. Playlists and tracks can be liked, and either list filtered to
+- **Local playlists** with drag-reorder, a cover mosaic or a picture you chose
+  and framed yourself, and shuffle. Playlists and tracks can be liked, and either list filtered to
   what is.
 - **A ten-band equaliser** where the platform allows it, with presets you can
   save and pass on as a line of text — [ADR 022](docs/adr/022-ten-bands-and-presets-you-can-post.md).
@@ -175,9 +175,9 @@ debug-signed one**. Uninstall first.
 Publishing one:
 
 ```bash
-gh release create v1.3.1 \
-  android/app/build/outputs/apk/release/app-release.apk#mufify-1.3.1.apk \
-  --title "Mufify 1.3.1" --notes-file <notes>
+gh release create v1.4.2 \
+  android/app/build/outputs/apk/release/app-release.apk#mufify-1.4.2.apk \
+  --title "Mufify 1.4.2" --notes-file <notes>
 ```
 
 Raise `android.versionCode` in `app.json` first, and raise it **whatever the
@@ -196,7 +196,7 @@ What the release build is checked for, and what `assembleRelease` produced on
 | `INTERNET` permission | **absent** — this is the whole promise, and `plugins/withOfflineOnly.js` is what keeps it out |
 | `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, `WRITE_EXTERNAL_STORAGE` | absent, blocked in `app.json` |
 | Debuggable | no |
-| `versionCode` / `versionName` | 11 / 1.3.1 |
+| `versionCode` / `versionName` | 12 / 1.4.2 |
 
 One permission does survive that is worth knowing about: `ACCESS_NETWORK_STATE`,
 pulled in by a dependency rather than asked for here. It cannot open a

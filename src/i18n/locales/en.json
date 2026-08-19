@@ -121,7 +121,10 @@
       "remove": "Use the album covers",
       "change": "Change the playlist cover",
       "tooLarge": "That picture is too large. Pick one under 12 MB.",
-      "unreadable": "That picture could not be read. Try another one."
+      "unreadable": "That picture could not be read. Try another one.",
+      "cropTitle": "Frame the cover",
+      "cropHint": "Drag to move, pinch to zoom. What is in the square is the cover.",
+      "cropConfirm": "Use this"
     }
   },
   "stats": {

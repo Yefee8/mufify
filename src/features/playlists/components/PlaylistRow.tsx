@@ -13,7 +13,7 @@ export interface PlaylistRowProps {
   onPress: (id: number) => void;
 }
 
-/** One playlist: a mosaic of its first four covers, name, size. */
+/** One playlist: its chosen cover or a mosaic of its first four, name, size. */
 export const PlaylistRow = memo(function PlaylistRow({ playlist, onPress }: PlaylistRowProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -27,7 +27,11 @@ export const PlaylistRow = memo(function PlaylistRow({ playlist, onPress }: Play
       accessibilityHint={t('playlists.trackCount', { count: playlist.trackCount })}
       className="h-16 flex-row items-center gap-3 px-6"
     >
-      <PlaylistMosaic covers={playlist.mosaic} />
+      {/* `cover` as well as `covers`. Without it the list drew the mosaic for a
+          playlist that had a picture chosen — the detail screen showed the
+          picture, the row it came from did not, and nothing would ever make
+          them agree because the row was never told there was one. */}
+      <PlaylistMosaic covers={playlist.mosaic} cover={playlist.coverPath} />
 
       <View className="flex-1">
         <Text numberOfLines={1} className="font-body text-base text-primary">

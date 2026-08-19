@@ -121,7 +121,10 @@
       "remove": "Albüm kapaklarını kullan",
       "change": "Liste kapağını değiştir",
       "tooLarge": "Bu görsel çok büyük. 12 MB altında bir tane seç.",
-      "unreadable": "Bu görsel okunamadı. Başka bir tane dene."
+      "unreadable": "Bu görsel okunamadı. Başka bir tane dene.",
+      "cropTitle": "Kapağı çerçevele",
+      "cropHint": "Kaydırarak taşı, iki parmakla yakınlaştır. Karenin içi kapak olur.",
+      "cropConfirm": "Bunu kullan"
     }
   },
   "stats": {
