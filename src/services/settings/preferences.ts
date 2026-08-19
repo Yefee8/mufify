@@ -248,3 +248,25 @@ export function getSavedEqualizerPresets(): SavedPreset[] {
 export function setSavedEqualizerPresets(presets: readonly SavedPreset[]): void {
   settingsStorage.set(SETTINGS_KEYS.equalizerSavedPresets, JSON.stringify(presets));
 }
+
+/**
+ * How long the ramp at a track boundary lasts, in milliseconds.
+ *
+ * Zero is off, and off is the default: a fade is a change to what the user's
+ * music sounds like, and this app's habit is to leave that alone until asked.
+ * The options are seconds because that is how anyone thinks about it; the
+ * engine wants milliseconds.
+ */
+export const TRACK_FADE_OPTIONS = [0, 500, 1_000, 2_000] as const;
+export type TrackFadeMs = (typeof TRACK_FADE_OPTIONS)[number];
+
+export function getTrackFadeMs(): TrackFadeMs {
+  const stored = Number(settingsStorage.getString(SETTINGS_KEYS.trackFade));
+  return (TRACK_FADE_OPTIONS as readonly number[]).includes(stored)
+    ? (stored as TrackFadeMs)
+    : 0;
+}
+
+export function setTrackFadeMs(milliseconds: TrackFadeMs): void {
+  settingsStorage.set(SETTINGS_KEYS.trackFade, String(milliseconds));
+}

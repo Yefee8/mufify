@@ -8,10 +8,12 @@ import {
 } from 'expo-audio';
 
 import { attachToSession } from '@/services/equalizer/equalizerController';
+import { getTrackFadeMs } from '@/services/settings';
 import { shuffleTracks, type ShuffleAlgorithm } from '@/services/shuffle';
 import { ListenCycle, type BankedListen } from '@/services/stats/listenCycle';
 import { isRewindToRestart } from '@/services/stats/repeatListen';
 
+import { fadeOutDelay, VolumeFade } from './fade';
 import { lockScreenArtworkUri, prepareNotificationArtwork } from './notificationArtwork';
 
 import {
@@ -151,6 +153,21 @@ class Engine {
    * `bindLockScreen`. Cleared by `stop()`, which hands the session back.
    */
   private lockScreenBound = false;
+
+  /**
+   * The ramp at a track boundary, and the timer that starts the fade-out.
+   *
+   * Created once and reused: the gain belongs to the player, so two ramps
+   * fighting over it is the one way this can be heard going wrong. Everything
+   * about it is inert while the setting is off — `run` with a duration under
+   * the floor applies the target and returns, so "off" is the code path that
+   * shipped before fading existed.
+   */
+  private fade = new VolumeFade((gain) => {
+    if (this.player !== null) this.player.volume = gain;
+  });
+
+  private fadeOutTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * What to show where a track has no artist or album.
@@ -459,6 +476,18 @@ class Engine {
     this.flushListen(false);
     this.listenCycle.open();
 
+    /*
+     * The previous track's fade-out, if one was pending or running.
+     *
+     * Cancelled rather than left to finish: a skip during a fade-out would
+     * otherwise carry the ramp onto the incoming track and leave it playing at
+     * whatever gain the ramp had reached, for its whole length. The symptom —
+     * one quiet song after a skip — points nowhere near a fade.
+     */
+    this.cancelFadeOut();
+    const fadeMs = getTrackFadeMs();
+    this.fade.run(fadeMs > 0 ? 0 : 1, 1, fadeMs);
+
     this.index = index;
     this.lastPositionMs = 0;
     this.playWhenReady = autoPlay;
@@ -633,6 +662,8 @@ class Engine {
     // Clock the interval that just elapsed before anything else changes.
     this.listenCycle.tick(status.playing);
 
+    if (status.playing) this.scheduleFadeOut(positionMs);
+
     // A track that reached its end advances the queue. `didJustFinish` fires
     // once, unlike `currentTime >= duration`, which fires on every tick after.
     if (status.didJustFinish) {
@@ -697,6 +728,48 @@ class Engine {
   async seekTo(positionMs: number): Promise<void> {
     await this.player?.seekTo(Math.max(0, positionMs) / 1000);
     this.emit({ positionMs: Math.max(0, positionMs) });
+  }
+
+  /**
+   * Start the ramp down as the track runs out.
+   *
+   * Driven from the status tick rather than from a timer set at load, because
+   * a seek moves the end without the load being repeated — dragging into the
+   * last few seconds has to fade, and dragging back out has to un-schedule it.
+   *
+   * Deliberately does nothing on a manual skip: `advance(true)` loads the next
+   * track immediately, and somebody who pressed next wants it now rather than
+   * a second later. The fade *in* still applies, which is what removes the
+   * click at the start of the incoming track.
+   */
+  private scheduleFadeOut(positionMs: number): void {
+    const fadeMs = getTrackFadeMs();
+    const delay = fadeOutDelay(positionMs, this.state.durationMs, fadeMs, STATUS_INTERVAL_MS);
+
+    if (delay === null) {
+      // Out of the window: a seek backwards is the case that matters, and it
+      // has to cancel a ramp that has already begun as well as one that is
+      // merely pending.
+      this.cancelFadeOut();
+      if (this.fade.heading === 0) this.fade.reset();
+      return;
+    }
+
+    // Already heading down for this track, and rescheduling twice a second
+    // would restart the ramp from full every time.
+    if (this.fadeOutTimer !== null || this.fade.heading === 0) return;
+
+    this.fadeOutTimer = setTimeout(() => {
+      this.fadeOutTimer = null;
+      this.fade.run(1, 0, fadeMs);
+    }, delay);
+  }
+
+  private cancelFadeOut(): void {
+    if (this.fadeOutTimer !== null) {
+      clearTimeout(this.fadeOutTimer);
+      this.fadeOutTimer = null;
+    }
   }
 
   /** The next track. `explicit` marks a user press rather than a track ending. */
@@ -811,6 +884,10 @@ class Engine {
    */
   async stop(): Promise<void> {
     this.flushListen(false);
+    // Back to full gain before anything else. A stop during a fade-out would
+    // otherwise leave the player muted for whatever plays next.
+    this.cancelFadeOut();
+    this.fade.reset();
     this.player?.pause();
     this.player?.clearLockScreenControls();
     this.lockScreenBound = false;

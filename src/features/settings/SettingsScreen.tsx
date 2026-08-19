@@ -1,4 +1,5 @@
 import {
+  AudioWaveform,
   BarChart3,
   Clock,
   Gauge,
@@ -31,15 +32,19 @@ import {
   getLanguagePreference,
   getShuffleAlgorithm,
   getStatsEnabled,
+  getTrackFadeMs,
   LANGUAGE_PREFERENCES,
   setAnimationSpeed,
   setHapticsEnabled,
   setIgnoreShortFiles,
   setShuffleAlgorithm,
   setStatsEnabled,
+  setTrackFadeMs,
   THEME_PREFERENCES,
   type LanguagePreference,
   type ThemePreference,
+  TRACK_FADE_OPTIONS,
+  type TrackFadeMs,
 } from '@/services/settings';
 import { SHUFFLE_ALGORITHMS, type ShuffleAlgorithm } from '@/services/shuffle';
 import { SPACING } from '@/theme/tokens';
@@ -81,6 +86,7 @@ export function SettingsScreen() {
   const [ignoreShort, setIgnoreShort] = useState(getIgnoreShortFiles);
   const [statsOn, setStatsOn] = useState(getStatsEnabled);
   const [speed, setSpeed] = useState<AnimationSpeed>(getAnimationSpeed);
+  const [fade, setFade] = useState<TrackFadeMs>(getTrackFadeMs);
 
   const themeOptions: SegmentedControlOption<ThemePreference>[] = THEME_PREFERENCES.map(
     (value) => ({
@@ -100,10 +106,24 @@ export function SettingsScreen() {
     description: t(`settings.shuffle.${value}Hint`),
   }));
 
+  const fadeOptions: SegmentedControlOption<string>[] = TRACK_FADE_OPTIONS.map((value) => ({
+    value: String(value),
+    label:
+      value === 0
+        ? t('settings.playback.fadeOff')
+        : t('settings.playback.fadeSeconds', { seconds: value / 1000 }),
+  }));
+
   const speedOptions: SegmentedControlOption<AnimationSpeed>[] = ANIMATION_SPEEDS.map((value) => ({
     value,
     label: t(`settings.motion.${value}`),
   }));
+
+  function onFadeChange(next: string) {
+    const milliseconds = Number(next) as TrackFadeMs;
+    setFade(milliseconds);
+    setTrackFadeMs(milliseconds);
+  }
 
   function onShuffleChange(next: ShuffleAlgorithm) {
     setShuffle(next);
@@ -200,6 +220,27 @@ export function SettingsScreen() {
           because it claims one. It goes in when the queue does.
         */}
         <SettingGroup title={t('settings.playback.title')}>
+          {/*
+            A fade, and the description says so rather than calling it a
+            crossfade. Two tracks overlapping needs two players, and the one
+            here also carries the media session, the statistics cycle and the
+            equaliser's audio session — see ADR 023. What this fixes is the
+            other half of the complaint: a track stopping dead and the next
+            starting at full level is what makes the seam sound like a fault.
+          */}
+          <SettingRow
+            icon={AudioWaveform}
+            label={t('settings.playback.fade')}
+            description={t('settings.playback.fadeHint')}
+          >
+            <SegmentedControl
+              options={fadeOptions}
+              value={String(fade)}
+              onChange={onFadeChange}
+              accessibilityLabel={t('settings.playback.fade')}
+            />
+          </SettingRow>
+
           <SettingSwitch
             icon={Vibrate}
             label={t('settings.playback.haptics')}
