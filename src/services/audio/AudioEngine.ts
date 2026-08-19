@@ -477,16 +477,15 @@ class Engine {
     this.listenCycle.open();
 
     /*
-     * The previous track's fade-out, if one was pending or running.
+     * The previous track's fade-out, if one was pending.
      *
-     * Cancelled rather than left to finish: a skip during a fade-out would
+     * Cancelled rather than left to fire: a skip during a fade-out would
      * otherwise carry the ramp onto the incoming track and leave it playing at
      * whatever gain the ramp had reached, for its whole length. The symptom —
-     * one quiet song after a skip — points nowhere near a fade.
+     * one quiet song after a skip — points nowhere near a fade. A ramp already
+     * running is replaced below, by the fade in.
      */
     this.cancelFadeOut();
-    const fadeMs = getTrackFadeMs();
-    this.fade.run(fadeMs > 0 ? 0 : 1, 1, fadeMs);
 
     this.index = index;
     this.lastPositionMs = 0;
@@ -514,6 +513,20 @@ class Engine {
 
         this.requestPlay();
       }
+
+      /*
+       * The fade in, once there is a player to set a gain on.
+       *
+       * After the branch above rather than before it: on the first track there
+       * is no player yet, so an earlier `apply(0)` would go nowhere and the
+       * ramp's next step would drop a track already at full level down to near
+       * silence — a blip at the start of the first song and nowhere else.
+       *
+       * Still ahead of any sound. `replace` returns before the source is open,
+       * so the gain is set well before the first sample reaches a speaker.
+       */
+      const fadeMs = getTrackFadeMs();
+      this.fade.run(fadeMs > 0 ? 0 : 1, 1, fadeMs);
 
       this.bindLockScreen(track);
     } catch (error) {
