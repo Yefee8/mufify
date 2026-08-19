@@ -197,11 +197,7 @@
     "playback": {
       "title": "Playback",
       "haptics": "Haptics",
-      "hapticsHint": "A short buzz on play, pause, queueing and reordering.",
-      "fade": "Track transition",
-      "fadeHint": "Ramps the end of one track down and the start of the next up. Not a crossfade — the two do not overlap — but it stops the seam between them sounding like a fault.",
-      "fadeOff": "Off",
-      "fadeSeconds": "{{seconds}}s"
+      "hapticsHint": "A short buzz on play, pause, queueing and reordering."
     },
     "stats": {
       "title": "Statistics",

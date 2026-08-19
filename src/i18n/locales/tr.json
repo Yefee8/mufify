@@ -197,11 +197,7 @@
     "playback": {
       "title": "Çalma",
       "haptics": "Titreşim",
-      "hapticsHint": "Çalma, duraklatma, sıraya ekleme ve sıralama değişiminde kısa bir titreşim.",
-      "fade": "Parça geçişi",
-      "fadeHint": "Biten parçanın sonunu kısar, başlayanın başını açar. Çapraz geçiş değil — ikisi üst üste binmez — ama aradaki dikişin arıza gibi duyulmasını engeller.",
-      "fadeOff": "Kapalı",
-      "fadeSeconds": "{{seconds}} sn"
+      "hapticsHint": "Çalma, duraklatma, sıraya ekleme ve sıralama değişiminde kısa bir titreşim."
     },
     "stats": {
       "title": "İstatistikler",

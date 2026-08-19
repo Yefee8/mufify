@@ -26,8 +26,6 @@ export const SETTINGS_KEYS = {
   equalizerLevels: 'settings.equalizerLevels',
   /** Presets the user saved, as curves. JSON; see services/equalizer. */
   equalizerSavedPresets: 'settings.equalizerSavedPresets',
-  /** Milliseconds of ramp at a track boundary. 0 is off. */
-  trackFade: 'settings.trackFade',
   /** The queue and position, so playback can resume where it stopped. */
   lastSession: 'settings.lastSession',
   /**

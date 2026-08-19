@@ -27,9 +27,8 @@ More, with what each one is showing, in [docs/screenshots.md](docs/screenshots.m
 ## What it does
 
 - **Playback** of local files, lossless first-class, with background playback,
-  lock-screen controls and a persistent queue. A ramp at the seam between two
-  tracks, if you want one — see [ADR 023](docs/adr/023-a-fade-at-the-seam-not-a-crossfade.md)
-  for why it is a fade and not a crossfade.
+  lock-screen controls and a persistent queue. No crossfade —
+  [ADR 023](docs/adr/023-no-crossfade.md) says why, and what one would cost.
 - **Five shuffle algorithms**, chosen in Settings, each explained where you
   choose it. Not one shuffle behind a toggle — see [docs/shuffle.md](docs/shuffle.md).
 - **Local playlists** with drag-reorder, a cover mosaic or a picture you chose,

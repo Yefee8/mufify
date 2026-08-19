@@ -91,11 +91,10 @@ notification, with no release and no window.
 a second player, and the media session, the statistics cycle and the
 equaliser's audio session all belong to the one there is. Following the audio
 between two players means one `setActiveForLockScreen` per track — precisely
-the call described above. What ships instead is a ramp at the seam: the end of
-one track fades down, the start of the next fades up, on the single player, and
-the gap between them is unchanged at roughly 290ms. See
-[ADR 023](adr/023-a-fade-at-the-seam-not-a-crossfade.md), which records what a
-real crossfade would take so the next attempt does not re-derive it.
+the call described above. The seam between two tracks is therefore about 290ms
+of silence, unfaded. A ramp was tried in 1.4.0 and removed in 1.3.1: see
+[ADR 023](adr/023-no-crossfade.md), which also records what a real crossfade
+would take so the next attempt does not re-derive it.
 
 ### What the notification shows
 
