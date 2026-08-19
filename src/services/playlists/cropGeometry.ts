@@ -24,8 +24,17 @@ export function baseScale(imageWidth: number, imageHeight: number, window: numbe
  * Symmetric about the centre, and zero on an axis the image only just covers —
  * a square photograph in a square window has nowhere to go sideways, and
  * allowing it to move would show background where the picture should be.
+ *
+ * **A worklet**, because the gesture's settle runs on the UI thread and calls
+ * it there. Without the directive Worklets treats it as a remote function, and
+ * a synchronous call to one from the UI runtime is a hard crash rather than a
+ * slow path. Inlining the two lines into the gesture instead would put the
+ * clamping that decides what is *shown* somewhere other than the clamping that
+ * decides what is *cropped*, and those two disagreeing is the whole bug class
+ * this module exists to prevent. It stays an ordinary function everywhere else.
  */
 export function panLimit(displayedSize: number, window: number): number {
+  'worklet';
   return Math.max(0, (displayedSize - window) / 2);
 }
 

@@ -3,7 +3,7 @@ import { X } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -87,7 +87,12 @@ export function CoverCropSheet({ source, onCancel, onConfirm }: CoverCropSheetPr
 
   const settle = () => {
     'worklet';
-    settleCrop(displayedWidth * cropScale.value, displayedHeight * cropScale.value, window, MAX_ZOOM);
+    settleCrop(
+      displayedWidth * cropScale.value,
+      displayedHeight * cropScale.value,
+      window,
+      MAX_ZOOM,
+    );
   };
 
   const pan = Gesture.Pan()
@@ -111,7 +116,11 @@ export function CoverCropSheet({ source, onCancel, onConfirm }: CoverCropSheetPr
   const gesture = Gesture.Simultaneous(pan, pinch);
 
   const imageStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: cropTx.value }, { translateY: cropTy.value }, { scale: cropScale.value }],
+    transform: [
+      { translateX: cropTx.value },
+      { translateY: cropTy.value },
+      { scale: cropScale.value },
+    ],
   }));
 
   const confirm = () => {
@@ -133,87 +142,95 @@ export function CoverCropSheet({ source, onCancel, onConfirm }: CoverCropSheetPr
       onRequestClose={onCancel}
       statusBarTranslucent
     >
-      <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
-        <View className="flex-row items-center gap-1 px-4 pt-2">
-          <Pressable
-            onPress={onCancel}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.cancel')}
-            className="min-h-11 min-w-11 items-center justify-center"
-          >
-            <X color={colors.label} size={24} strokeWidth={2} />
-          </Pressable>
+      {/*
+        Its own gesture root. A `Modal` is a separate native window, outside the
+        `GestureHandlerRootView` the app is wrapped in, so pan and pinch inside
+        one are simply never delivered — the picture sits there ignoring the
+        finger, with nothing in the logs to say why.
+      */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
+          <View className="flex-row items-center gap-1 px-4 pt-2">
+            <Pressable
+              onPress={onCancel}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.cancel')}
+              className="min-h-11 min-w-11 items-center justify-center"
+            >
+              <X color={colors.label} size={24} strokeWidth={2} />
+            </Pressable>
 
-          <Text className="flex-1 font-display text-lg text-primary">
-            {t('playlists.cover.cropTitle')}
-          </Text>
-        </View>
+            <Text className="flex-1 font-display text-lg text-primary">
+              {t('playlists.cover.cropTitle')}
+            </Text>
+          </View>
 
-        {/*
+          {/*
           The window is square and as wide as the screen allows. Everything
           outside it is the surface colour rather than a dimmed copy of the
           picture: a mask needs the image drawn twice, and what is outside the
           square is not going to be in the cover — showing it faintly suggests
           otherwise.
         */}
-        <View className="flex-1 items-center justify-center px-6">
-          <View
-            onLayout={onWindowLayout}
-            className="aspect-square w-full overflow-hidden rounded-md bg-surface-elevated"
-          >
-            {source && window > 0 ? (
-              <GestureDetector gesture={gesture}>
-                <Animated.View
-                  className="absolute items-center justify-center"
-                  style={[
-                    {
-                      width: displayedWidth,
-                      height: displayedHeight,
-                      left: (window - displayedWidth) / 2,
-                      top: (window - displayedHeight) / 2,
-                    },
-                    imageStyle,
-                  ]}
-                >
-                  <Image
-                    source={{ uri: source.uri }}
-                    contentFit="fill"
-                    transition={0}
-                    cachePolicy="memory"
-                    style={{ width: '100%', height: '100%' }}
-                  />
-                </Animated.View>
-              </GestureDetector>
-            ) : null}
+          <View className="flex-1 items-center justify-center px-6">
+            <View
+              onLayout={onWindowLayout}
+              className="aspect-square w-full overflow-hidden rounded-md bg-surface-elevated"
+            >
+              {source && window > 0 ? (
+                <GestureDetector gesture={gesture}>
+                  <Animated.View
+                    className="absolute items-center justify-center"
+                    style={[
+                      {
+                        width: displayedWidth,
+                        height: displayedHeight,
+                        left: (window - displayedWidth) / 2,
+                        top: (window - displayedHeight) / 2,
+                      },
+                      imageStyle,
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: source.uri }}
+                      contentFit="fill"
+                      transition={0}
+                      cachePolicy="memory"
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                  </Animated.View>
+                </GestureDetector>
+              ) : null}
+            </View>
+
+            <Text className="pt-4 text-center font-body text-sm text-muted">
+              {t('playlists.cover.cropHint')}
+            </Text>
           </View>
 
-          <Text className="pt-4 text-center font-body text-sm text-muted">
-            {t('playlists.cover.cropHint')}
-          </Text>
-        </View>
+          <View className="flex-row gap-3 px-6 pb-2" style={{ paddingTop: SPACING[2] }}>
+            <Pressable
+              onPress={onCancel}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.cancel')}
+              className="min-h-11 flex-1 items-center justify-center rounded-sm border border-subtle px-4"
+            >
+              <Text className="font-body-medium text-base text-primary">{t('common.cancel')}</Text>
+            </Pressable>
 
-        <View className="flex-row gap-3 px-6 pb-2" style={{ paddingTop: SPACING[2] }}>
-          <Pressable
-            onPress={onCancel}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.cancel')}
-            className="min-h-11 flex-1 items-center justify-center rounded-sm border border-subtle px-4"
-          >
-            <Text className="font-body-medium text-base text-primary">{t('common.cancel')}</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={confirm}
-            accessibilityRole="button"
-            accessibilityLabel={t('playlists.cover.cropConfirm')}
-            className="min-h-11 flex-1 items-center justify-center rounded-sm bg-accent px-4"
-          >
-            <Text className="font-body-medium text-base text-on-accent">
-              {t('playlists.cover.cropConfirm')}
-            </Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
+            <Pressable
+              onPress={confirm}
+              accessibilityRole="button"
+              accessibilityLabel={t('playlists.cover.cropConfirm')}
+              className="min-h-11 flex-1 items-center justify-center rounded-sm bg-accent px-4"
+            >
+              <Text className="font-body-medium text-base text-on-accent">
+                {t('playlists.cover.cropConfirm')}
+              </Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
