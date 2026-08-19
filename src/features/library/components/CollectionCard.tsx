@@ -13,6 +13,8 @@ export interface CollectionCardProps {
   /** Drawn when there is no cover. A disc for albums, a person for artists. */
   icon: LucideIcon;
   onPress: (id: number) => void;
+  /** Opens the collection's actions. Stable, like `onPress`. */
+  onLongPress: (id: number) => void;
 }
 
 /**
@@ -32,10 +34,12 @@ const CollectionCardComponent = function CollectionCard({
   card,
   icon: Icon,
   onPress,
+  onLongPress,
 }: CollectionCardProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const handlePress = useCallback(() => onPress(card.id), [onPress, card.id]);
+  const handleLongPress = useCallback(() => onLongPress(card.id), [onLongPress, card.id]);
 
   const name = card.isUnknown
     ? t(kind === 'artist' ? 'common.unknownArtist' : 'common.unknownAlbum')
@@ -49,6 +53,7 @@ const CollectionCardComponent = function CollectionCard({
   return (
     <Pressable
       onPress={handlePress}
+      onLongPress={handleLongPress}
       android_ripple={{ color: colors.etch }}
       accessibilityRole="button"
       accessibilityLabel={name}
@@ -86,6 +91,7 @@ function isSameCard(previous: CollectionCardProps, next: CollectionCardProps): b
   return (
     previous.kind === next.kind &&
     previous.onPress === next.onPress &&
+    previous.onLongPress === next.onLongPress &&
     previous.icon === next.icon &&
     previous.card.id === next.card.id &&
     previous.card.name === next.card.name &&

@@ -59,7 +59,14 @@
       "albums": "Albums"
     },
     "likedFilter": "Liked tracks only",
-    "noLiked": "Nothing liked yet. Tap the heart on a track to keep it here."
+    "noLiked": "Nothing liked yet. Tap the heart on a track to keep it here.",
+    "selection": {
+      "count_one": "{{count}} selected",
+      "count_other": "{{count}} selected",
+      "selectAll": "Select everything listed",
+      "start": "Select"
+    },
+    "deleteCollection": "Delete from device"
   },
   "playlists": {
     "title": "Playlists",
@@ -325,6 +332,13 @@
       "bitDepth": "Bit depth",
       "channels": "Channels",
       "fileSize": "File size"
+    },
+    "delete": "Delete from device",
+    "deleteConfirm": {
+      "title_one": "Delete this file?",
+      "title_other": "Delete {{count}} files?",
+      "body_one": "Android will ask you to confirm. The file is removed from the device, not just from Mufify — this cannot be undone.",
+      "body_other": "Android will ask you to confirm. On Android 10 it asks once per file, so expect {{count}} prompts. The files are removed from the device, not just from Mufify — this cannot be undone."
     }
   },
   "toast": {
@@ -335,6 +349,10 @@
     "favorited": "Added to favourites",
     "unfavorited": "Removed from favourites",
     "addedToPlaylist_one": "Added to the playlist",
-    "addedToPlaylist_other": "{{count}} tracks added to the playlist"
+    "addedToPlaylist_other": "{{count}} tracks added to the playlist",
+    "deleted_one": "Deleted",
+    "deleted_other": "{{count}} files deleted",
+    "deleteFailed_one": "That file could not be deleted.",
+    "deleteFailed_other": "{{count}} files could not be deleted."
   }
 }

@@ -39,7 +39,12 @@ class AudioTagsModule : Module() {
 
     /** A ceiling, so pointing the picker at the storage root cannot hang. */
     const val MAX_SCAN_FILES = 20_000
+
+    /** Identifies our own consent dialog among the activity's results. */
+    const val DELETE_REQUEST_CODE = 0x0DE1
   }
+
+  private val deleter = MediaDeleter(DELETE_REQUEST_CODE)
 
   private val context
     get() = requireNotNull(appContext.reactContext) { "React context is not available" }
@@ -89,6 +94,34 @@ class AudioTagsModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("AudioTags")
+
+    OnActivityResult { _, payload ->
+      deleter.onActivityResult(payload.requestCode, payload.resultCode)
+    }
+
+    /** Whether this Android version can delete media the app does not own. */
+    Function("canDeleteAudioFiles") { deleter.isSupported() }
+
+    /**
+     * Delete these files, once the user has told the system to.
+     *
+     * The app never deletes anything on its own authority: under scoped
+     * storage it cannot, and it should not want to — these are the user's
+     * files and the confirmation belongs to the system, which can name them
+     * and cannot be spoofed by this app's own dialog.
+     *
+     * Reports each URI's fate rather than a single boolean, because the caller
+     * has rows to prune and a partly-approved run is normal on API 29, where
+     * the platform asks once per file.
+     */
+    AsyncFunction("deleteAudioFiles") Coroutine { uris: List<String> ->
+      val outcome = deleter.delete(context, appContext.activityProvider?.currentActivity, uris)
+      mapOf(
+        "deleted" to outcome.deleted,
+        "denied" to outcome.denied,
+        "failed" to outcome.failed,
+      )
+    }
 
     AsyncFunction("hasAudioPermission") {
       ContextCompat.checkSelfPermission(context, audioPermission()) ==

@@ -1,4 +1,13 @@
-import { Heart, HeartOff, Info, ListEnd, ListMusic, ListStart } from 'lucide-react-native';
+import {
+  CheckSquare,
+  Heart,
+  HeartOff,
+  Info,
+  ListEnd,
+  ListMusic,
+  ListStart,
+  Trash2,
+} from 'lucide-react-native';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -6,11 +15,20 @@ import { ActionSheet, type ActionSheetAction } from '@/components/ui/ActionSheet
 import type { TrackListItem } from '@/db/queries/tracks';
 
 /** What the sheet can be asked to do. The screen decides how. */
-export type TrackAction = 'playNext' | 'addToQueue' | 'addToPlaylist' | 'favorite' | 'info';
+export type TrackAction =
+  | 'playNext'
+  | 'addToQueue'
+  | 'addToPlaylist'
+  | 'favorite'
+  | 'select'
+  | 'delete'
+  | 'info';
 
 export interface TrackActionSheetProps {
   /** The track, or null when the sheet is closed. */
   track: TrackListItem | null;
+  /** False below Android 10, where the platform cannot ask on the app's behalf. */
+  canDelete: boolean;
   onSelect: (action: TrackAction) => void;
   onClose: () => void;
 }
@@ -34,7 +52,12 @@ export interface TrackActionSheetProps {
  * this against the brief deserves the reason.
  *
  */
-export function TrackActionSheet({ track, onSelect, onClose }: TrackActionSheetProps) {
+export function TrackActionSheet({
+  track,
+  canDelete,
+  onSelect,
+  onClose,
+}: TrackActionSheetProps) {
   const { t } = useTranslation();
 
   const actions = useMemo<ActionSheetAction[]>(
@@ -47,9 +70,23 @@ export function TrackActionSheet({ track, onSelect, onClose }: TrackActionSheetP
         label: track?.isFavorite ? t('player.unfavorite') : t('player.favorite'),
         icon: track?.isFavorite ? HeartOff : Heart,
       },
+      { id: 'select', label: t('library.selection.start'), icon: CheckSquare },
       { id: 'info', label: t('track.info'), icon: Info },
+      /*
+        Last, and away from the actions above it. Deleting is the only thing on
+        this sheet that cannot be undone, and it does not belong next to
+        "add to queue" where a thumb reaching for one lands on the other.
+
+        Hidden rather than disabled below Android 10, where the system has no
+        way to ask on the app's behalf and the only alternative is a permission
+        this app does not have. A greyed row invites a tap that has to be
+        explained; an absent one asks nothing.
+      */
+      ...(canDelete
+        ? [{ id: 'delete', label: t('track.delete'), icon: Trash2 } as ActionSheetAction]
+        : []),
     ],
-    [t, track?.isFavorite],
+    [canDelete, t, track?.isFavorite],
   );
 
   return (

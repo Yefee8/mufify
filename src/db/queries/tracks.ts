@@ -1,4 +1,4 @@
-import { and, asc, count, eq, isNull, like, or, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useEffect } from 'react';
 
@@ -176,6 +176,48 @@ export function useTracks(
   // library and a library that has not been read yet are the same value, and
   // the screen flashes its empty state before the rows arrive.
   return { tracks: useThrottledData(data), isLoading: updatedAt === undefined };
+}
+
+/**
+ * The tracks in one collection, fetched once.
+ *
+ * The same predicate and ordering as `useCollectionTracks`, awaited rather than
+ * subscribed. Deleting a whole album from the grid needs its contents at the
+ * moment of the press and never again, and mounting a live query for that would
+ * subscribe the *library* screen to every album the user long-presses.
+ */
+export async function listCollectionTracks(
+  kind: 'artist' | 'album',
+  id: number,
+): Promise<TrackListItem[]> {
+  return db
+    .select(listSelection)
+    .from(tracks)
+    .leftJoin(artists, eq(tracks.artistId, artists.id))
+    .leftJoin(albums, eq(tracks.albumId, albums.id))
+    .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
+    .where(and(eq(tracks.isMissing, 0), collectionPredicate(kind, id)))
+    .orderBy(asc(sql`${tracks.title} COLLATE NOCASE`));
+}
+
+/**
+ * Mark tracks whose files have been deleted from the device.
+ *
+ * Retired rather than deleted, which is the same thing a rescan does to a file
+ * that has vanished — and the reason is the listening history. `play_events`
+ * and `track_stats` are cascade children of `tracks`, so removing the row would
+ * silently rewrite the statistics: a year's listening would lose whatever the
+ * user tidied up last week, and the totals on the Wrapped screen would change
+ * for reasons nobody could connect to deleting a file.
+ *
+ * Every list in the app already filters on `is_missing = 0`, so retiring is
+ * what makes the track disappear from the library, from albums, and from the
+ * playlists holding it. Should the same file ever come back, the scanner
+ * un-retires the row it already has, along with everything attached to it.
+ */
+export async function retireTracks(ids: readonly number[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.update(tracks).set({ isMissing: 1 }).where(inArray(tracks.id, [...ids]));
 }
 
 /**
@@ -372,21 +414,13 @@ export function useAlbumCards(): CollectionCard[] {
  * partially-tagged record still opens with the tracks that know where they go.
  */
 export function useCollectionTracks(kind: 'artist' | 'album', id: number): TrackListItem[] {
-  const collectionPredicate =
-    kind === 'artist'
-      ? id === 0
-        ? isNull(tracks.artistId)
-        : eq(tracks.artistId, id)
-      : id === 0
-        ? isNull(tracks.albumId)
-        : eq(tracks.albumId, id);
   const query = db
     .select(listSelection)
     .from(tracks)
     .leftJoin(artists, eq(tracks.artistId, artists.id))
     .leftJoin(albums, eq(tracks.albumId, albums.id))
     .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
-    .where(and(eq(tracks.isMissing, 0), collectionPredicate))
+    .where(and(eq(tracks.isMissing, 0), collectionPredicate(kind, id)))
     .orderBy(
       asc(sql`${tracks.discNo} IS NULL`),
       asc(tracks.discNo),
@@ -397,4 +431,16 @@ export function useCollectionTracks(kind: 'artist' | 'album', id: number): Track
 
   const { data } = useLiveQuery(query, [kind, id]);
   return useThrottledData(data);
+}
+
+/**
+ * Which tracks belong to an artist or album.
+ *
+ * Id 0 is the reserved "unknown" card, which is the *absence* of an artist or
+ * album rather than one with that id — so it has to become `IS NULL` rather
+ * than an equality nothing matches.
+ */
+function collectionPredicate(kind: 'artist' | 'album', id: number) {
+  if (kind === 'artist') return id === 0 ? isNull(tracks.artistId) : eq(tracks.artistId, id);
+  return id === 0 ? isNull(tracks.albumId) : eq(tracks.albumId, id);
 }

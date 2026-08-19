@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Music } from 'lucide-react-native';
+import { Check, Music } from 'lucide-react-native';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
@@ -18,6 +18,9 @@ export interface TrackRowProps {
   onLongPress: (id: number) => void;
   /** True when this is the track the engine is playing. Indigo marks it. */
   isCurrent?: boolean;
+  /** The list is in selection mode, so a tick box replaces the duration. */
+  isSelecting?: boolean;
+  isSelected?: boolean;
 }
 
 /**
@@ -33,6 +36,8 @@ const TrackRowComponent = function TrackRow({
   onPress,
   onLongPress,
   isCurrent = false,
+  isSelecting = false,
+  isSelected = false,
 }: TrackRowProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -53,10 +58,12 @@ const TrackRowComponent = function TrackRow({
       onPress={handlePress}
       onLongPress={handleLongPress}
       android_ripple={{ color: colors.etch }}
-      accessibilityRole="button"
       accessibilityLabel={track.title}
       accessibilityHint={subtitle || undefined}
-      accessibilityState={{ selected: isCurrent }}
+      /* In selection mode the row *is* a checkbox, and saying so is what makes
+         the tick readable to a screen reader at all. */
+      accessibilityRole={isSelecting ? 'checkbox' : 'button'}
+      accessibilityState={isSelecting ? { checked: isSelected } : { selected: isCurrent }}
       className="h-16 flex-row items-center gap-3 px-6"
     >
       {artworkUri ? (
@@ -100,10 +107,25 @@ const TrackRowComponent = function TrackRow({
         ) : null}
       </View>
 
-      {/* Mono for every technical value, so durations align down the column. */}
-      <Text className="font-mono text-sm text-muted">
-        {formatDuration(track.durationMs, locale)}
-      </Text>
+      {/* The tick takes the duration's place rather than adding a column: the
+          row is already full, and a duration is not what anyone is reading
+          while picking things out of a list. */}
+      {isSelecting ? (
+        <View
+          className={
+            isSelected
+              ? 'h-6 w-6 items-center justify-center rounded-full bg-accent'
+              : 'h-6 w-6 items-center justify-center rounded-full border border-subtle'
+          }
+        >
+          {isSelected ? <Check color={colors.onSignal} size={14} strokeWidth={3} /> : null}
+        </View>
+      ) : (
+        /* Mono for every technical value, so durations align down the column. */
+        <Text className="font-mono text-sm text-muted">
+          {formatDuration(track.durationMs, locale)}
+        </Text>
+      )}
     </Pressable>
   );
 };
@@ -122,6 +144,8 @@ function isSameRow(previous: TrackRowProps, next: TrackRowProps): boolean {
     previous.onPress === next.onPress &&
     previous.onLongPress === next.onLongPress &&
     previous.isCurrent === next.isCurrent &&
+    previous.isSelecting === next.isSelecting &&
+    previous.isSelected === next.isSelected &&
     previous.track.id === next.track.id &&
     previous.track.title === next.track.title &&
     previous.track.artistName === next.track.artistName &&

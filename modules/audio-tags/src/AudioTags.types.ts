@@ -94,6 +94,22 @@ export interface AudioPermissionResult {
   canAskAgain: boolean;
 }
 
+/**
+ * What a delete run did, per file.
+ *
+ * Three buckets rather than a boolean, and every URI lands in exactly one.
+ * A partly-approved run is the normal case on API 29, where the system asks
+ * once per file and a person can quite reasonably stop halfway.
+ */
+export interface AudioDeleteResult {
+  /** Gone from the device. The caller may retire these rows. */
+  deleted: string[];
+  /** The user said no. Nothing happened to them, and nothing should. */
+  denied: string[];
+  /** The platform refused: too old to ask, or the file was already gone. */
+  failed: string[];
+}
+
 export interface MediaStoreQueryOptions {
   /**
    * Index only files under this filesystem path. Absent scans the volume.

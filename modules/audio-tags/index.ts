@@ -1,6 +1,7 @@
 import { requireNativeModule } from 'expo-modules-core';
 
 import type {
+  AudioDeleteResult,
   AudioPermissionResult,
   MediaStoreQueryOptions,
   MediaStoreTrack,
@@ -35,6 +36,27 @@ declare class AudioTagsModuleType {
   hasAudioPermission(): Promise<boolean>;
 
   /**
+   * Whether this Android version can delete media the app does not own.
+   *
+   * False below API 29, where the only way is `WRITE_EXTERNAL_STORAGE` — a
+   * permission this app blocks and advertises the absence of.
+   */
+  canDeleteAudioFiles(): boolean;
+
+  /**
+   * Delete these files, after the system has asked the user about them.
+   *
+   * The confirmation is the platform's, not the app's: under scoped storage an
+   * app cannot delete media it did not create, and the dialog that can is one
+   * this app launches and cannot draw. API 30+ asks once for the whole list;
+   * API 29 asks once per file.
+   *
+   * Every URI comes back in exactly one bucket, because a partly-approved run
+   * is normal and the caller has rows to prune.
+   */
+  deleteAudioFiles(uris: string[]): Promise<AudioDeleteResult>;
+
+  /**
    * Show the system permission dialog and report what the user chose.
    *
    * Required before the first MediaStore query: without the grant, a query
@@ -58,6 +80,7 @@ const AudioTagsModule = requireNativeModule<AudioTagsModuleType>('AudioTags');
 
 export default AudioTagsModule;
 export type {
+  AudioDeleteResult,
   AudioPermissionResult,
   MediaStoreQueryOptions,
   MediaStoreTrack,

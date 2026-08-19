@@ -59,7 +59,14 @@
       "albums": "Albümler"
     },
     "likedFilter": "Yalnızca beğenilen parçalar",
-    "noLiked": "Henüz beğenilen parça yok. Bir parçadaki kalbe dokun, burada dursun."
+    "noLiked": "Henüz beğenilen parça yok. Bir parçadaki kalbe dokun, burada dursun.",
+    "selection": {
+      "count_one": "{{count}} seçildi",
+      "count_other": "{{count}} seçildi",
+      "selectAll": "Listedekilerin tümünü seç",
+      "start": "Seç"
+    },
+    "deleteCollection": "Cihazdan sil"
   },
   "playlists": {
     "title": "Listeler",
@@ -325,6 +332,13 @@
       "bitDepth": "Bit derinliği",
       "channels": "Kanal",
       "fileSize": "Dosya boyutu"
+    },
+    "delete": "Cihazdan sil",
+    "deleteConfirm": {
+      "title_one": "Bu dosya silinsin mi?",
+      "title_other": "{{count}} dosya silinsin mi?",
+      "body_one": "Android onay isteyecek. Dosya yalnızca Mufify’dan değil, cihazdan da silinir — geri alınamaz.",
+      "body_other": "Android onay isteyecek. Android 10’da her dosya için ayrı ayrı sorar, yani {{count}} onay bekle. Dosyalar yalnızca Mufify’dan değil, cihazdan da silinir — geri alınamaz."
     }
   },
   "toast": {
@@ -335,6 +349,10 @@
     "favorited": "Favorilere eklendi",
     "unfavorited": "Favorilerden çıkarıldı",
     "addedToPlaylist_one": "Listeye eklendi",
-    "addedToPlaylist_other": "{{count}} parça listeye eklendi"
+    "addedToPlaylist_other": "{{count}} parça listeye eklendi",
+    "deleted_one": "Silindi",
+    "deleted_other": "{{count}} dosya silindi",
+    "deleteFailed_one": "Bu dosya silinemedi.",
+    "deleteFailed_other": "{{count}} dosya silinemedi."
   }
 }

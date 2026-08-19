@@ -1,4 +1,3 @@
-import { Disc3, User } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, View } from 'react-native';
@@ -9,7 +8,6 @@ import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
 import { LikedFilter } from '@/components/ui/LikedFilter';
 import { PlayShuffleBar } from '@/components/ui/PlayShuffleBar';
-import { SkeletonCards } from '@/components/ui/Skeleton';
 import { WarningBanner } from '@/components/ui/WarningBanner';
 import { useAlbumCards, useArtistCards } from '@/db/queries/tracks';
 import { AudioEngine } from '@/services/audio/AudioEngine';
@@ -17,11 +15,11 @@ import { getShuffleAlgorithm } from '@/services/settings';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 
 import { toPlayable } from '../player/toPlayable';
-import { CollectionGrid } from './components/CollectionGrid';
 import { LibraryHeader } from './components/LibraryHeader';
 import { FolderImportModal } from './components/FolderImportModal';
 import { ScanBanner } from './components/ScanBanner';
 import { SearchField } from './components/SearchField';
+import { LibraryCollections } from './LibraryCollections';
 import { LibraryTracks } from './LibraryTracks';
 import { useCollectionRouting } from './hooks/useCollectionRouting';
 import { useDebounced } from './hooks/useDebounced';
@@ -226,19 +224,12 @@ export function LibraryScreen() {
           onAddFolder={chooseFolder}
         />
       ) : (
-        <View className="flex-1">
-          {waiting ? (
-            <SkeletonCards />
-          ) : (
-            <CollectionGrid
-              kind={view === 'artists' ? 'artist' : 'album'}
-              cards={collectionCards}
-              icon={view === 'artists' ? User : Disc3}
-              onPress={view === 'artists' ? openArtist : openAlbum}
-              empty={null}
-            />
-          )}
-        </View>
+        <LibraryCollections
+          kind={view === 'artists' ? 'artist' : 'album'}
+          cards={collectionCards}
+          isLoading={waiting}
+          onOpen={view === 'artists' ? openArtist : openAlbum}
+        />
       )}
 
       {/*

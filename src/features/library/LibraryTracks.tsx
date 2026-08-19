@@ -1,10 +1,13 @@
-import { HeartOff, Music, SearchX } from 'lucide-react-native';
+import { HeartOff, ListEnd, ListMusic, Music, SearchX, Trash2 } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SelectionBar, type SelectionAction } from '@/components/ui/SelectionBar';
 import type { TrackListItem } from '@/db/queries/tracks';
+import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { useMessages } from '@/i18n';
 import * as perf from '@/services/perf';
 
@@ -15,6 +18,8 @@ import { TrackActionSheet, type TrackAction } from './components/TrackActionShee
 import { TrackInfoSheet } from './components/TrackInfoSheet';
 import { TrackList } from './components/TrackList';
 import { TrackListSkeleton } from './components/TrackListSkeleton';
+import { useDeleteTracks } from './hooks/useDeleteTracks';
+import { useSelection } from './hooks/useSelection';
 import { useTrackActions } from './hooks/useTrackActions';
 
 export interface LibraryTracksProps {
@@ -57,11 +62,14 @@ export function LibraryTracks({
 }: LibraryTracksProps) {
   const { t, i18n } = useTranslation();
   const messages = useMessages('library.empty');
+  const bottomInset = useMiniPlayerInset();
 
   const { playFrom } = usePlaybackControls();
   const currentTrack = useCurrentTrack();
 
   const { addToQueue, playNext, toggleFavorite } = useTrackActions();
+  const selection = useSelection();
+  const deletion = useDeleteTracks();
   // Queue conversion belongs to a data change, not to a row press.
   const playableTracks = useMemo(() => {
     perf.mark('library.playableQueue');
@@ -89,9 +97,17 @@ export function LibraryTracks({
   /*
    * Playing a track makes the list it came from the queue, which is what a user
    * means by tapping a row — not "play this one thing and stop".
+   *
+   * While selecting, a tap ticks instead. One handler rather than swapping the
+   * prop, so a row cannot be left holding the wrong one for a frame — which is
+   * exactly long enough to start playing music somebody was trying to tick.
    */
   const onPress = useCallback(
     (id: number) => {
+      if (selection.isSelecting) {
+        selection.toggle(id);
+        return;
+      }
       const index = trackIndexById.get(id);
       if (index === undefined) return;
       perf.mark('library.play.handler');
@@ -99,10 +115,56 @@ export function LibraryTracks({
       playFrom(playableTracks, index);
       perf.measure('library.play.handler', playableTracks.length);
     },
-    [trackIndexById, playFrom, playableTracks],
+    [selection, trackIndexById, playFrom, playableTracks],
   );
 
-  const onLongPress = useCallback((id: number) => setActionTarget(find(id)), [find]);
+  /** Long press opens the sheet, or ticks a second row once selecting. */
+  const onLongPress = useCallback(
+    (id: number) => {
+      if (selection.isSelecting) selection.toggle(id);
+      else setActionTarget(find(id));
+    },
+    [find, selection],
+  );
+
+  /** The ticked rows, in list order, as the actions want them. */
+  const selectedTracks = useMemo(
+    () => tracks.filter((track) => selection.selected.has(track.id)),
+    [tracks, selection.selected],
+  );
+
+  const selectionActions = useMemo<SelectionAction[]>(
+    () => [
+      { id: 'addToQueue', label: t('track.addToQueue'), icon: ListEnd, emphasis: true },
+      { id: 'addToPlaylist', label: t('playlists.addTo'), icon: ListMusic },
+      ...(deletion.canDelete
+        ? [{ id: 'delete', label: t('track.delete'), icon: Trash2 } as SelectionAction]
+        : []),
+    ],
+    [deletion.canDelete, t],
+  );
+
+  const onSelectionAction = useCallback(
+    (action: string) => {
+      if (selectedTracks.length === 0) return;
+      switch (action) {
+        case 'addToQueue':
+          addToQueue(selectedTracks);
+          selection.end();
+          return;
+        case 'addToPlaylist':
+          setPlaylistTargets(selectedTracks.map((track) => track.id));
+          selection.end();
+          return;
+        case 'delete':
+          // Selection stays open behind the dialog: backing out has to leave
+          // the user with the rows they spent time ticking.
+          deletion.ask(selectedTracks);
+          return;
+      }
+    },
+    [addToQueue, deletion, selectedTracks, selection],
+  );
 
   const onSwipeToQueue = useCallback(
     (id: number) => {
@@ -130,12 +192,18 @@ export function LibraryTracks({
         case 'favorite':
           toggleFavorite(track);
           return;
+        case 'select':
+          selection.begin(track.id);
+          return;
+        case 'delete':
+          deletion.ask([track]);
+          return;
         case 'info':
           setInfoTarget(track);
           return;
       }
     },
-    [actionTarget, playNext, addToQueue, toggleFavorite],
+    [actionTarget, playNext, addToQueue, toggleFavorite, selection, deletion],
   );
 
   const closePlaylistSheet = useCallback(() => {
@@ -155,6 +223,8 @@ export function LibraryTracks({
             onLongPress={onLongPress}
             onSwipeToQueue={onSwipeToQueue}
             currentTrackId={currentTrack?.id ?? null}
+            isSelecting={selection.isSelecting}
+            selected={selection.selected}
             empty={
               suppressEmpty ? null : search.trim() ? (
                 /* No hits is not an empty library — offering a scan here would
@@ -177,10 +247,41 @@ export function LibraryTracks({
         )}
       </View>
 
+      {selection.isSelecting ? (
+        <SelectionBar
+          count={selection.selected.size}
+          actions={selectionActions}
+          onSelect={onSelectionAction}
+          onSelectAll={() => selection.toggleAll(tracks.map((track) => track.id))}
+          onClose={selection.end}
+          bottomInset={bottomInset}
+        />
+      ) : null}
+
       <TrackActionSheet
         track={actionTarget}
+        canDelete={deletion.canDelete}
         onSelect={onAction}
         onClose={() => setActionTarget(null)}
+      />
+
+      {/*
+        The system draws the dialog that actually deletes, and it is the one
+        that counts. This one says how many first — on Android 10 the platform
+        asks once per file, and twelve dialogs in a row is not something to walk
+        into by mistake.
+      */}
+      <ConfirmDialog
+        visible={deletion.pending.length > 0}
+        title={t('track.deleteConfirm.title', { count: deletion.pending.length })}
+        body={t('track.deleteConfirm.body', { count: deletion.pending.length })}
+        confirmLabel={t('track.delete')}
+        destructive
+        onConfirm={() => {
+          deletion.confirm();
+          selection.end();
+        }}
+        onCancel={deletion.cancel}
       />
       <TrackInfoSheet track={infoTarget} onClose={() => setInfoTarget(null)} />
       <AddToPlaylistSheet trackIds={playlistTargets} onClose={closePlaylistSheet} />

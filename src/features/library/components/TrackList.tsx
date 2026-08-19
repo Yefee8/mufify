@@ -42,6 +42,10 @@ export interface TrackListProps {
   onSwipeToQueue: (id: number) => void;
   /** Id of the playing track, so one row can be marked. */
   currentTrackId: number | null;
+  /** The list is in selection mode: rows tick instead of playing. */
+  isSelecting?: boolean;
+  /** Which rows are ticked. */
+  selected?: ReadonlySet<number>;
   empty: ReactElement | null;
 }
 
@@ -60,6 +64,8 @@ export function TrackList({
   onLongPress,
   onSwipeToQueue,
   currentTrackId,
+  isSelecting = false,
+  selected,
   empty,
 }: TrackListProps) {
   const { t } = useTranslation();
@@ -82,11 +88,13 @@ export function TrackList({
           onLongPress={onLongPress}
           onSwipeToQueue={onSwipeToQueue}
           isCurrent={item.id === currentTrackId}
+          isSelecting={isSelecting}
+          isSelected={selected?.has(item.id) ?? false}
           swipeLabel={swipeLabel}
         />
       );
     },
-    [locale, onPress, onLongPress, onSwipeToQueue, currentTrackId, swipeLabel],
+    [locale, onPress, onLongPress, onSwipeToQueue, currentTrackId, isSelecting, selected, swipeLabel],
   );
 
   return (

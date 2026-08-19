@@ -18,6 +18,8 @@ export interface CollectionGridProps {
   cards: readonly Card[];
   icon: LucideIcon;
   onPress: (id: number) => void;
+  /** Opens the collection's actions. */
+  onLongPress: (id: number) => void;
   empty: ReactElement | null;
 }
 
@@ -34,7 +36,14 @@ export interface CollectionGridProps {
  * be wrong on the first rotation. Cards are uniform, so FlashList measures one
  * and reuses it.
  */
-export function CollectionGrid({ kind, cards, icon, onPress, empty }: CollectionGridProps) {
+export function CollectionGrid({
+  kind,
+  cards,
+  icon,
+  onPress,
+  onLongPress,
+  empty,
+}: CollectionGridProps) {
   const bottomInset = useMiniPlayerInset();
 
   const renderItem = useCallback<ListRenderItem<Card>>(
@@ -42,10 +51,16 @@ export function CollectionGrid({ kind, cards, icon, onPress, empty }: Collection
       // Gutter as padding on the cell rather than a gap on the list: FlashList
       // sizes cells itself, and a gap would be applied outside that measurement.
       <View className="flex-1 p-2">
-        <CollectionCard kind={kind} card={item} icon={icon} onPress={onPress} />
+        <CollectionCard
+          kind={kind}
+          card={item}
+          icon={icon}
+          onPress={onPress}
+          onLongPress={onLongPress}
+        />
       </View>
     ),
-    [kind, icon, onPress],
+    [kind, icon, onPress, onLongPress],
   );
 
   return (

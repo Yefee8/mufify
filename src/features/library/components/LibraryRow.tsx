@@ -14,6 +14,8 @@ export interface LibraryRowProps {
   onLongPress: (id: number) => void;
   onSwipeToQueue: (id: number) => void;
   isCurrent: boolean;
+  isSelecting: boolean;
+  isSelected: boolean;
   /** Already translated, for the swipe action's screen-reader label. */
   swipeLabel: string;
 }
@@ -35,6 +37,8 @@ const LibraryRowComponent = function LibraryRow({
   onLongPress,
   onSwipeToQueue,
   isCurrent,
+  isSelecting,
+  isSelected,
   swipeLabel,
 }: LibraryRowProps) {
   const handleSwipe = useCallback(() => onSwipeToQueue(track.id), [onSwipeToQueue, track.id]);
@@ -47,10 +51,20 @@ const LibraryRowComponent = function LibraryRow({
         onPress={onPress}
         onLongPress={onLongPress}
         isCurrent={isCurrent}
+        isSelecting={isSelecting}
+        isSelected={isSelected}
       />
     ),
-    [track, locale, onPress, onLongPress, isCurrent],
+    [track, locale, onPress, onLongPress, isCurrent, isSelecting, isSelected],
   );
+
+  /*
+   * No swipe while selecting. The gesture that queues one track and the gesture
+   * that scrolls past twenty you are ticking are the same flick, and a row that
+   * quietly queued itself every time a finger slipped sideways would make
+   * picking things out of a long list feel broken.
+   */
+  if (isSelecting) return row;
 
   return (
     <SwipeableRow onSwipe={handleSwipe} icon={ListEnd} accessibilityLabel={swipeLabel}>
@@ -67,6 +81,8 @@ function isSameRow(previous: LibraryRowProps, next: LibraryRowProps): boolean {
     previous.onLongPress === next.onLongPress &&
     previous.onSwipeToQueue === next.onSwipeToQueue &&
     previous.isCurrent === next.isCurrent &&
+    previous.isSelecting === next.isSelecting &&
+    previous.isSelected === next.isSelected &&
     previous.swipeLabel === next.swipeLabel
   );
 }
