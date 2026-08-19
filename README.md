@@ -175,14 +175,15 @@ debug-signed one**. Uninstall first.
 Publishing one:
 
 ```bash
-gh release create v1.4.0 \
-  android/app/build/outputs/apk/release/app-release.apk#mufify-1.4.0.apk \
-  --title "Mufify 1.4.0" --notes-file <notes>
+gh release create v1.3.1 \
+  android/app/build/outputs/apk/release/app-release.apk#mufify-1.3.1.apk \
+  --title "Mufify 1.3.1" --notes-file <notes>
 ```
 
-Raise `version` and `android.versionCode` in `app.json` first. Android refuses
-an install whose `versionCode` does not climb, so shipping two builds on the
-same number makes the second one undownloadable in practice.
+Raise `android.versionCode` in `app.json` first, and raise it **whatever the
+version name does**. Android refuses an install whose `versionCode` does not
+climb, and the two are independent — 1.3.1 followed 1.4.0 on code 11, which is
+the only reason it installs over it.
 
 The artifacts are gitignored along with the rest of `android/` — a 128 MB binary
 does not belong in the history. The release is where it goes.
@@ -195,7 +196,7 @@ What the release build is checked for, and what `assembleRelease` produced on
 | `INTERNET` permission | **absent** — this is the whole promise, and `plugins/withOfflineOnly.js` is what keeps it out |
 | `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, `WRITE_EXTERNAL_STORAGE` | absent, blocked in `app.json` |
 | Debuggable | no |
-| `versionCode` / `versionName` | 10 / 1.4.0 |
+| `versionCode` / `versionName` | 11 / 1.3.1 |
 
 One permission does survive that is worth knowing about: `ACCESS_NETWORK_STATE`,
 pulled in by a dependency rather than asked for here. It cannot open a
