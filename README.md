@@ -27,10 +27,19 @@ More, with what each one is showing, in [docs/screenshots.md](docs/screenshots.m
 ## What it does
 
 - **Playback** of local files, lossless first-class, with background playback,
-  lock-screen controls and a persistent queue.
+  lock-screen controls and a persistent queue. A ramp at the seam between two
+  tracks, if you want one — see [ADR 023](docs/adr/023-a-fade-at-the-seam-not-a-crossfade.md)
+  for why it is a fade and not a crossfade.
 - **Five shuffle algorithms**, chosen in Settings, each explained where you
   choose it. Not one shuffle behind a toggle — see [docs/shuffle.md](docs/shuffle.md).
-- **Local playlists** with drag-reorder, a cover mosaic, and shuffle.
+- **Local playlists** with drag-reorder, a cover mosaic or a picture you chose,
+  and shuffle. Playlists and tracks can be liked, and either list filtered to
+  what is.
+- **A ten-band equaliser** where the platform allows it, with presets you can
+  save and pass on as a line of text — [ADR 022](docs/adr/022-ten-bands-and-presets-you-can-post.md).
+- **Deleting tracks and albums**, through the system's own confirmation, with a
+  multi-select mode for doing several at once —
+  [ADR 021](docs/adr/021-deleting-files-needs-the-system-to-ask.md).
 - **Listening statistics** computed on the device from your own history: top
   tracks, artists, albums and playlists by week, month and year, with a Wrapped
   summary. Nothing is uploaded because there is nowhere to upload it to.
@@ -150,16 +159,26 @@ That is the one to sideload or hand to somebody. The **AAB is the one to
 upload**: Play splits it per device and what people download is a fraction of
 that.
 
-Both are currently signed with the debug key, which is fine for sideloading and
-not fine for the Play Store. A release key belongs in `~/.gradle/gradle.properties`,
-never in the repository.
+Signing is passed in on the command line rather than written into the
+repository, so no key or password ever lands in a tracked file:
+
+```bash
+./gradlew bundleRelease assembleRelease \
+  -Pandroid.injected.signing.store.file="$HOME/path/to/key.jks" \
+  -Pandroid.injected.signing.store.password=… \
+  -Pandroid.injected.signing.key.alias=… \
+  -Pandroid.injected.signing.key.password=…
+```
+
+A build signed with the upload key **cannot be installed over an earlier
+debug-signed one**. Uninstall first.
 
 Publishing one:
 
 ```bash
-gh release create v1.3.0 \
-  android/app/build/outputs/apk/release/app-release.apk#mufify-1.3.0.apk \
-  --title "Mufify 1.3.0" --notes-file <notes>
+gh release create v1.4.0 \
+  android/app/build/outputs/apk/release/app-release.apk#mufify-1.4.0.apk \
+  --title "Mufify 1.4.0" --notes-file <notes>
 ```
 
 Raise `version` and `android.versionCode` in `app.json` first. Android refuses
@@ -170,14 +189,14 @@ The artifacts are gitignored along with the rest of `android/` — a 128 MB bina
 does not belong in the history. The release is where it goes.
 
 What the release build is checked for, and what `assembleRelease` produced on
-2026-08-05:
+2026-08-19:
 
 | Check | Result |
 |---|---|
 | `INTERNET` permission | **absent** — this is the whole promise, and `plugins/withOfflineOnly.js` is what keeps it out |
 | `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, `WRITE_EXTERNAL_STORAGE` | absent, blocked in `app.json` |
 | Debuggable | no |
-| `versionCode` / `versionName` | 9 / 1.3.0 |
+| `versionCode` / `versionName` | 10 / 1.4.0 |
 
 One permission does survive that is worth knowing about: `ACCESS_NETWORK_STATE`,
 pulled in by a dependency rather than asked for here. It cannot open a

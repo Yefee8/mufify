@@ -87,6 +87,16 @@ happened on every single track change.
 `updateLockScreenMetadata` changes metadata on the live session and re-posts the
 notification, with no release and no window.
 
+**This is also the reason there is no crossfade.** Overlapping two tracks needs
+a second player, and the media session, the statistics cycle and the
+equaliser's audio session all belong to the one there is. Following the audio
+between two players means one `setActiveForLockScreen` per track — precisely
+the call described above. What ships instead is a ramp at the seam: the end of
+one track fades down, the start of the next fades up, on the single player, and
+the gap between them is unchanged at roughly 290ms. See
+[ADR 023](adr/023-a-fade-at-the-seam-not-a-crossfade.md), which records what a
+real crossfade would take so the next attempt does not re-derive it.
+
 ### What the notification shows
 
 Title, artist, album, and artwork. A track with no cover gets the app's own
