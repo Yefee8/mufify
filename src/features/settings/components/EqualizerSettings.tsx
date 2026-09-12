@@ -1,19 +1,29 @@
 import type { EqualizerCapabilities } from 'audio-eq';
+import * as Clipboard from 'expo-clipboard';
 import { hasEqualizer } from 'audio-eq';
 import { SlidersHorizontal } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Switch, Text, View } from 'react-native';
 
 import {
   applyCustomLevels,
   applyEnabled,
   applyPreset,
+  applySavedCurve,
   getCapabilities,
   levelsFor,
   subscribeCapabilities,
 } from '@/services/equalizer/equalizerController';
-import { EQUALIZER_PRESET_IDS, type EqualizerPresetId } from '@/services/equalizer/presets';
+import type { EqualizerPresetId } from '@/services/equalizer/presets';
+import type { SavedPreset } from '@/services/equalizer/savedPresets';
+import {
+  forgetPreset,
+  setActive,
+  useSavedPresets,
+} from '@/services/equalizer/savedPresetStore';
+import { encodePresetCode } from '@/services/equalizer/presetCode';
+import { showToast } from '@/services/toast';
 import {
   getEqualizerEnabled,
   getEqualizerPreset,
@@ -24,6 +34,7 @@ import { SPACING } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/useTheme';
 
 import { BandSlider } from './BandSlider';
+import { PresetPicker } from './PresetPicker';
 import { SavedPresets } from './SavedPresets';
 
 /**
@@ -64,22 +75,7 @@ export function EqualizerSettings() {
 
   useEffect(() => subscribeCapabilities(setCapabilities), []);
 
-  /*
-   * Keep the selected chip on screen.
-   *
-   * Dragging a band selects Custom, which is the last chip in the row and was
-   * off the right-hand edge — so moving a fader appeared to deselect everything
-   * rather than to switch to Custom. Offsets come from layout because the chips
-   * are translated and their widths are not knowable here.
-   */
-  const chipRow = useRef<ScrollView>(null);
-  const chipOffsets = useRef<Record<string, number>>({});
-
-  useEffect(() => {
-    const x = chipOffsets.current[preset];
-    if (x === undefined) return;
-    chipRow.current?.scrollTo({ x: Math.max(0, x - SPACING[6]), animated: true });
-  }, [preset]);
+  const { presets: savedPresets, activeId } = useSavedPresets();
 
   const bandCount = capabilities?.bands.length ?? 0;
   const levels = useMemo(
@@ -115,6 +111,8 @@ export function EqualizerSettings() {
     (next: EqualizerPresetId) => {
       setPresetState(next);
       setEqualizerPreset(next);
+      // No longer one of the user's, whatever it was before.
+      setActive(null);
       void applyPreset(next);
       ensureEnabled();
     },
@@ -136,6 +134,9 @@ export function EqualizerSettings() {
       // Tagged `custom` because that is what the selection becomes below, so
       // the next render recognises these levels as current rather than stale.
       setDragged({ preset: 'custom', levels: next });
+      // A dragged band is nobody's saved preset any more, even if it started as
+      // one — the name would otherwise outlive the curve it was given to.
+      setActive(null);
       void applyCustomLevels(next);
 
       if (preset !== 'custom') {
@@ -146,6 +147,43 @@ export function EqualizerSettings() {
     },
     [ensureEnabled, levels, preset],
   );
+
+  /**
+   * Load one of the user's presets.
+   *
+   * It lands as the custom levels — a saved preset is a curve, and the engine
+   * only has one place to put a curve that is not a built-in — with the name
+   * remembered alongside so the picker can say which one is playing rather than
+   * calling it "Custom".
+   */
+  const onSelectSaved = useCallback(
+    (entry: SavedPreset) => {
+      void (async () => {
+        const applied = await applySavedCurve(entry.points);
+        if (applied.length === 0) return;
+
+        setDragged({ preset: 'custom', levels: applied });
+        setPresetState('custom');
+        setEqualizerPreset('custom');
+        setActive(entry.id);
+        ensureEnabled();
+      })();
+    },
+    [ensureEnabled],
+  );
+
+  const onShare = useCallback(
+    (entry: SavedPreset) => {
+      void Clipboard.setStringAsync(encodePresetCode(entry.name, entry.points));
+      showToast(t('settings.equalizer.copied'));
+    },
+    [t],
+  );
+
+  const onForget = useCallback((entry: SavedPreset) => {
+    // The curve stays where it is: deleting a name does not change a sound.
+    forgetPreset(entry.id);
+  }, []);
 
   if (!hasEqualizer) {
     return <Text className="font-body text-sm text-muted">{t('settings.equalizer.missing')}</Text>;
@@ -168,52 +206,20 @@ export function EqualizerSettings() {
       </View>
 
       {/*
-        Chips rather than a list of described rows. The description of the
-        *selected* one is directly underneath, which is the only one worth the
-        vertical space — the rest are readable by trying them, which is the
-        whole point of putting the faders in the same screenful.
+        One row that says what is selected, opening a sheet with everything in
+        it. The two horizontal chip rows this replaced hid their own contents —
+        the selected chip was regularly off-screen — and made the user's own
+        presets look like more built-ins.
       */}
-      <ScrollView
-        ref={chipRow}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: SPACING[2] }}
-      >
-        {EQUALIZER_PRESET_IDS.map((id) => {
-          const selected = id === preset;
-          return (
-            <Pressable
-              key={id}
-              onLayout={(event) => {
-                chipOffsets.current[id] = event.nativeEvent.layout.x;
-              }}
-              onPress={() => onPresetChange(id)}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              accessibilityLabel={t(`settings.equalizer.presets.${id}`)}
-              className={
-                selected
-                  ? 'min-h-11 justify-center rounded-full bg-accent px-4'
-                  : 'min-h-11 justify-center rounded-full border border-subtle px-4'
-              }
-            >
-              <Text
-                className={
-                  selected
-                    ? 'font-body-medium text-sm text-on-accent'
-                    : 'font-body-medium text-sm text-muted'
-                }
-              >
-                {t(`settings.equalizer.presets.${id}`)}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-
-      <Text className="font-body text-sm text-muted">
-        {t(`settings.equalizer.presetHints.${preset}`)}
-      </Text>
+      <PresetPicker
+        preset={preset}
+        saved={savedPresets}
+        activeId={activeId}
+        onSelectBuiltIn={onPresetChange}
+        onSelectSaved={onSelectSaved}
+        onShare={onShare}
+        onForget={onForget}
+      />
 
       {capabilities === null || capabilities.bands.length === 0 ? (
         <Text className="font-body text-sm text-muted">{t('settings.equalizer.noSession')}</Text>
@@ -238,16 +244,7 @@ export function EqualizerSettings() {
         sound right, and loading one is a shortcut past the faders rather than
         an alternative to the presets above them.
       */}
-      <SavedPresets
-        levels={levels}
-        onLoaded={(next) => {
-          setDragged({ preset: 'custom', levels: next });
-          setPresetState('custom');
-          setEqualizerPreset('custom');
-          ensureEnabled();
-        }}
-        disabled={bandCount === 0}
-      />
+      <SavedPresets levels={levels} disabled={bandCount === 0} />
     </View>
   );
 }

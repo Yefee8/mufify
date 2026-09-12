@@ -223,7 +223,7 @@
       "title": "Ekolayzer",
       "enable": "Ekolayzer",
       "enableHint": "Varsayılan olarak kapalı; sen istemedikçe parça masterlandığı gibi çalar.",
-      "preset": "Hazır ayar",
+      "preset": "Preset",
       "band": "{{hz}} hertz bandı",
       "noSession": "Önce bir şey çal — bantlar ses aygıtından geliyor, ses geçmeden okunacak bir şey yok.",
       "missing": "Bu sürümde ekolayzer yok. Sonradan eklenen bir native modül gerekiyor; almak için uygulamayı yeniden kur.",
@@ -249,8 +249,7 @@
       },
       "save": "Preset kaydet",
       "saved": "Preset kaydedildi",
-      "noSaved": "Henüz kayıtlı preset yok. Bantları oynat, sonra yaptığını kaydet.",
-      "savedHint": "Bu preseti yükle. Paylaşmak ya da silmek için basılı tut.",
+      "savedHint": "Senin presetin. Paylaşmak ya da silmek için basılı tut.",
       "share": "Kod olarak kopyala",
       "copied": "Kopyalandı. Paylaşmak için istediğin yere yapıştır.",
       "forget": "Bu preseti sil",
@@ -260,7 +259,9 @@
         "notAPreset": "Panoda bir Mufify preseti yok.",
         "wrongVersion": "Bu preset Mufify’ın daha yeni bir sürümüyle yapılmış.",
         "malformed": "Bu preset kodu bozuk. Tekrar iste."
-      }
+      },
+      "builtIn": "Hazır",
+      "yours": "Senin presetlerin"
     },
     "data": {
       "title": "Veriler",

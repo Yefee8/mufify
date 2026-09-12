@@ -26,6 +26,8 @@ export const SETTINGS_KEYS = {
   equalizerLevels: 'settings.equalizerLevels',
   /** Presets the user saved, as curves. JSON; see services/equalizer. */
   equalizerSavedPresets: 'settings.equalizerSavedPresets',
+  /** Which saved preset the current curve came from, if any. */
+  equalizerActivePreset: 'settings.equalizerActivePreset',
   /** Hide the second copy of a song the library holds twice. */
   hideDuplicateTracks: 'settings.hideDuplicateTracks',
   /** The queue and position, so playback can resume where it stopped. */

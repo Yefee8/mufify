@@ -6,6 +6,7 @@ export {
   type LanguagePreference,
 } from './language';
 export {
+  getActiveSavedPresetId,
   getAnimationSpeed,
   getAudioPermissionAsked,
   getEqualizerEnabled,
@@ -21,6 +22,7 @@ export {
   getStatsEnabled,
   getThemePreference,
   getWeekStart,
+  setActiveSavedPresetId,
   setAnimationSpeed,
   setAudioPermissionAsked,
   setEqualizerEnabled,

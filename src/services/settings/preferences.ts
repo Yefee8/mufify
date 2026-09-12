@@ -265,3 +265,20 @@ export function getSavedEqualizerPresets(): SavedPreset[] {
 export function setSavedEqualizerPresets(presets: readonly SavedPreset[]): void {
   settingsStorage.set(SETTINGS_KEYS.equalizerSavedPresets, JSON.stringify(presets));
 }
+
+/**
+ * Which saved preset the current curve came from.
+ *
+ * Stored beside the levels rather than derived from them: two presets can hold
+ * the same curve, and a curve says nothing about the name somebody gave it.
+ * Empty means a built-in preset or a hand-dragged curve — both of which are
+ * "not one of yours", which is the only distinction the picker needs.
+ */
+export function getActiveSavedPresetId(): string | null {
+  const stored = settingsStorage.getString(SETTINGS_KEYS.equalizerActivePreset);
+  return stored === undefined || stored === '' ? null : stored;
+}
+
+export function setActiveSavedPresetId(id: string | null): void {
+  settingsStorage.set(SETTINGS_KEYS.equalizerActivePreset, id ?? '');
+}

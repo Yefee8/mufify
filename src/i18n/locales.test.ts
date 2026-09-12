@@ -63,6 +63,10 @@ describe('locale files', () => {
       'settings.motion.normal',
       // A genre, and the same word in Turkish.
       'settings.equalizer.presets.rock',
+      // The loanword this section already uses on both sides — "Preset kaydet",
+      // "Preset yapıştır". Translating this one label to "Ön ayar" for the sake
+      // of a green test would leave the section disagreeing with itself.
+      'settings.equalizer.preset',
     ]);
 
     const identical = enPaths.filter(

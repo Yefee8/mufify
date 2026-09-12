@@ -1,19 +1,13 @@
 import * as Clipboard from 'expo-clipboard';
-import { ClipboardPaste, Save, Share2, Trash2 } from 'lucide-react-native';
+import { ClipboardPaste, Save } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-import { ActionSheet, type ActionSheetAction } from '@/components/ui/ActionSheet';
 import { NameDialog } from '@/components/ui/NameDialog';
-import { applySavedCurve, currentCurve } from '@/services/equalizer/equalizerController';
-import { decodePresetCode, encodePresetCode } from '@/services/equalizer/presetCode';
-import {
-  addSavedPreset,
-  removeSavedPreset,
-  type SavedPreset,
-} from '@/services/equalizer/savedPresets';
-import { getSavedEqualizerPresets, setSavedEqualizerPresets } from '@/services/settings';
+import { currentCurve } from '@/services/equalizer/equalizerController';
+import { decodePresetCode } from '@/services/equalizer/presetCode';
+import { savePreset } from '@/services/equalizer/savedPresetStore';
 import { showToast } from '@/services/toast';
 import { SPACING } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/useTheme';
@@ -21,14 +15,18 @@ import { useThemeColors } from '@/theme/useTheme';
 export interface SavedPresetsProps {
   /** The band gains currently on screen, in millibels. */
   levels: readonly number[];
-  /** Called after a saved preset is loaded, so the screen can follow it. */
-  onLoaded: (levels: number[]) => void;
-  /** No session yet, so there is nothing to save and nowhere to apply. */
+  /** No session yet, so there is nothing to save. */
   disabled: boolean;
 }
 
 /**
- * Presets the user made: save one, load one, hand one to somebody else.
+ * Two ways to get a preset into the list: make one, or paste one.
+ *
+ * The list itself moved into `PresetPicker`, which is where choosing happens —
+ * this used to own a second horizontal chip row of its own, and two rows of
+ * identical-looking chips made the user's presets indistinguishable from the
+ * built-ins. These are the actions that *add* to that list, so they stay here,
+ * under the faders: saving is something you do after getting a sound right.
  *
  * **Sharing is a line of text you copy, not a share sheet.** This app has no
  * network layer and does not hand files to other apps — the track sheet turns
@@ -42,47 +40,19 @@ export interface SavedPresetsProps {
  * a step that exists only because the app did not look where the text already
  * was.
  */
-export function SavedPresets({ levels, onLoaded, disabled }: SavedPresetsProps) {
+export function SavedPresets({ levels, disabled }: SavedPresetsProps) {
   const { t } = useTranslation();
-
-  const [presets, setPresets] = useState<SavedPreset[]>(getSavedEqualizerPresets);
   const [naming, setNaming] = useState(false);
-  const [target, setTarget] = useState<SavedPreset | null>(null);
-
-  /** One write, so the stored list and the rendered list cannot disagree. */
-  const commit = useCallback((next: SavedPreset[]) => {
-    setPresets(next);
-    setSavedEqualizerPresets(next);
-  }, []);
 
   const onSave = useCallback(
     (name: string) => {
       setNaming(false);
       const points = currentCurve(levels);
       if (points.length === 0) return;
-      commit(addSavedPreset(presets, name, points));
+      savePreset(name, points);
       showToast(t('settings.equalizer.saved'));
     },
-    [commit, levels, presets, t],
-  );
-
-  const onLoad = useCallback(
-    (preset: SavedPreset) => {
-      void (async () => {
-        const applied = await applySavedCurve(preset.points);
-        if (applied.length > 0) onLoaded(applied);
-      })();
-    },
-    [onLoaded],
-  );
-
-  const onShare = useCallback(
-    (preset: SavedPreset) => {
-      setTarget(null);
-      void Clipboard.setStringAsync(encodePresetCode(preset.name, preset.points));
-      showToast(t('settings.equalizer.copied'));
-    },
-    [t],
+    [levels, t],
   );
 
   /**
@@ -99,88 +69,32 @@ export function SavedPresets({ levels, onLoaded, disabled }: SavedPresetsProps) 
         showToast(t(`settings.equalizer.import.${camel(decoded.reason)}`));
         return;
       }
-      commit(addSavedPreset(presets, decoded.name, decoded.points));
+      savePreset(decoded.name, decoded.points);
       showToast(t('settings.equalizer.import.done', { name: decoded.name }));
     })();
-  }, [commit, presets, t]);
-
-  const onSheetAction = useCallback(
-    (id: string) => {
-      const preset = target;
-      if (!preset) return;
-      if (id === 'share') {
-        onShare(preset);
-        return;
-      }
-      setTarget(null);
-      commit(removeSavedPreset(presets, preset.id));
-    },
-    [commit, onShare, presets, target],
-  );
-
-  const sheetActions: ActionSheetAction[] = [
-    { id: 'share', label: t('settings.equalizer.share'), icon: Share2, emphasis: true },
-    { id: 'delete', label: t('settings.equalizer.forget'), icon: Trash2 },
-  ];
+  }, [t]);
 
   return (
-    <View style={{ gap: SPACING[2] }}>
-      <View className="flex-row gap-2">
-        <Action
-          label={t('settings.equalizer.save')}
-          icon={Save}
-          onPress={() => setNaming(true)}
-          disabled={disabled}
-        />
-        {/* Import stays live with no session: a preset can be kept for later
-            even when there is nothing playing to hear it on. */}
-        <Action
-          label={t('settings.equalizer.import.action')}
-          icon={ClipboardPaste}
-          onPress={onImport}
-        />
-      </View>
-
-      {presets.length === 0 ? (
-        <Text className="font-body text-sm text-muted">{t('settings.equalizer.noSaved')}</Text>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: SPACING[2] }}
-        >
-          {presets.map((preset) => (
-            <Pressable
-              key={preset.id}
-              onPress={() => onLoad(preset)}
-              onLongPress={() => setTarget(preset)}
-              disabled={disabled}
-              accessibilityRole="button"
-              accessibilityLabel={preset.name}
-              accessibilityHint={t('settings.equalizer.savedHint')}
-              className="min-h-11 justify-center rounded-full border border-subtle px-4"
-            >
-              <Text numberOfLines={1} className="font-body-medium text-sm text-primary">
-                {preset.name}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      )}
+    <View className="flex-row gap-2" style={{ gap: SPACING[2] }}>
+      <Action
+        label={t('settings.equalizer.save')}
+        icon={Save}
+        onPress={() => setNaming(true)}
+        disabled={disabled}
+      />
+      {/* Import stays live with no session: a preset can be kept for later even
+          when there is nothing playing to hear it on. */}
+      <Action
+        label={t('settings.equalizer.import.action')}
+        icon={ClipboardPaste}
+        onPress={onImport}
+      />
 
       <NameDialog
         visible={naming}
         title={t('settings.equalizer.save')}
         onCancel={() => setNaming(false)}
         onSubmit={onSave}
-      />
-
-      <ActionSheet
-        visible={target !== null}
-        title={target?.name ?? ''}
-        actions={sheetActions}
-        onSelect={onSheetAction}
-        onClose={() => setTarget(null)}
       />
     </View>
   );

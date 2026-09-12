@@ -249,8 +249,7 @@
       },
       "save": "Save preset",
       "saved": "Preset saved",
-      "noSaved": "No saved presets yet. Move the bands, then save what you made.",
-      "savedHint": "Load this preset. Long press to share or forget it.",
+      "savedHint": "Yours. Long press to share or delete it.",
       "share": "Copy as a code",
       "copied": "Copied. Paste it anywhere to share it.",
       "forget": "Forget this preset",
@@ -260,7 +259,9 @@
         "notAPreset": "The clipboard does not hold a Mufify preset.",
         "wrongVersion": "That preset was made by a newer version of Mufify.",
         "malformed": "That preset code is damaged. Ask for it again."
-      }
+      },
+      "builtIn": "Built in",
+      "yours": "Yours"
     },
     "data": {
       "title": "Data",
