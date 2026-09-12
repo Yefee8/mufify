@@ -13,6 +13,7 @@ import {
 } from '@/services/settings';
 
 import { curveForBands, fitLevels } from './curve';
+import { getActivePreset } from './savedPresetStore';
 import { presetCurve, type CurvePoint, type EqualizerPresetId } from './presets';
 
 /**
@@ -60,6 +61,25 @@ export function levelsFor(
   device: EqualizerCapabilities,
 ): number[] {
   if (preset === 'custom') {
+    /*
+     * "Custom" means one of two things, and the active id says which: a curve
+     * the user saved and named, or the levels they dragged by hand.
+     *
+     * Sampling the saved curve *here* rather than writing levels at selection
+     * time is what lets a saved preset be chosen before anything has played.
+     * There are no bands to sample onto until a session exists, and a built-in
+     * preset has always been selectable in that state — it is simply applied
+     * when the session arrives. Choosing one of your own now behaves the same,
+     * instead of silently doing nothing.
+     */
+    const saved = getActivePreset();
+    if (saved !== null) {
+      return curveForBands(
+        saved.points,
+        device.bands.map((band) => band.centerHz),
+        device,
+      );
+    }
     return fitLevels(getEqualizerLevels(), device.bands.length, device);
   }
   const curve = presetCurve(preset) ?? [];
@@ -120,32 +140,6 @@ export async function applyPreset(preset: EqualizerPresetId): Promise<void> {
 export async function applyCustomLevels(millibels: readonly number[]): Promise<void> {
   setEqualizerLevels(millibels);
   await setEqualizerBandLevels(millibels);
-}
-
-/**
- * Load a saved preset's curve onto this device's bands.
- *
- * Sampled rather than copied, which is the whole reason a saved preset is a
- * curve: the bands it was drawn on are not necessarily the bands it is being
- * applied to. Ten where `DynamicsProcessing` exists, five below API 28, and a
- * preset that travelled here from another phone knows nothing about either.
- *
- * It lands as the custom levels, and the caller switches the selection to
- * `custom` alongside — the levels and the name of the thing selected have to
- * change together, or the screen shows a preset whose curve is not what is
- * playing.
- */
-export async function applySavedCurve(points: readonly CurvePoint[]): Promise<number[]> {
-  const device = capabilities;
-  if (device === null) return [];
-
-  const levels = curveForBands(
-    points,
-    device.bands.map((band) => band.centerHz),
-    device,
-  );
-  await applyCustomLevels(levels);
-  return levels;
 }
 
 /** The curve the bands are currently drawn at, for saving or sharing. */

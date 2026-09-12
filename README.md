@@ -36,6 +36,9 @@ More, with what each one is showing, in [docs/screenshots.md](docs/screenshots.m
   what is.
 - **A ten-band equaliser** where the platform allows it, with presets you can
   save and pass on as a line of text — [ADR 022](docs/adr/022-ten-bands-and-presets-you-can-post.md).
+- **One name written two ways is one thing**: an artist's spellings always count
+  together in statistics, and duplicate songs can be listed once —
+  [ADR 024](docs/adr/024-one-name-written-two-ways.md).
 - **Deleting tracks and albums**, through the system's own confirmation, with a
   multi-select mode for doing several at once —
   [ADR 021](docs/adr/021-deleting-files-needs-the-system-to-ask.md).
@@ -175,9 +178,9 @@ debug-signed one**. Uninstall first.
 Publishing one:
 
 ```bash
-gh release create v1.4.2 \
-  android/app/build/outputs/apk/release/app-release.apk#mufify-1.4.2.apk \
-  --title "Mufify 1.4.2" --notes-file <notes>
+gh release create v1.4.3 \
+  android/app/build/outputs/apk/release/app-release.apk#mufify-1.4.3.apk \
+  --title "Mufify 1.4.3" --notes-file <notes>
 ```
 
 Raise `android.versionCode` in `app.json` first, and raise it **whatever the
@@ -196,7 +199,7 @@ What the release build is checked for, and what `assembleRelease` produced on
 | `INTERNET` permission | **absent** — this is the whole promise, and `plugins/withOfflineOnly.js` is what keeps it out |
 | `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, `WRITE_EXTERNAL_STORAGE` | absent, blocked in `app.json` |
 | Debuggable | no |
-| `versionCode` / `versionName` | 12 / 1.4.2 |
+| `versionCode` / `versionName` | 13 / 1.4.3 |
 
 One permission does survive that is worth knowing about: `ACCESS_NETWORK_STATE`,
 pulled in by a dependency rather than asked for here. It cannot open a

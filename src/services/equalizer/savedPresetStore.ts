@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 import {
   getActiveSavedPresetId,
@@ -78,17 +78,31 @@ export function setActive(id: string | null): void {
   emit();
 }
 
-/** The list and the selection, re-rendering whoever reads them on any change. */
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/**
+ * The list and the selection, re-rendering whoever reads them on any change.
+ *
+ * `useSyncExternalStore` rather than a `useState` bumped from a subscription,
+ * and the difference is not stylistic. Reading the module bindings at the end
+ * of a hook — `return { presets, activeId }` — gives the React Compiler two
+ * values it has every reason to treat as constant, so it memoises the object
+ * and the re-render hands back the snapshot from before the change. Saving a
+ * preset appeared to do nothing: it was written to storage, and the picker went
+ * on showing the list it had at mount.
+ *
+ * Both getters return the module binding itself, so the snapshot is
+ * referentially stable between changes and the store does not re-render on
+ * every commit.
+ */
 export function useSavedPresets(): { presets: SavedPreset[]; activeId: string | null } {
-  const [, bump] = useState(0);
-
-  useEffect(() => {
-    const listener = () => bump((count) => count + 1);
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-    };
-  }, []);
-
-  return { presets, activeId };
+  return {
+    presets: useSyncExternalStore(subscribe, getPresets),
+    activeId: useSyncExternalStore(subscribe, getActiveId),
+  };
 }

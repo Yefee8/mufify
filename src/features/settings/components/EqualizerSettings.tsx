@@ -10,7 +10,6 @@ import {
   applyCustomLevels,
   applyEnabled,
   applyPreset,
-  applySavedCurve,
   getCapabilities,
   levelsFor,
   subscribeCapabilities,
@@ -151,23 +150,25 @@ export function EqualizerSettings() {
   /**
    * Load one of the user's presets.
    *
-   * It lands as the custom levels — a saved preset is a curve, and the engine
-   * only has one place to put a curve that is not a built-in — with the name
-   * remembered alongside so the picker can say which one is playing rather than
-   * calling it "Custom".
+   * The selection is recorded and the *controller* samples the curve onto
+   * whatever bands exist — rather than this screen sampling it and writing
+   * levels. That is what lets a saved preset be chosen before anything has
+   * played: there are no bands to sample onto yet, a built-in has always been
+   * selectable in that state, and one of your own now behaves the same instead
+   * of silently doing nothing.
+   *
+   * `setActive` comes first: `applyPreset('custom')` reads it to decide whether
+   * "custom" means a saved curve or the hand-dragged levels.
    */
   const onSelectSaved = useCallback(
     (entry: SavedPreset) => {
-      void (async () => {
-        const applied = await applySavedCurve(entry.points);
-        if (applied.length === 0) return;
-
-        setDragged({ preset: 'custom', levels: applied });
-        setPresetState('custom');
-        setEqualizerPreset('custom');
-        setActive(entry.id);
-        ensureEnabled();
-      })();
+      setActive(entry.id);
+      setPresetState('custom');
+      setEqualizerPreset('custom');
+      // Any half-finished drag belongs to the curve being replaced.
+      setDragged(null);
+      void applyPreset('custom');
+      ensureEnabled();
     },
     [ensureEnabled],
   );
