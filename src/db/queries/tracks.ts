@@ -1,7 +1,9 @@
 import { and, asc, count, desc, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
+import { dedupeTracks } from '@/services/library/dedupeTracks';
+import { useHideDuplicates } from '@/services/library/duplicateSetting';
 import * as perf from '@/services/perf';
 
 import { db } from '../client';
@@ -172,10 +174,28 @@ export function useTracks(
     if (updatedAt !== undefined) perf.measure('useTracks.firstRows', data.length);
   }, [updatedAt, data.length]);
 
+  /*
+   * Duplicates are dropped here rather than in SQL, and after the throttle
+   * rather than before it.
+   *
+   * In SQL because "almost the same title" is not something a query can express
+   * — and after the throttle because the list this produces is what the header
+   * counts and what Play and Shuffle enqueue. Deduping anywhere else would give
+   * the screen a number and a queue that disagreed with its own rows.
+   */
+  const throttled = useThrottledData(data);
+  const hideDuplicates = useHideDuplicates();
+  // Not named `tracks`: that is the schema table this file queries, and
+  // shadowing it here detaches every column reference above from its table.
+  const listed = useMemo(
+    () => (hideDuplicates ? dedupeTracks(throttled) : throttled),
+    [hideDuplicates, throttled],
+  );
+
   // `updatedAt` is undefined until the first result lands. Without it an empty
   // library and a library that has not been read yet are the same value, and
   // the screen flashes its empty state before the rows arrive.
-  return { tracks: useThrottledData(data), isLoading: updatedAt === undefined };
+  return { tracks: listed, isLoading: updatedAt === undefined };
 }
 
 /**

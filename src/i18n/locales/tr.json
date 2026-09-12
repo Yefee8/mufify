@@ -277,6 +277,12 @@
         "title": "Dinleme geçmişi temizlensin mi?",
         "body": "Tüm çalmalar ve onlardan üretilen istatistikler silinir. Geri alınamaz — başka bir kopyası yok. Müziğin, listelerin ve beğendiklerin etkilenmez."
       }
+    },
+    "duplicates": {
+      "title": "Kopyalar",
+      "hide": "Aynı şarkıyı bir kez göster",
+      "hideHint": "Kitaplıkta birden fazla kez bulunan şarkıyı tek satırda listeler. Ad ve sanatçı yakın eşleşmeli, süreler de uyuşmalı — böylece canlı bir kayıt stüdyo sürümünün arkasına saklanmaz.",
+      "artists": "Bir sanatçı adının farklı yazımları — “Linkin Park” ile “LINKIN PARK” — istatistikte her zaman birlikte sayılır. O bir tercih değil: ikisi ayrı grup değil."
     }
   },
   "player": {

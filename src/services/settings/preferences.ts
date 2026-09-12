@@ -127,6 +127,23 @@ export function setAudioPermissionAsked(asked: boolean): void {
   settingsStorage.set(SETTINGS_KEYS.audioPermissionAsked, asked);
 }
 
+/**
+ * Hide the second copy of a song the library holds twice.
+ *
+ * On by default: a library that lists the same song three times is the
+ * complaint, and the rows being hidden are ones the user cannot tell apart
+ * anyway. It is a switch rather than a rule because two copies can be a CD rip
+ * and a vinyl rip somebody wants side by side — see `dedupeTracks`, which also
+ * explains why the artist merge in statistics has no such switch.
+ */
+export function getHideDuplicateTracks(): boolean {
+  return readStoredFlag(SETTINGS_KEYS.hideDuplicateTracks, true);
+}
+
+export function setHideDuplicateTracks(enabled: boolean): void {
+  settingsStorage.set(SETTINGS_KEYS.hideDuplicateTracks, enabled);
+}
+
 export function getIgnoreShortFiles(): boolean {
   return readStoredFlag(SETTINGS_KEYS.ignoreShortFiles, false);
 }

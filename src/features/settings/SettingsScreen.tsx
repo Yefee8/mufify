@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  CopyMinus,
   Clock,
   Gauge,
   Languages,
@@ -12,7 +13,7 @@ import {
 } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 
 import { OptionList, type Option } from '@/components/ui/OptionList';
 import { Screen } from '@/components/ui/Screen';
@@ -23,6 +24,7 @@ import { SettingSwitch } from '@/components/ui/SettingSwitch';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { changeLanguage } from '@/i18n';
 import { ANIMATION_SPEEDS, type AnimationSpeed } from '@/services/motion';
+import { getHideDuplicates, setHideDuplicates } from '@/services/library/duplicateSetting';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 import {
   getAnimationSpeed,
@@ -79,6 +81,7 @@ export function SettingsScreen() {
   const [shuffle, setShuffle] = useState<ShuffleAlgorithm>(getShuffleAlgorithm);
   const [haptics, setHaptics] = useState(getHapticsEnabled);
   const [ignoreShort, setIgnoreShort] = useState(getIgnoreShortFiles);
+  const [hideDuplicates, setHideDuplicatesState] = useState(getHideDuplicates);
   const [statsOn, setStatsOn] = useState(getStatsEnabled);
   const [speed, setSpeed] = useState<AnimationSpeed>(getAnimationSpeed);
 
@@ -104,6 +107,13 @@ export function SettingsScreen() {
     value,
     label: t(`settings.motion.${value}`),
   }));
+
+  function onHideDuplicatesChange(next: boolean) {
+    setHideDuplicatesState(next);
+    // Through the store rather than storage directly: the list this changes is
+    // on another tab that is already mounted and has to be told.
+    setHideDuplicates(next);
+  }
 
   function onShuffleChange(next: ShuffleAlgorithm) {
     setShuffle(next);
@@ -207,6 +217,23 @@ export function SettingsScreen() {
             value={haptics}
             onChange={onHapticsChange}
           />
+        </SettingGroup>
+
+        {/*
+          A switch here and not in statistics, deliberately. Hiding a duplicate
+          hides a file the user owns, and two copies can be a CD rip and a vinyl
+          rip somebody wants side by side. Merging the spellings of one band's
+          name has no such reading, so that one is not offered as a choice.
+        */}
+        <SettingGroup title={t('settings.duplicates.title')}>
+          <SettingSwitch
+            icon={CopyMinus}
+            label={t('settings.duplicates.hide')}
+            description={t('settings.duplicates.hideHint')}
+            value={hideDuplicates}
+            onChange={onHideDuplicatesChange}
+          />
+          <Text className="font-body text-sm text-muted">{t('settings.duplicates.artists')}</Text>
         </SettingGroup>
 
         {/*

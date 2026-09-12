@@ -1,6 +1,8 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+import { useMemo } from 'react';
 
+import { mergeSimilarArtists } from '@/services/stats/mergeArtists';
 import type { PeriodType } from '@/services/stats/rollups';
 
 import { db } from '../client';
@@ -97,7 +99,25 @@ export function useTopTracks(periodType: PeriodType, periodKey: string, limit = 
   return data;
 }
 
-/** Top artists for a period. */
+/**
+ * How many rows to ask for before merging spellings down to `limit`.
+ *
+ * Merging can only shrink the list, and it shrinks it from rows the query had
+ * already selected — so cutting at `limit` in SQL would leave a top-ten with
+ * eight entries and the two that should have filled it never fetched. Four
+ * times over is enough that even a library where every band is filed under four
+ * spellings still fills the list.
+ */
+const ARTIST_OVER_FETCH = 4;
+
+/**
+ * Top artists for a period, with the spellings of one band added together.
+ *
+ * "Linkin Park" and "LINKIN PARK" are one band and were ranked as two, which
+ * split a year of listening in half. The rollups are keyed by artist id and SQL
+ * has no notion of "almost the same name", so the folding happens here — see
+ * `mergeSimilarArtists`, which also explains why this one is not a setting.
+ */
 export function useTopArtists(periodType: PeriodType, periodKey: string, limit = 10) {
   const query = db
     .select({
@@ -112,10 +132,10 @@ export function useTopArtists(periodType: PeriodType, periodKey: string, limit =
     .leftJoin(artists, eq(artists.id, statsRollups.entityId))
     .where(rankedRollups(periodType, periodKey, 'artist'))
     .orderBy(desc(statsRollups.playCount), desc(statsRollups.msPlayed))
-    .limit(limit);
+    .limit(limit * ARTIST_OVER_FETCH);
 
   const { data } = useLiveQuery(query, [periodType, periodKey, limit]);
-  return data;
+  return useMemo(() => mergeSimilarArtists(data, limit), [data, limit]);
 }
 
 /** Top albums for a period. */

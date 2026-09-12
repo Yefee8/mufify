@@ -277,6 +277,12 @@
         "title": "Clear listening history?",
         "body": "Every play, and the statistics built from them, are deleted. This cannot be undone — nothing else has a copy. Your music, playlists and liked songs are untouched."
       }
+    },
+    "duplicates": {
+      "title": "Duplicates",
+      "hide": "Hide duplicate songs",
+      "hideHint": "Lists one row where the same song is in the library more than once. Titles and artists have to match closely and the lengths have to agree, so a live version is never hidden behind the studio one.",
+      "artists": "Spellings of one artist’s name — “Linkin Park” and “LINKIN PARK” — are always counted together in statistics. That one is not a choice: they are not two bands."
     }
   },
   "player": {
