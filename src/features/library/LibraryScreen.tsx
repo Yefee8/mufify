@@ -5,6 +5,7 @@ import { Linking, View } from 'react-native';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Screen } from '@/components/ui/Screen';
+import { SearchField } from '@/components/ui/SearchField';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
 import { LikedFilter } from '@/components/ui/LikedFilter';
 import { PlayShuffleBar } from '@/components/ui/PlayShuffleBar';
@@ -18,7 +19,6 @@ import { toPlayable } from '../player/toPlayable';
 import { LibraryHeader } from './components/LibraryHeader';
 import { FolderImportModal } from './components/FolderImportModal';
 import { ScanBanner } from './components/ScanBanner';
-import { SearchField } from './components/SearchField';
 import { LibraryCollections } from './LibraryCollections';
 import { LibraryTracks } from './LibraryTracks';
 import { useCollectionRouting } from './hooks/useCollectionRouting';
@@ -155,19 +155,27 @@ export function LibraryScreen() {
         />
       </View>
 
-      {/* Both narrow the track list, so they share a row. Artists and albums are
-          grids of a few cards and need neither, and hiding them there makes that
-          obvious rather than puzzling. */}
-      {view === 'tracks' ? (
-        <View className="mb-4 flex-row items-center gap-3 px-6">
-          <SearchField value={search} onChange={setSearch} inRow />
+      {/*
+        One search box for every view. It used to appear on the tracks view
+        only, on the grounds that a grid of a few cards did not need one — which
+        stopped being true the first time a library held two hundred albums.
+        The same field, the same text: switching view keeps what was typed,
+        because the question "where is X" does not change with the shape of the
+        answer.
+
+        The liked filter stays with the tracks view. The shelves have a heart of
+        their own where it applies.
+      */}
+      <View className="mb-4 flex-row items-center gap-3 px-6">
+        <SearchField value={search} onChange={setSearch} inRow />
+        {view === 'tracks' ? (
           <LikedFilter
             active={likedOnly}
             onChange={setLikedOnly}
             accessibilityLabel={t('library.likedFilter')}
           />
-        </View>
-      ) : null}
+        ) : null}
+      </View>
 
       {/* Starting the whole library from the top, rather than only by tapping a
           row — which starts at that row. Hidden while there is nothing to play. */}
@@ -227,6 +235,7 @@ export function LibraryScreen() {
         <LibraryCollections
           kind={view === 'artists' ? 'artist' : 'album'}
           cards={collectionCards}
+          search={search}
           isLoading={waiting}
           onOpen={view === 'artists' ? openArtist : openAlbum}
         />

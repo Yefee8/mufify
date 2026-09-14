@@ -15,6 +15,8 @@ export interface SearchFieldProps {
    * for a reason belonging to the library.
    */
   inRow?: boolean;
+  /** What is being searched, already translated. Defaults to the library's. */
+  placeholder?: string;
 }
 
 /**
@@ -24,7 +26,7 @@ export interface SearchFieldProps {
  * the *query* is what waits. Debouncing the input itself makes typing feel
  * laggy, which is the mistake that gets debouncing a bad name.
  */
-export function SearchField({ value, onChange, inRow = false }: SearchFieldProps) {
+export function SearchField({ value, onChange, inRow = false, placeholder }: SearchFieldProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
 
@@ -41,7 +43,7 @@ export function SearchField({ value, onChange, inRow = false }: SearchFieldProps
       <TextInput
         value={value}
         onChangeText={onChange}
-        placeholder={t('library.searchPlaceholder')}
+        placeholder={placeholder ?? t('library.searchPlaceholder')}
         placeholderTextColor={colors.legend}
         accessibilityLabel={t('library.search')}
         autoCorrect={false}

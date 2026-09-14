@@ -125,7 +125,9 @@
       "cropTitle": "Frame the cover",
       "cropHint": "Drag to move, pinch to zoom. What is in the square is the cover.",
       "cropConfirm": "Use this"
-    }
+    },
+    "search": "Find a playlist",
+    "searchIn": "Find in this playlist"
   },
   "stats": {
     "title": "Stats",

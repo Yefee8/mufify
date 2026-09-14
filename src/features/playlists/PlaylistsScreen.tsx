@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { HeartOff, ListMusic, Plus } from 'lucide-react-native';
+import { HeartOff, ListMusic, Plus, SearchX } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, Text, View } from 'react-native';
@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { NameDialog } from '@/components/ui/NameDialog';
 import { LikedFilter } from '@/components/ui/LikedFilter';
 import { Screen } from '@/components/ui/Screen';
+import { SearchField } from '@/components/ui/SearchField';
 import {
   createPlaylist,
   useFavoriteEntries,
@@ -16,6 +17,7 @@ import {
 } from '@/db/queries/playlists';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { useMessages } from '@/i18n';
+import { matchesSearch } from '@/services/text/search';
 import { SPACING } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/useTheme';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
@@ -42,6 +44,7 @@ export function PlaylistsScreen() {
   const likedEntries = useFavoriteEntries();
   const [naming, setNaming] = useState(false);
   const [likedOnly, setLikedOnly] = useState(false);
+  const [search, setSearch] = useState('');
 
   const openNaming = useCallback(() => setNaming(true), []);
   const closeNaming = useCallback(() => setNaming(false), []);
@@ -64,7 +67,12 @@ export function PlaylistsScreen() {
     [openPlaylist],
   );
 
-  const rows = buildPlaylistRows(likedEntries, playlists, t('playlists.likedSongs'), likedOnly);
+  // Built first, filtered second, so Liked Songs is searchable by its name like
+  // any other row rather than being pinned to the top of a list it does not match.
+  const rows = buildPlaylistRows(likedEntries, playlists, t('playlists.likedSongs'), likedOnly).filter(
+    (row) => matchesSearch(search, row.name),
+  );
+  const searching = search.trim().length > 0;
 
   return (
     <Screen title={t('playlists.title')}>
@@ -91,6 +99,10 @@ export function PlaylistsScreen() {
         </Pressable>
       </View>
 
+      <View className="mb-4 px-6">
+        <SearchField value={search} onChange={setSearch} inRow placeholder={t('playlists.search')} />
+      </View>
+
       <FlatList
         data={rows}
         renderItem={renderItem}
@@ -98,7 +110,12 @@ export function PlaylistsScreen() {
         contentContainerStyle={{ paddingBottom: SPACING[8] + bottomInset }}
         ListFooterComponent={
           shouldShowEmptyState(rows) ? (
-            likedOnly ? (
+            searching ? (
+              /* Nothing matched is not "no playlists": the box that emptied the
+                 list is on screen, and Create here would be answering a
+                 question nobody asked. */
+              <EmptyState icon={SearchX} messages={[t('library.noResults', { term: search })]} />
+            ) : likedOnly ? (
               /* Nothing liked is not "no playlists": offering Create here would
                  answer a question the filter did not ask. The heart stays on
                  screen above, which is the way back. */

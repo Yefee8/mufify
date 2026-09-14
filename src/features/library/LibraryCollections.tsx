@@ -1,4 +1,4 @@
-import { Disc3, HeartOff, User } from 'lucide-react-native';
+import { Disc3, HeartOff, SearchX, User } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
@@ -14,6 +14,7 @@ import {
   type CollectionCard,
 } from '@/db/queries/tracks';
 import { onlyFavorites, withAlbumFavorites } from '@/services/library/albumFavorites';
+import { matchesSearch } from '@/services/text/search';
 
 import { CollectionActionSheet, type CollectionAction } from './components/CollectionActionSheet';
 import { CollectionGrid } from './components/CollectionGrid';
@@ -23,6 +24,8 @@ import { useTrackActions } from './hooks/useTrackActions';
 export interface LibraryCollectionsProps {
   kind: 'artist' | 'album';
   cards: readonly CollectionCard[];
+  /** What is typed in the library's search box. Narrows the shelf. */
+  search: string;
   /** Skeleton instead of a grid while true. */
   isLoading: boolean;
   onOpen: (id: number) => void;
@@ -37,7 +40,13 @@ export interface LibraryCollectionsProps {
  * screen past the 300-line limit `AGENTS.md` sets, and the boundary it forced
  * is the one that was already there in the tracks view.
  */
-export function LibraryCollections({ kind, cards, isLoading, onOpen }: LibraryCollectionsProps) {
+export function LibraryCollections({
+  kind,
+  cards,
+  search,
+  isLoading,
+  onOpen,
+}: LibraryCollectionsProps) {
   const { t } = useTranslation();
   const { addToQueue, playNext } = useTrackActions();
   const deletion = useDeleteTracks();
@@ -51,10 +60,14 @@ export function LibraryCollections({ kind, cards, isLoading, onOpen }: LibraryCo
    */
   const favorites = useFavoriteAlbumIds();
   const listed = useMemo(() => {
-    if (kind === 'artist') return [...cards];
-    const marked = withAlbumFavorites(cards, favorites);
+    // In memory rather than in the query: a shelf is a few hundred cards at
+    // most, already loaded, and the match has to be as forgiving of accents
+    // and case as `matchesSearch` is — which SQL's `LIKE` is not.
+    const found = cards.filter((card) => matchesSearch(search, card.name, card.subtitle));
+    if (kind === 'artist') return found;
+    const marked = withAlbumFavorites(found, favorites);
     return likedOnly ? onlyFavorites(marked) : marked;
-  }, [cards, favorites, kind, likedOnly]);
+  }, [cards, favorites, kind, likedOnly, search]);
 
   /*
    * Held as the card rather than as an id. The sheet shows a name and a count,
@@ -126,9 +139,12 @@ export function LibraryCollections({ kind, cards, isLoading, onOpen }: LibraryCo
             onPress={onOpen}
             onLongPress={onLongPress}
             empty={
-              /* The shelf is not empty, the filter is — and the heart that
-                 emptied it is still on screen to turn back off. */
-              likedOnly ? (
+              /* The shelf is not empty; something narrowed it. Say which, so
+                 the way back is obvious — the search box or the heart, both of
+                 which are still on screen. */
+              search.trim() ? (
+                <EmptyState icon={SearchX} messages={[t('library.noResults', { term: search })]} />
+              ) : likedOnly ? (
                 <EmptyState icon={HeartOff} messages={[t('library.noLikedAlbums')]} />
               ) : null
             }

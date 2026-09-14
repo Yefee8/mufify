@@ -1,6 +1,6 @@
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
-import { ListMusic } from 'lucide-react-native';
+import { ListMusic, SearchX } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { NameDialog } from '@/components/ui/NameDialog';
+import { SearchField } from '@/components/ui/SearchField';
 import {
   deletePlaylist,
   LIKED_SONGS_ID,
@@ -23,17 +24,19 @@ import {
 import { useCurrentTrack } from '@/features/player/hooks/usePlayback';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { useMessages } from '@/i18n';
-import { AudioEngine } from '@/services/audio/AudioEngine';
-import { LIBRARY_SOURCE, type PlayableTrack, type QueueSource } from '@/services/audio/types';
-import { getShuffleAlgorithm } from '@/services/settings';
+import { matchesSearch } from '@/services/text/search';
 
 import { AddTracksSheet } from './components/AddTracksSheet';
 import { CoverActionSheet } from './components/CoverActionSheet';
 import { CoverCropSheet } from './components/CoverCropSheet';
 import { usePlaylistCover } from './hooks/usePlaylistCover';
+import { usePlaylistPlayback } from './hooks/usePlaylistPlayback';
 import { PlaylistDetailHeader } from './components/PlaylistDetailHeader';
 import { PlaylistEntryRow } from './components/PlaylistEntryRow';
 import { ENTRY_HEIGHT, ReorderableEntry } from './components/ReorderableEntry';
+
+/** Below this many rows the whole list is on one screen and a box is noise. */
+const SEARCHABLE_FROM = 12;
 
 export interface PlaylistDetailScreenProps {
   playlistId: number;
@@ -50,6 +53,23 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
   const playlistEntries = usePlaylistEntries(playlistId);
   const likedEntries = useFavoriteEntries();
   const entries = isLiked ? likedEntries : playlistEntries;
+
+  /*
+   * A search box for the list, shown only once it is long enough to need one.
+   * Twelve rows fit on a screen and a box above them is noise; a hundred do
+   * not. What is *played* stays the whole playlist — Play and Shuffle start the
+   * list, not the filtered view of it, because a search is for finding a row,
+   * and the queue a person expects from "Play" is the playlist they opened.
+   */
+  const [search, setSearch] = useState('');
+  const searching = search.trim().length > 0;
+  const shown = useMemo(
+    () =>
+      searching
+        ? entries.filter((entry) => matchesSearch(search, entry.title, entry.artistName))
+        : entries,
+    [entries, search, searching],
+  );
   const playlist = usePlaylists().find((entry) => entry.id === playlistId);
 
   const [renaming, setRenaming] = useState(false);
@@ -73,41 +93,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
     [entries],
   );
 
-  /*
-   * User playlists declare themselves as the queue's source, which is
-   * what puts rows in `stats_rollups` under entity type 'playlist'. Without it
-   * the top-playlists list is permanently empty and looks like a user who never
-   * plays playlists.
-   */
-  const source = useMemo<QueueSource>(
-    () => (isLiked ? LIBRARY_SOURCE : { type: 'playlist', id: playlistId }),
-    [isLiked, playlistId],
-  );
-
-  const playAll = useCallback(() => {
-    if (entries.length > 0) void AudioEngine.setQueue(entries.map(toPlayableEntry), 0, source);
-  }, [entries, source]);
-
-  /*
-   * Shuffle uses whichever algorithm Settings has selected, read at press time.
-   * The queue is set first and shuffled second rather than shuffling the array
-   * and setting it: the engine keeps the unshuffled order as `sourceQueue`, so
-   * turning shuffle off later restores the playlist's real running order instead
-   * of freezing whatever random arrangement started.
-   */
-  const shuffleAll = useCallback(async () => {
-    if (entries.length === 0) return;
-    await AudioEngine.setQueue(entries.map(toPlayableEntry), 0, source);
-    await AudioEngine.setShuffled(true, getShuffleAlgorithm());
-  }, [entries, source]);
-
-  const playAt = useCallback(
-    (position: number) => {
-      const index = entries.findIndex((entry) => entry.position === position);
-      if (index !== -1) void AudioEngine.setQueue(entries.map(toPlayableEntry), index, source);
-    },
-    [entries, source],
-  );
+  const { playAll, shuffleAll, playAt } = usePlaylistPlayback(entries, playlistId, isLiked);
 
   const remove = useCallback(
     (position: number) => void removeFromPlaylist(playlistId, position),
@@ -140,11 +126,15 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
 
   const renderItem = useCallback<ListRenderItem<PlaylistEntry>>(
     ({ item, index }) =>
-      isLiked ? (
+      // Reordering moves by *position in the whole list*, and a filtered list
+      // has no such positions to offer — so while a search is active rows are
+      // plain. Removing still works; it is keyed by the entry's own position.
+      isLiked || searching ? (
         <PlaylistEntryRow
           entry={item}
           locale={i18n.language}
           onPress={playAt}
+          onRemove={isLiked ? undefined : remove}
           isCurrent={item.trackId === currentTrack?.id}
         />
       ) : (
@@ -163,7 +153,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
           />
         </ReorderableEntry>
       ),
-    [entries.length, isLiked, move, playAt, remove, i18n.language, t, currentTrack?.id],
+    [entries.length, isLiked, searching, move, playAt, remove, i18n.language, t, currentTrack?.id],
   );
 
   const name = isLiked ? t('playlists.likedSongs') : (playlist?.name ?? '');
@@ -188,6 +178,17 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
         onToggleFavorite={isLiked ? undefined : onToggleFavorite}
       />
 
+      {entries.length >= SEARCHABLE_FROM ? (
+        <View className="px-6 pb-4">
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            inRow
+            placeholder={t('playlists.searchIn')}
+          />
+        </View>
+      ) : null}
+
       {/* Bounded, so the list re-lays out when the rows above it change. */}
       <View className="flex-1">
         {entries.length === 0 ? (
@@ -199,9 +200,11 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
             actionLabel={isLiked ? undefined : t('playlists.addTracks.title')}
             onAction={isLiked ? undefined : () => setAdding(true)}
           />
+        ) : shown.length === 0 ? (
+          <EmptyState icon={SearchX} messages={[t('library.noResults', { term: search })]} />
         ) : (
           <FlashList
-            data={entries}
+            data={shown}
             renderItem={renderItem}
             keyExtractor={keyExtractor}
             overrideItemLayout={setEntryHeight}
@@ -258,19 +261,4 @@ function keyExtractor(entry: PlaylistEntry): string {
 /** Uniform rows, so FlashList can skip measurement entirely. */
 function setEntryHeight(layout: { span?: number; size?: number }): void {
   layout.size = ENTRY_HEIGHT;
-}
-
-/** A playlist entry as the engine wants it. */
-function toPlayableEntry(entry: PlaylistEntry): PlayableTrack {
-  return {
-    id: entry.trackId,
-    uri: entry.fileUri,
-    title: entry.title,
-    artistName: entry.artistName,
-    albumName: entry.albumName,
-    durationMs: entry.durationMs,
-    artworkPath: entry.artworkPath,
-    playCount: entry.playCount,
-    isFavorite: entry.isFavorite,
-  };
 }

@@ -125,7 +125,9 @@
       "cropTitle": "Kapağı çerçevele",
       "cropHint": "Kaydırarak taşı, iki parmakla yakınlaştır. Karenin içi kapak olur.",
       "cropConfirm": "Bunu kullan"
-    }
+    },
+    "search": "Liste ara",
+    "searchIn": "Bu listede ara"
   },
   "stats": {
     "title": "İstatistik",

@@ -7,8 +7,8 @@ import { Modal, Pressable, Text, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SearchField } from '@/components/ui/SearchField';
 import { addTracksToPlaylist } from '@/db/queries/playlists';
-import { SearchField } from '@/features/library/components/SearchField';
 import { useDebounced } from '@/features/library/hooks/useDebounced';
 import { useTracks } from '@/features/library/hooks/useLibrary';
 import type { TrackListItem } from '@/db/queries/tracks';
