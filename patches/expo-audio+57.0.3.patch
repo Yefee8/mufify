@@ -1,7 +1,39 @@
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
-@@ -372,6 +372,25 @@
+@@ -145,14 +145,20 @@
+       return
+     }
+ 
++    /*
++     * `doNotMix` asks for focus outright, not transiently. Transient focus
++     * is for a clip: whoever was playing before pauses and resumes the moment
++     * it is released — so pausing this app brought the other player back, and
++     * on its own. A music player that starts means the last one has stopped.
++     */
+     val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+       val requestType = interruptionMode?.let {
+         if (it == InterruptionMode.DO_NOT_MIX) {
+-          AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
++          AudioManager.AUDIOFOCUS_GAIN
+         } else {
+           AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+         }
+-      } ?: AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
++      } ?: AudioManager.AUDIOFOCUS_GAIN
+       audioFocusRequest = AudioFocusRequest.Builder(requestType).run {
+         setAudioAttributes(
+           AudioAttributes.Builder()
+@@ -169,7 +175,7 @@
+     } else {
+       @Suppress("DEPRECATION")
+       val requestType = if (interruptionMode == InterruptionMode.DO_NOT_MIX) {
+-        AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
++        AudioManager.AUDIOFOCUS_GAIN
+       } else {
+         AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+       }
+@@ -372,6 +378,25 @@
          }
        }
  
@@ -27,10 +59,13 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/Au
        Property("id") { player ->
          player.id
        }
-@@ -486,6 +505,24 @@
-         }
-       }
- 
+@@ -483,6 +508,24 @@
+       Function("pause") { player: AudioPlayer ->
+         runOnMain {
+           player.ref.pause()
++        }
++      }
++
 +      /**
 +       * Hand the player the track after this one, or nothing.
 +       *
@@ -46,12 +81,9 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/Au
 +          } else {
 +            player.setNextMediaSource(mediaSource)
 +          }
-+        }
-+      }
-+
-       Function("replace") { player: AudioPlayer, source: AudioSource ->
-         runOnMain {
-           if (player.ref.availableCommands.contains(Player.COMMAND_CHANGE_MEDIA_ITEMS)) {
+         }
+       }
+ 
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
@@ -121,10 +153,148 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/Au
    fun setActiveForLockScreen(active: Boolean, metadata: Metadata? = null, options: AudioLockScreenOptions? = null) {
      if (active) {
        this.metadata = metadata
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt
+@@ -110,7 +110,18 @@
+ class AudioLockScreenOptions(
+   @Field val showSeekForward: Boolean,
+   @Field val showSeekBackward: Boolean,
+-  @Field val isLiveStream: Boolean? = null
++  @Field val isLiveStream: Boolean? = null,
++  /**
++   * Previous and next in place of the seek buttons.
++   *
++   * The seek buttons are session custom commands, and a session that
++   * declares any custom button has its skip actions stripped from the legacy
++   * `PlaybackState` by media3 — so Bluetooth, the lock screen and Android's
++   * own media controls all lose next and previous. With this set the service
++   * declares no custom buttons at all, the skip actions stay advertised, and
++   * the notification on Android 12 and below carries previous and next.
++   */
++  @Field val showSkipControls: Boolean = false
+ ) : Record
+ 
+ enum class InterruptionMode(val value: String) : Enumerable {
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
-@@ -371,7 +371,7 @@
+@@ -90,6 +90,11 @@
+ 
+         ACTION_SEEK_FORWARD -> currentPlayerRef.seekTo(currentPlayerRef.currentPosition + SEEK_INTERVAL_MS)
+         ACTION_SEEK_BACKWARD -> currentPlayerRef.seekTo(currentPlayerRef.currentPosition - SEEK_INTERVAL_MS)
++        // The queue is the app's, so a skip is announced rather than
++        // performed — the same broadcast the session callback sends for a
++        // Bluetooth remote's buttons, so both arrive by one road.
++        ACTION_NEXT -> sendSkip("next")
++        ACTION_PREVIOUS -> sendSkip("previous")
+       }
+     }
+ 
+@@ -161,13 +166,31 @@
+     )
+   }
+ 
++  /**
++   * A notification button, as a foreground-service start.
++   *
++   * `getService` is enough on stock Android, where a button on a notification
++   * earns the app a moment of background allowance. Some vendors do not grant
++   * it, and a plain `startService` from a backgrounded app is then refused
++   * outright — the button does nothing and nothing says why. A foreground
++   * start is always allowed to reach a service that promotes itself at once,
++   * which `onStartCommand` does before anything else.
++   */
+   private fun buildActionPendingIntent(action: String): PendingIntent {
+     val intent = Intent(this, AudioControlsService::class.java).setAction(action)
+-    return PendingIntent.getService(
+-      this,
+-      action.hashCode(),
+-      intent,
+-      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
++    val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
++    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
++      PendingIntent.getForegroundService(this, action.hashCode(), intent, flags)
++    } else {
++      PendingIntent.getService(this, action.hashCode(), intent, flags)
++    }
++  }
++
++  private fun sendSkip(direction: String) {
++    sendBroadcast(
++      Intent(AudioMediaSessionCallback.ACTION_MEDIA_SKIP)
++        .setPackage(packageName)
++        .putExtra(AudioMediaSessionCallback.EXTRA_DIRECTION, direction)
+     )
+   }
+ 
+@@ -192,6 +215,18 @@
+       val compactViewIndices = mutableListOf<Int>()
+       var currentIndex = 0
+ 
++      if (currentOptions?.showSkipControls == true) {
++        builder.addAction(
++          NotificationCompat.Action(
++            androidx.media3.session.R.drawable.media3_icon_previous,
++            "Previous",
++            buildActionPendingIntent(ACTION_PREVIOUS)
++          )
++        )
++        compactViewIndices.add(currentIndex)
++        currentIndex++
++      }
++
+       if (currentOptions?.showSeekBackward == true) {
+         builder.addAction(
+           NotificationCompat.Action(
+@@ -227,9 +262,22 @@
+           )
+         )
+         compactViewIndices.add(currentIndex)
++        currentIndex++
+       }
+ 
+-      style.setShowActionsInCompactView(*compactViewIndices.toIntArray())
++      if (currentOptions?.showSkipControls == true) {
++        builder.addAction(
++          NotificationCompat.Action(
++            androidx.media3.session.R.drawable.media3_icon_next,
++            "Next",
++            buildActionPendingIntent(ACTION_NEXT)
++          )
++        )
++        compactViewIndices.add(currentIndex)
++      }
++
++      // The compact view holds three buttons at most.
++      style.setShowActionsInCompactView(*compactViewIndices.take(3).toIntArray())
+     }
+ 
+     builder.setStyle(style)
+@@ -240,6 +288,22 @@
+     val session = mediaSession ?: return
+     val mediaButtons = mutableListOf<CommandButton>()
+ 
++    /*
++     * No custom buttons at all when the app wants previous and next.
++     *
++     * media3 strips `ACTION_SKIP_TO_NEXT` and `ACTION_SKIP_TO_PREVIOUS` from
++     * the legacy playback state the moment the session declares any media
++     * button preference — the seek buttons here included — unless a slot
++     * reservation says otherwise. Declaring nothing leaves the skip actions
++     * exactly as the player's commands advertise them, and Android 13+ draws
++     * previous, play/pause and next from those on its own.
++     */
++    if (currentOptions?.showSkipControls == true) {
++      session.setCustomLayout(mediaButtons)
++      session.setMediaButtonPreferences(mediaButtons)
++      return
++    }
++
+     // Add seek backward button if enabled
+     if (currentOptions?.showSeekBackward == true) {
+       mediaButtons.add(
+@@ -371,7 +435,7 @@
            updateMetadata(metadata)
          }
          val session = MediaSession.Builder(context, sessionPlayer)
@@ -133,7 +303,7 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
            .build()
  
          // Replace the basic media session with a session connected to our playback service.
-@@ -452,7 +452,7 @@
+@@ -452,7 +516,7 @@
            updateMetadata(metadata)
          }
          val session = MediaSession.Builder(context, sessionPlayer)
@@ -142,12 +312,10 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
            .build()
  
          player.mediaSession.release()
-@@ -508,6 +508,24 @@
-     val notificationManager: NotificationManager =
-       getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+@@ -510,6 +574,24 @@
      notificationManager.cancel(notificationId)
-+  }
-+
+   }
+ 
 +  /**
 +   * The app was swiped out of the recents list.
 +   *
@@ -164,10 +332,12 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
 +  override fun onTaskRemoved(rootIntent: Intent?) {
 +    sendBroadcast(Intent(ACTION_TASK_REMOVED).setPackage(packageName))
 +    super.onTaskRemoved(rootIntent)
-   }
- 
++  }
++
    override fun onDestroy() {
-@@ -551,6 +569,8 @@
+     super.onDestroy()
+ 
+@@ -551,6 +633,8 @@
    }
  
    companion object {
@@ -176,6 +346,15 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
      private const val CHANNEL_ID = "expo_audio_channel"
      private const val ACTION_PLAY = "expo.modules.audio.action.PLAY"
      private const val ACTION_PAUSE = "expo.modules.audio.action.PAUSE"
+@@ -558,6 +642,8 @@
+ 
+     const val ACTION_SEEK_FORWARD = "expo.modules.audio.action.SEEK_FORWARD"
+     const val ACTION_SEEK_BACKWARD = "expo.modules.audio.action.SEEK_BACKWARD"
++    private const val ACTION_NEXT = "expo.modules.audio.action.NEXT"
++    private const val ACTION_PREVIOUS = "expo.modules.audio.action.PREVIOUS"
+ 
+     const val SEEK_INTERVAL_MS = 10000L
+   }
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt

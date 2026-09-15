@@ -65,6 +65,21 @@ interface TransitionStatus {
   trackTransition?: boolean;
 }
 
+/**
+ * Previous and next on the notification, in place of the seek buttons.
+ *
+ * Also from the patch. The seek buttons are session custom commands, and a
+ * session that declares any custom button has its skip actions stripped from
+ * the legacy playback state by media3 — which is what Bluetooth, the lock
+ * screen and Android's own media controls read. So the seek buttons go, the
+ * skip buttons come, and both arrive at `onMediaSkip` by the same broadcast.
+ */
+const LOCK_SCREEN_CONTROLS = {
+  showSeekForward: false,
+  showSeekBackward: false,
+  showSkipControls: true,
+} as const;
+
 type Listener = (state: PlaybackState) => void;
 type ListenReporter = (listen: FinishedListen) => void;
 
@@ -613,10 +628,7 @@ class Engine {
     }
 
     this.lockScreenBound = true;
-    this.player?.setActiveForLockScreen(true, metadata, {
-      showSeekForward: true,
-      showSeekBackward: true,
-    });
+    this.player?.setActiveForLockScreen(true, metadata, LOCK_SCREEN_CONTROLS);
   }
 
   /**
