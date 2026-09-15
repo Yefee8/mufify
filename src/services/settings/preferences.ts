@@ -162,6 +162,39 @@ export function setDuplicateMatch(match: DuplicateMatch): void {
   settingsStorage.set(SETTINGS_KEYS.duplicateMatch, match);
 }
 
+/**
+ * Keep the listening history in a folder the app does not own.
+ *
+ * On by default: the history is the one thing in the database that cannot be
+ * rebuilt by scanning, and a reinstall takes the database with it. See
+ * `services/backup`, and `docs/adr/027`.
+ */
+export function getStatsBackupEnabled(): boolean {
+  return readStoredFlag(SETTINGS_KEYS.statsBackupEnabled, true);
+}
+
+export function setStatsBackupEnabled(enabled: boolean): void {
+  settingsStorage.set(SETTINGS_KEYS.statsBackupEnabled, enabled);
+}
+
+/** A folder the user chose for the backup, or null for the library's first. */
+export function getStatsBackupFolder(): string | null {
+  return settingsStorage.getString(SETTINGS_KEYS.statsBackupFolder) ?? null;
+}
+
+export function setStatsBackupFolder(uri: string | null): void {
+  if (uri === null) settingsStorage.remove(SETTINGS_KEYS.statsBackupFolder);
+  else settingsStorage.set(SETTINGS_KEYS.statsBackupFolder, uri);
+}
+
+export function getStatsBackupAt(): number | null {
+  return settingsStorage.getNumber(SETTINGS_KEYS.statsBackupAt) ?? null;
+}
+
+export function setStatsBackupAt(at: number): void {
+  settingsStorage.set(SETTINGS_KEYS.statsBackupAt, at);
+}
+
 export function getIgnoreShortFiles(): boolean {
   return readStoredFlag(SETTINGS_KEYS.ignoreShortFiles, false);
 }

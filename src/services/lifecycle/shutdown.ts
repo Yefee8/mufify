@@ -2,6 +2,7 @@ import { onTaskRemoved, quitApp } from 'app-lifecycle';
 
 import { pendingListenWrites } from '@/features/player/listenRecorder';
 import { AudioEngine } from '@/services/audio/AudioEngine';
+import { backupStatsNow } from '@/services/backup/statsBackup';
 
 /**
  * Stop everything when the app is swiped out of recents.
@@ -46,6 +47,9 @@ export function installShutdownOnTaskRemoved(): void {
       try {
         await AudioEngine.stop();
         await pendingListenWrites();
+        // The file that outlives the app, with that last listen in it — given
+        // the moment it needs and no more, since the process is going anyway.
+        await Promise.race([backupStatsNow(), new Promise((resolve) => setTimeout(resolve, 1_500))]);
       } finally {
         quitApp();
       }

@@ -34,6 +34,12 @@ export const SETTINGS_KEYS = {
   duplicateMatch: 'settings.duplicateMatch',
   /** The queue and position, so playback can resume where it stopped. */
   lastSession: 'settings.lastSession',
+  /** Write the listening history to a folder the app does not own. */
+  statsBackupEnabled: 'settings.statsBackupEnabled',
+  /** A folder the user picked for it; unset means the first library folder. */
+  statsBackupFolder: 'settings.statsBackupFolder',
+  /** When the file was last written, as a timestamp. */
+  statsBackupAt: 'settings.statsBackupAt',
   /**
    * Whether the audio permission dialog has ever been shown.
    *

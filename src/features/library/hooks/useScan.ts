@@ -1,6 +1,7 @@
 import AudioTags from 'audio-tags';
 import { Directory, Paths } from 'expo-file-system';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import {
   addScanFolder,
@@ -10,13 +11,15 @@ import {
   saveEnriched,
   saveEnumerated,
 } from '@/db/queries/scanning';
+import { restoreStatsAfterImport } from '@/services/backup/statsBackup';
 import {
   refreshAudioPermission,
   requestAudioPermission,
 } from '@/services/scanner/audioPermission';
-import { getIgnoreShortFiles } from '@/services/settings';
 import { isPickerDismissal } from '@/services/scanner/pickerError';
 import { treeUriToPath } from '@/services/scanner/treeUri';
+import { getIgnoreShortFiles } from '@/services/settings';
+import { showToast } from '@/services/toast';
 import {
   DEFAULT_SCAN_OPTIONS,
   enrichLibrary,
@@ -74,6 +77,7 @@ export interface UseScanResult {
  * those places.
  */
 export function useScan(): UseScanResult {
+  const { t } = useTranslation();
   const [progress, setProgress] = useState<ScanProgress>(IDLE);
   const [isFolderImporting, setFolderImporting] = useState(false);
   const cancelled = useRef(false);
@@ -203,11 +207,21 @@ export function useScan(): UseScanResult {
          * files, and is why the fallback is deliberate rather than an oversight.
          */
         await run(treeUriToPath(treeUri));
+
+        /*
+         * The moment after a reinstall: the folder the user is adding back is
+         * the one their listening history was written to, and the history is
+         * empty. Nothing is asked; the file was theirs to begin with.
+         */
+        const outcome = await restoreStatsAfterImport(treeUri);
+        if (outcome && outcome.restored > 0) {
+          showToast(t('library.statsRestored', { count: outcome.restored }));
+        }
       } finally {
         setFolderImporting(false);
       }
     },
-    [run],
+    [run, t],
   );
 
   const cancel = useCallback(() => {

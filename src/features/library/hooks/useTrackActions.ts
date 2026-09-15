@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { TrackListItem } from '@/db/queries/tracks';
 import { setFavorite } from '@/db/queries/tracks';
+import { scheduleStatsBackup } from '@/services/backup/statsBackup';
 import { AudioEngine } from '@/services/audio/AudioEngine';
 import { commitFeedback, rejectFeedback } from '@/services/haptics';
 import { showToast } from '@/services/toast';
@@ -68,6 +69,7 @@ export function useTrackActions(): TrackActions {
       commitFeedback();
       const next = !track.isFavorite;
       void setFavorite(track.id, next);
+      scheduleStatsBackup();
       showToast(next ? t('toast.favorited') : t('toast.unfavorited'));
     },
     [t],

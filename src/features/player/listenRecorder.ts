@@ -1,5 +1,6 @@
 import { recordListen } from '@/db/queries/playEvents';
 import { AudioEngine } from '@/services/audio/AudioEngine';
+import { scheduleStatsBackup } from '@/services/backup/statsBackup';
 import { getStatsEnabled, getWeekStart } from '@/services/settings';
 import { shouldRecordListen } from '@/services/stats/recordingGate';
 
@@ -66,9 +67,13 @@ export function startListenRecording(): () => void {
         completed: listen.completed,
       },
       getWeekStart(),
-    ).catch((error: unknown) => {
-      if (__DEV__) console.warn('Failed to record a listen:', error);
-    });
+    )
+      // The history changed; the file that outlives the app follows, later
+      // and once, however many listens land in the meantime.
+      .then(() => scheduleStatsBackup())
+      .catch((error: unknown) => {
+        if (__DEV__) console.warn('Failed to record a listen:', error);
+      });
 
     // Already caught above, so the chain cannot be poisoned by a failed write.
     pendingWrites = pendingWrites.then(() => write);

@@ -25,6 +25,13 @@ jest.mock('@/db/queries/playEvents', () => ({
   recordListen: (input: unknown, weekStart: unknown) => mockRecordListen(input, weekStart),
 }));
 
+// The backup service opens the database the same way, and a recorded listen
+// only has to *ask* for a backup here — the asking is what is checked.
+const mockScheduleStatsBackup = jest.fn();
+jest.mock('@/services/backup/statsBackup', () => ({
+  scheduleStatsBackup: () => mockScheduleStatsBackup(),
+}));
+
 // eslint-disable-next-line import/first
 import { setStatsEnabled } from '@/services/settings';
 // eslint-disable-next-line import/first
@@ -52,6 +59,7 @@ beforeEach(() => {
   jest.useFakeTimers();
   jest.setSystemTime(new Date('2026-08-03T12:00:00Z'));
   mockRecordListen.mockClear();
+  mockScheduleStatsBackup.mockClear();
   setStatsEnabled(true);
 });
 
@@ -87,6 +95,20 @@ describe('the statistics switch', () => {
     await playOneTrackThrough();
 
     expect(mockRecordListen).not.toHaveBeenCalled();
+  });
+
+  it('asks for the outside copy once the listen is written', async () => {
+    // The file that survives a reinstall follows the database, not the
+    // engine: a listen that is not recorded is not backed up either.
+    setStatsEnabled(true);
+    await playOneTrackThrough();
+    await Promise.resolve();
+    expect(mockScheduleStatsBackup).toHaveBeenCalledTimes(1);
+
+    setStatsEnabled(false);
+    await playOneTrackThrough();
+    await Promise.resolve();
+    expect(mockScheduleStatsBackup).toHaveBeenCalledTimes(1);
   });
 
   it('is read per listen, so turning it off takes effect without a restart', async () => {

@@ -2,7 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 
 import { classifyListen, type ListenOutcome } from '@/services/stats/playCounting';
 import { periodKeys, type WeekStart } from '@/services/stats/periodKeys';
-import { foldDeltas, rollupDeltas } from '@/services/stats/rollups';
+import { foldDeltas, rollupDeltas, type RollupDelta } from '@/services/stats/rollups';
 
 import { db } from '../client';
 import { playEvents, statsRollups, tracks, trackStats, type PlayEvent } from '../schema';
@@ -116,10 +116,25 @@ async function applyRollups(
     }),
   );
 
+  await upsertRollups(deltas);
+}
+
+/** The connection, or a transaction on it — the two have the same verbs. */
+export type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Add a batch of deltas to their cells. Shared with the restore, which replays
+ * a whole history through the same arithmetic one listen at a time uses, and
+ * inside its transaction, so events and rollups land together or not at all.
+ */
+export async function upsertRollups(
+  deltas: readonly RollupDelta[],
+  executor: Executor = db,
+): Promise<void> {
   const now = Date.now();
 
   for (const delta of deltas) {
-    await db
+    await executor
       .insert(statsRollups)
       .values({
         periodType: delta.periodType,

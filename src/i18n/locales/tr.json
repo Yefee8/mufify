@@ -70,7 +70,9 @@
     "likeAlbum": "Bu albümü beğen",
     "unlikeAlbum": "Beğeniyi kaldır",
     "likedAlbumFilter": "Yalnızca beğenilen albümler",
-    "noLikedAlbums": "Henüz beğenilen albüm yok. Bir albüme uzun bas ve kalbe dokun."
+    "noLikedAlbums": "Henüz beğenilen albüm yok. Bir albüme uzun bas ve kalbe dokun.",
+    "statsRestored_one": "Tekrar hoş geldin — bu klasörden {{count}} dinleme geri getirildi.",
+    "statsRestored_other": "Tekrar hoş geldin — bu klasörden {{count}} dinleme geri getirildi."
   },
   "playlists": {
     "title": "Listeler",
@@ -212,6 +214,23 @@
       "title": "İstatistikler",
       "record": "Dinleme geçmişini kaydet",
       "recordHint": "Kapalıyken yeni hiçbir şey kaydedilmez. Kayıtlı olanlar durur."
+    },
+    "backup": {
+      "enable": "Uygulama dışında bir kopya tut",
+      "enableHint": "Dinleme geçmişini müzik klasörünün içindeki gizli bir .mufify klasörüne yazar; böylece yeniden kurulumda kaybolmaz. Sonrasında klasörü yeniden ekle, geçmiş kendiliğinden geri gelir.",
+      "libraryFolder": "Klasör: {{folder}} (kitaplığın ilk klasörü)",
+      "chosenFolder": "Klasör: {{folder}}",
+      "noFolder": "Henüz klasör yok — kitaplığa bir klasör ekle ya da buradan seç.",
+      "last": "Son yazım: {{when}}",
+      "never": "Henüz yazılmadı",
+      "pickFolder": "Klasör seç",
+      "backUpNow": "Şimdi yaz",
+      "restoreNow": "Geri oku",
+      "written": "Dinleme geçmişi klasöre yazıldı.",
+      "nothingFound": "O klasörde dinleme geçmişi yok.",
+      "restored_one": "{{count}} dinleme geri getirildi.",
+      "restored_other": "{{count}} dinleme geri getirildi.",
+      "failed": "O klasör kullanılamadı."
     },
     "motion": {
       "title": "Hareket",

@@ -70,7 +70,9 @@
     "likeAlbum": "Like this album",
     "unlikeAlbum": "Unlike this album",
     "likedAlbumFilter": "Liked albums only",
-    "noLikedAlbums": "No liked albums yet. Long press one and tap the heart."
+    "noLikedAlbums": "No liked albums yet. Long press one and tap the heart.",
+    "statsRestored_one": "Welcome back — {{count}} listen restored from this folder.",
+    "statsRestored_other": "Welcome back — {{count}} listens restored from this folder."
   },
   "playlists": {
     "title": "Playlists",
@@ -212,6 +214,23 @@
       "title": "Statistics",
       "record": "Record listening history",
       "recordHint": "Off, nothing new is written down. What is already there stays."
+    },
+    "backup": {
+      "enable": "Keep a copy outside the app",
+      "enableHint": "Writes your listening history to a hidden .mufify folder inside your music folder, so it survives a reinstall. Add the folder again afterwards and it comes back on its own.",
+      "libraryFolder": "Folder: {{folder}} (your library’s first)",
+      "chosenFolder": "Folder: {{folder}}",
+      "noFolder": "No folder yet — add one to the library, or choose one here.",
+      "last": "Last written {{when}}",
+      "never": "Not written yet",
+      "pickFolder": "Choose folder",
+      "backUpNow": "Write now",
+      "restoreNow": "Read back",
+      "written": "Listening history written to the folder.",
+      "nothingFound": "No listening history in that folder.",
+      "restored_one": "{{count}} listen brought back.",
+      "restored_other": "{{count}} listens brought back.",
+      "failed": "That folder could not be used."
     },
     "motion": {
       "title": "Motion",

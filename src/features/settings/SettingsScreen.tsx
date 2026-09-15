@@ -51,6 +51,7 @@ import { DuplicateSettings } from './components/DuplicateSettings';
 import { EqualizerSettings } from './components/EqualizerSettings';
 import { ScanDeviceRow } from './components/ScanDeviceRow';
 import { ScanFolderList } from './components/ScanFolderList';
+import { StatsBackupControls } from './components/StatsBackupControls';
 
 const THEME_ICONS: Record<ThemePreference, LucideIcon> = {
   system: Monitor,
@@ -236,6 +237,7 @@ export function SettingsScreen() {
             value={statsOn}
             onChange={onStatsChange}
           />
+          <StatsBackupControls />
         </SettingGroup>
 
         <SettingGroup title={t('settings.motion.title')}>
