@@ -1,4 +1,9 @@
-import { mergeSimilarArtists, type RankedArtist } from './mergeArtists';
+import {
+  mergeSimilarAlbums,
+  mergeSimilarArtists,
+  type RankedAlbum,
+  type RankedArtist,
+} from './mergeArtists';
 
 /**
  * One band under several spellings, counted once.
@@ -134,5 +139,132 @@ describe('mergeSimilarArtists', () => {
 
   it('handles an empty list', () => {
     expect(mergeSimilarArtists([], 10)).toEqual([]);
+  });
+});
+
+/**
+ * Albums are the same idea with one more condition. What these pin is the
+ * condition: the record's name being alike is not enough on its own, because
+ * half the shelves in the world hold a "Greatest Hits".
+ */
+
+function album(partial: Partial<RankedAlbum> & { title: string | null }): RankedAlbum {
+  return {
+    id: 1,
+    subtitle: null,
+    playCount: 0,
+    msPlayed: 0,
+    artworkPath: null,
+    ...partial,
+  };
+}
+
+describe('mergeSimilarAlbums', () => {
+  it('adds up one record filed under two spellings of its band', () => {
+    // The scanner keys albums by (name, artist), so this is two rows.
+    const merged = mergeSimilarAlbums(
+      [
+        album({ id: 1, title: 'Hybrid Theory', subtitle: 'Linkin Park', playCount: 10 }),
+        album({ id: 2, title: 'Hybrid Theory', subtitle: 'LINKIN PARK', playCount: 4 }),
+      ],
+      10,
+    );
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toMatchObject({ id: 1, playCount: 14 });
+  });
+
+  it('adds up one record filed under two spellings of its own name', () => {
+    const merged = mergeSimilarAlbums(
+      [
+        album({ title: 'Hybrid Theory', subtitle: 'Linkin Park', playCount: 3 }),
+        album({ title: 'Hybrid theory', subtitle: 'Linkin Park', playCount: 5 }),
+      ],
+      10,
+    );
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toMatchObject({ title: 'Hybrid theory', playCount: 8 });
+  });
+
+  it("keeps two bands' records apart even when the names match", () => {
+    const merged = mergeSimilarAlbums(
+      [
+        album({ id: 1, title: 'Greatest Hits', subtitle: 'Queen', playCount: 9 }),
+        album({ id: 2, title: 'Greatest Hits', subtitle: 'ABBA', playCount: 8 }),
+      ],
+      10,
+    );
+
+    expect(merged).toHaveLength(2);
+  });
+
+  it('does not let a long name outweigh a different band', () => {
+    /*
+     * The reason the artist is compared on its own. Joined into one string
+     * with the title, "…Deluxe Edition — Abba" and "…Deluxe Edition — Abbe"
+     * differ by one character in forty and would pass the threshold.
+     */
+    const merged = mergeSimilarAlbums(
+      [
+        album({ title: 'The Very Best Of, Deluxe Edition', subtitle: 'Abba', playCount: 2 }),
+        album({ title: 'The Very Best Of, Deluxe Edition', subtitle: 'Abbe', playCount: 2 }),
+      ],
+      10,
+    );
+
+    expect(merged).toHaveLength(2);
+  });
+
+  it('compares two untagged albums on the name alone', () => {
+    // No artist on either side is not a disagreement about the artist.
+    const merged = mergeSimilarAlbums(
+      [
+        album({ title: 'Live', subtitle: null, playCount: 2 }),
+        album({ title: 'Live!', subtitle: null, playCount: 3 }),
+      ],
+      10,
+    );
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.playCount).toBe(5);
+  });
+
+  it('does not fold a tagged album into an untagged one', () => {
+    const merged = mergeSimilarAlbums(
+      [
+        album({ title: 'Live', subtitle: 'Muse', playCount: 2 }),
+        album({ title: 'Live', subtitle: null, playCount: 3 }),
+      ],
+      10,
+    );
+
+    expect(merged).toHaveLength(2);
+  });
+
+  it('re-ranks and trims after merging, like the artists', () => {
+    const merged = mergeSimilarAlbums(
+      [
+        album({ title: 'OK Computer', subtitle: 'Radiohead', playCount: 6 }),
+        album({ title: 'Absolution', subtitle: 'Muse', playCount: 4 }),
+        album({ title: 'Absolution', subtitle: 'MUSE', playCount: 3 }),
+        album({ title: 'Showbiz', subtitle: 'Muse', playCount: 2 }),
+      ],
+      2,
+    );
+
+    expect(merged.map((entry) => [entry.title, entry.playCount])).toEqual([
+      ['Absolution', 7],
+      ['OK Computer', 6],
+    ]);
+  });
+
+  it('never merges the unnamed rows together', () => {
+    const merged = mergeSimilarAlbums(
+      [album({ id: 1, title: null, playCount: 3 }), album({ id: 2, title: null, playCount: 2 })],
+      10,
+    );
+
+    expect(merged).toHaveLength(2);
   });
 });

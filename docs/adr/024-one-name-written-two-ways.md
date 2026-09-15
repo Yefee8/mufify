@@ -1,6 +1,6 @@
 # 024 — One name written two ways is one thing
 
-**Status:** accepted
+**Status:** accepted · albums added 2026-09-15
 **Date:** 2026-09-12
 
 ## Context
@@ -31,6 +31,25 @@ The surviving row keeps the identity of its most-played member: its id, because
 that is what a tap navigates to and it has to be one with something behind it;
 its spelling, because that is the one on the files the user actually plays and
 therefore the one they will recognise.
+
+### Album spellings in statistics: merged the same way, with the band agreeing
+
+*Added 2026-09-15.* Albums have the same problem twice over. The scanner keys
+them by `(name, artist)`, so one record under two spellings of the band is two
+albums, and so is the record under two spellings of its own name — and the
+statistics ranked each half separately.
+
+Folded like the artists, above the query, with the same over-fetch and the same
+most-played identity — plus one condition the artists do not need: **the
+artist has to agree**. "Greatest Hits" is on every third band's shelf and those
+are not one record. The artist is compared *separately* from the name, for the
+reason given under duplicates below: joined into one string, a long album title
+followed by a short band name scores alike for two different bands. Two albums
+with no artist on either side are compared on the name alone — an absent artist
+is not a disagreement about the artist.
+
+Within one name the split is first-match-wins, as for duplicates, so "close to
+A" and "close to B" cannot chain across a pair that are not close to each other.
 
 ### Duplicate songs in the library: a setting, on by default
 
@@ -84,9 +103,10 @@ afford to be exact.
 
 ## Consequences
 
-- A band under several spellings is one row in statistics, and tapping it opens
-  the spelling with the listening behind it. The other ids still exist; nothing
-  is rewritten.
+- A band under several spellings is one row in statistics, and so is a record
+  under several spellings of its name or its band's; tapping either opens the
+  spelling with the listening behind it. The other ids still exist; nothing is
+  rewritten.
 - Hidden duplicates are hidden from the library list, which is also what the
   header counts and what Play and Shuffle enqueue — so the number, the rows and
   the queue cannot disagree.
