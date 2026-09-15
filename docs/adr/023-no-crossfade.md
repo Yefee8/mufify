@@ -1,6 +1,6 @@
 # 023 — No crossfade, and no fade either
 
-**Status:** accepted
+**Status:** accepted · the gapless half is superseded by [ADR 025](025-gapless-on-one-player.md)
 **Date:** 2026-08-19
 
 ## Context

@@ -27,6 +27,100 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/Au
        Property("id") { player ->
          player.id
        }
+@@ -486,6 +505,24 @@
+         }
+       }
+ 
++      /**
++       * Hand the player the track after this one, or nothing.
++       *
++       * The queue lives in JavaScript, and this is how it tells the player
++       * what is coming without giving up ownership: one item ahead, replaced
++       * whenever the queue changes, cleared when nothing follows.
++       */
++      Function("setNextSource") { player: AudioPlayer, source: AudioSource? ->
++        runOnMain {
++          val mediaSource = createMediaItem(source)
++          if (mediaSource == null) {
++            player.clearNextMediaSource()
++          } else {
++            player.setNextMediaSource(mediaSource)
++          }
++        }
++      }
++
+       Function("replace") { player: AudioPlayer, source: AudioSource ->
+         runOnMain {
+           if (player.ref.availableCommands.contains(Player.COMMAND_CHANGE_MEDIA_ITEMS)) {
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+@@ -10,6 +10,7 @@
+ import androidx.media3.common.C
+ import androidx.media3.common.PlaybackException
+ import androidx.media3.common.PlaybackParameters
++import androidx.media3.common.MediaItem
+ import androidx.media3.common.Player
+ import androidx.media3.common.util.UnstableApi
+ import androidx.media3.exoplayer.DefaultLoadControl
+@@ -95,8 +96,57 @@
+     ref.setMediaSource(source)
+     ref.prepare()
+     startUpdating()
++  }
++
++  /**
++   * Queue the item that follows this one, so ExoPlayer decodes it now and
++   * joins it to the current one when the current one ends.
++   *
++   * This is what closes the gap between tracks. `setMediaSource` tears the
++   * timeline down and rebuilds it, and the silence a listener hears is the
++   * new source being opened and its first buffer filled — work that, with a
++   * second item already in the timeline, ExoPlayer does ahead of time and
++   * joins sample-accurately for the formats that carry gapless metadata.
++   *
++   * The timeline is kept to exactly `[current, next]`: anything before the
++   * current item is a track that has finished, and anything after the next
++   * is a guess about a queue that JavaScript owns and may have changed.
++   */
++  fun setNextMediaSource(source: MediaSource) {
++    trimToCurrent()
++    ref.addMediaSource(source)
++  }
++
++  /** Nothing follows — the end of the queue, or repeat-one, or a reshuffle. */
++  fun clearNextMediaSource() {
++    trimToCurrent()
++  }
++
++  private fun trimToCurrent() {
++    val current = ref.currentMediaItemIndex
++    val count = ref.mediaItemCount
++    // After first, so the current index does not shift under the second call.
++    if (count > current + 1) ref.removeMediaItems(current + 1, count)
++    if (current > 0) ref.removeMediaItems(0, current)
+   }
+ 
++  /**
++   * ExoPlayer moved to the next item by itself: the previous one ended.
++   *
++   * Reported as its own field rather than as `didJustFinish`, because the two
++   * mean different things to the app. `didJustFinish` is the player having
++   * stopped — there is nothing after this — and JavaScript answers it by
++   * loading whatever comes next. A transition is the player having *already*
++   * started what comes next, and the answer is bookkeeping, not a load.
++   */
++  override fun onMediaItemChanged(mediaItem: MediaItem?, reason: Int) {
++    if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
++      sendStatusUpdate(mapOf("trackTransition" to true))
++    } else {
++      super.onMediaItemChanged(mediaItem, reason)
++    }
++  }
++
+   fun setActiveForLockScreen(active: Boolean, metadata: Metadata? = null, options: AudioLockScreenOptions? = null) {
+     if (active) {
+       this.metadata = metadata
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
@@ -120,12 +214,10 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
              .build()
          )
          .setAvailableSessionCommands(
-@@ -41,6 +44,37 @@
-     } catch (e: Exception) {
-       return MediaSession.ConnectionResult.reject()
+@@ -43,6 +46,37 @@
      }
-+  }
-+
+   }
+ 
 +  /**
 +   * Turn a skip into a broadcast instead of a seek.
 +   *
@@ -155,17 +247,18 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
 +  companion object {
 +    const val ACTION_MEDIA_SKIP = "expo.modules.audio.MEDIA_SKIP"
 +    const val EXTRA_DIRECTION = "direction"
-   }
- 
++  }
++
    override fun onCustomCommand(
+     session: MediaSession,
+     controller: MediaSession.ControllerInfo,
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt
-@@ -35,6 +35,45 @@
-     }
+@@ -36,6 +36,45 @@
      super.removeListener(forwardingListener ?: listener)
    }
-+
+ 
 +  /**
 +   * Advertise track navigation even though this player holds one item.
 +   *
@@ -204,6 +297,7 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
 +  override fun hasNextMediaItem(): Boolean = true
 +
 +  override fun hasPreviousMediaItem(): Boolean = true
- 
++
    override fun getMediaMetadata(): MediaMetadata {
      val metadata = injectedMetadata
+     return super.getMediaMetadata()

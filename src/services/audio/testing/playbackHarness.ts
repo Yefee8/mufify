@@ -38,6 +38,12 @@ export interface PlaybackHarness {
   pauseFor(ms: number): Promise<void>;
   /** Run to the end of the current track and report `didJustFinish`. */
   finishTrack(): Promise<void>;
+  /**
+   * Run to the end of the current track and let the player join the armed
+   * next one itself — the gapless path. Throws if nothing was armed, which is
+   * itself an assertion: the engine should have told the player.
+   */
+  transitionTrack(): Promise<void>;
   /** Seek the way the scrubber does — through the engine, not the player. */
   seekTo(ms: number): Promise<void>;
   /** Press play/pause. */
@@ -146,6 +152,16 @@ export async function startPlayback(
       live.emit({ didJustFinish: true });
       await flush();
       await settleLoad(options.reportedDurationMs);
+    },
+
+    async transitionTrack() {
+      const live = currentFakePlayer();
+      jest.advanceTimersByTime(TICK_MS);
+      live.currentTime = live.duration;
+      const armed = live.armedUri;
+      const following = tracks.find((entry) => entry.uri === armed);
+      live.transitionToNext((following?.durationMs ?? 0) / 1000);
+      await flush();
     },
 
     async seekTo(ms: number) {

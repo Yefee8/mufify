@@ -91,10 +91,17 @@ notification, with no release and no window.
 a second player, and the media session, the statistics cycle and the
 equaliser's audio session all belong to the one there is. Following the audio
 between two players means one `setActiveForLockScreen` per track — precisely
-the call described above. The seam between two tracks is therefore about 290ms
-of silence, unfaded. A ramp was tried in 1.4.0 and removed in 1.3.1: see
-[ADR 023](adr/023-no-crossfade.md), which also records what a real crossfade
-would take so the next attempt does not re-derive it.
+the call described above. See [ADR 023](adr/023-no-crossfade.md).
+
+**Gapless is a different matter, and it ships.** The seam between two tracks
+that end naturally is handled by ExoPlayer's own playlist, one item ahead: the
+engine hands the player the next track as soon as the current one loads, the
+player decodes it in the background, and joins the two when the current one
+ends. No `replace`, no source open, no first buffer at the seam. One player, so
+nothing above moves. The engine hears about it on the next status update as a
+`trackTransition` and does the bookkeeping the old `didJustFinish` path did,
+minus the load. A manual skip still reloads on purpose — the armed item is what
+the queue said before the press. [ADR 025](adr/025-gapless-on-one-player.md).
 
 ### What the notification shows
 

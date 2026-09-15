@@ -49,6 +49,22 @@ import {
 /** How often the engine reports position. 500ms is expo-audio's own default. */
 const STATUS_INTERVAL_MS = 500;
 
+/**
+ * What the patched player adds — see `patches/expo-audio+57.0.3.patch`.
+ *
+ * `setNextSource` hands the player the item after the current one, or nothing;
+ * `trackTransition` arrives on the status update in which the player has moved
+ * to that item by itself. Neither is in expo-audio's own types, and both are
+ * read through a cast for the same reason `audioSessionId` is.
+ */
+interface NextSourceSupport {
+  setNextSource?: (source: { uri: string } | null) => void;
+}
+
+interface TransitionStatus {
+  trackTransition?: boolean;
+}
+
 type Listener = (state: PlaybackState) => void;
 type ListenReporter = (listen: FinishedListen) => void;
 
@@ -152,6 +168,17 @@ class Engine {
    */
   private lockScreenBound = false;
 
+  /**
+   * The URI the player has been handed as "what comes next", or null.
+   *
+   * The player prepares it in the background and joins it to the current
+   * track when that ends, which is what closes the gap between tracks — see
+   * `armNext`. Tracked by URI rather than by queue index because the index can
+   * stay the same while the track at it changes (play-next inserts at
+   * `index + 1`), and it is the *track* the player has been told about.
+   */
+  private armedUri: string | null = null;
+
 
   /**
    * What to show where a track has no artist or album.
@@ -247,11 +274,53 @@ class Engine {
 
   /** Rebuild the snapshot and notify, but only when something really moved. */
   private emitQueue(): void {
+    // Before the early return: arming is cheap, idempotent by URI, and has to
+    // happen for every change the queue can undergo — this is the one place
+    // every such change already passes through.
+    this.armNext();
+
     if (this.queueSnapshot.tracks === this.queue && this.queueSnapshot.index === this.index) {
       return;
     }
     this.queueSnapshot = { tracks: this.queue, index: this.index };
     for (const listener of this.queueListeners) listener(this.queueSnapshot);
+  }
+
+  /**
+   * Tell the player what comes after the current track, so it can be ready.
+   *
+   * This is the whole of the gapless work on the JavaScript side. The player
+   * holds a timeline of exactly `[current, next]`; ExoPlayer decodes the next
+   * item while the current one plays and joins the two when it ends — with no
+   * source to open and no buffer to fill at the moment of the seam, which is
+   * where the ~290ms of silence used to go. One player, so the media session,
+   * the statistics cycle and the equaliser's audio session all stay exactly
+   * where they were: this is the reason it is possible at all, and the reason
+   * a second player was not the answer. See ADR 023 and ADR 025.
+   *
+   * Idempotent by URI. It is called from `emitQueue`, which every queue change
+   * passes through, and re-sending the same next item would make ExoPlayer
+   * re-prepare it for nothing.
+   *
+   * Repeat-one arms nothing: that path restarts by seeking, and a second copy
+   * of the same file in the timeline would double-count the listen. The end of
+   * the queue arms nothing, so the player reaches `STATE_ENDED` and
+   * `didJustFinish` fires as it always has.
+   */
+  private armNext(): void {
+    const player = this.player as (AudioPlayer & NextSourceSupport) | null;
+    if (player === null || typeof player.setNextSource !== 'function') return;
+
+    const next =
+      this.index < 0
+        ? null
+        : nextIndex({ index: this.index, length: this.queue.length, repeat: this.repeat }, false);
+    const track = next === null || next === this.index ? null : (this.queue[next] ?? null);
+    const uri = track?.uri ?? null;
+
+    if (uri === this.armedUri) return;
+    this.armedUri = uri;
+    player.setNextSource(uri === null ? null : { uri });
   }
 
   private emit(next: Partial<PlaybackState>): void {
@@ -465,6 +534,10 @@ class Engine {
     this.playWhenReady = autoPlay;
 
     try {
+      // `replace` rebuilds the player's timeline from scratch, so whatever it
+      // had been told comes next is gone with it. `emitQueue` below arms again.
+      this.armedUri = null;
+
       if (this.player !== null && this.audioActive) {
         // The warm path, and the only one that runs between two tracks.
         this.player.replace({ uri: track.uri });
@@ -635,6 +708,19 @@ class Engine {
     this.listenCycle.tick(status.playing);
 
 
+    /*
+     * The player moved on by itself: the track ended and the one that had been
+     * armed is already playing. Everything `didJustFinish` would have led to
+     * happens here except the load, which is the point — there is nothing to
+     * load. Handled before the rewind check below, which would otherwise read
+     * the jump from the end of one file to the start of the next as the *same*
+     * track starting over and count a listen that did not happen.
+     */
+    if ((status as AudioStatus & TransitionStatus).trackTransition) {
+      this.onAutoTransition();
+      return;
+    }
+
     // A track that reached its end advances the queue. `didJustFinish` fires
     // once, unlike `currentTime >= duration`, which fires on every tick after.
     if (status.didJustFinish) {
@@ -701,6 +787,47 @@ class Engine {
     this.emit({ positionMs: Math.max(0, positionMs) });
   }
 
+  /**
+   * Bookkeeping for a track change the player has already made.
+   *
+   * The finished track's listen is closed as completed, the index moves to what
+   * was armed, the notification is told, and the next track after *that* is
+   * armed. No `replace`, no `play`: the audio never stopped.
+   *
+   * If what the queue now says comes next is not what the player was given —
+   * which `armNext` keeps from happening, but which a queue edit racing the
+   * seam could in principle produce — the honest answer is to load what the
+   * queue says. That costs the gap once, and never plays something the queue
+   * does not contain.
+   */
+  private onAutoTransition(): void {
+    this.flushListen(true);
+    this.lastPositionMs = 0;
+
+    const next = nextIndex(
+      { index: this.index, length: this.queue.length, repeat: this.repeat },
+      false,
+    );
+    const track = next === null ? null : (this.queue[next] ?? null);
+
+    if (next === null || next === this.index || track === null || track.uri !== this.armedUri) {
+      this.armedUri = null;
+      void this.advance(false);
+      return;
+    }
+
+    this.index = next;
+    // The armed item is the current one now; the timeline is trimmed to it the
+    // next time something is armed.
+    this.armedUri = null;
+    this.listenCycle.open();
+    this.playWhenReady = false;
+
+    this.bindLockScreen(track);
+    this.emitQueue();
+    this.emit({ phase: 'playing', track, positionMs: 0, durationMs: track.durationMs });
+  }
+
   /** The next track. `explicit` marks a user press rather than a track ending. */
   async advance(explicit: boolean): Promise<void> {
     const next = nextIndex(
@@ -760,6 +887,8 @@ class Engine {
 
   setRepeat(mode: RepeatMode): void {
     this.repeat = mode;
+    // What comes next depends on this, and nothing else about the queue moved.
+    this.armNext();
   }
 
   getRepeat(): RepeatMode {

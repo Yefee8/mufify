@@ -57,6 +57,32 @@ export class FakeAudioPlayer {
     this.currentTime = seconds;
   }
 
+  /** What the engine has told the player comes next. Null for nothing. */
+  armedUri: string | null = null;
+
+  /** The patched player's "prepare this one after the current". */
+  setNextSource(source: { uri: string } | null): void {
+    this.armedUri = source?.uri ?? null;
+    this.calls.push(`setNextSource:${this.armedUri ?? 'null'}`);
+  }
+
+  /**
+   * ExoPlayer moving to the armed item by itself, at the end of the current.
+   *
+   * What a device reports: one status update carrying `trackTransition`, the
+   * position already back at zero, still playing, and — this is the part that
+   * matters — no `didJustFinish`, because the player never stopped.
+   */
+  transitionToNext(nextDurationSec: number): void {
+    if (this.armedUri === null) throw new Error('Nothing is armed to transition to.');
+    this.calls.push('transition');
+    this.armedUri = null;
+    this.currentTime = 0;
+    this.duration = nextDurationSec;
+    this.playing = true;
+    this.emit({ trackTransition: true } as Partial<AudioStatus>);
+  }
+
   setActiveForLockScreen(active: boolean): void {
     this.calls.push(`setActiveForLockScreen:${String(active)}`);
   }
