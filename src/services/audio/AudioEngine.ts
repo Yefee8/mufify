@@ -66,18 +66,24 @@ interface TransitionStatus {
 }
 
 /**
- * Previous and next on the notification, in place of the seek buttons.
+ * Previous and next on the notification, in place of the seek buttons — and,
+ * where Android still honours one, the app's own layout.
  *
  * Also from the patch. The seek buttons are session custom commands, and a
  * session that declares any custom button has its skip actions stripped from
  * the legacy playback state by media3 — which is what Bluetooth, the lock
  * screen and Android's own media controls read. So the seek buttons go, the
  * skip buttons come, and both arrive at `onMediaSkip` by the same broadcast.
+ *
+ * `customNotification` is the cover-title-artist-buttons layout on Android 12
+ * and below. Android 13 and later draw media notifications from the session
+ * and ignore it, which is the fallback: the standard controls, unchanged.
  */
 const LOCK_SCREEN_CONTROLS = {
   showSeekForward: false,
   showSeekBackward: false,
   showSkipControls: true,
+  customNotification: true,
 } as const;
 
 type Listener = (state: PlaybackState) => void;

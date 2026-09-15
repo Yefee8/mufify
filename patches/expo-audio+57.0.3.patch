@@ -156,7 +156,7 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/Au
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt
-@@ -110,7 +110,18 @@
+@@ -110,7 +110,25 @@
  class AudioLockScreenOptions(
    @Field val showSeekForward: Boolean,
    @Field val showSeekBackward: Boolean,
@@ -172,14 +172,55 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/Au
 +   * declares no custom buttons at all, the skip actions stay advertised, and
 +   * the notification on Android 12 and below carries previous and next.
 +   */
-+  @Field val showSkipControls: Boolean = false
++  @Field val showSkipControls: Boolean = false,
++  /**
++   * The app's own notification layout — cover, title, artist, album, three
++   * buttons — on Android 12 and below, where the system still inflates what
++   * an app hands it. Android 13 and later draw media notifications from the
++   * session alone and ignore a custom layout, so there it changes nothing.
++   */
++  @Field val customNotification: Boolean = false
  ) : Record
  
  enum class InterruptionMode(val value: String) : Enumerable {
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
-@@ -90,6 +90,11 @@
+@@ -8,9 +8,16 @@
+ import android.content.Intent
+ import android.media.AudioManager
+ import android.content.pm.ServiceInfo
++import android.content.res.Configuration
+ import android.graphics.Bitmap
+ import android.graphics.BitmapFactory
++import android.graphics.Canvas
++import android.graphics.Paint
++import android.graphics.PorterDuff
++import android.graphics.PorterDuffXfermode
++import android.graphics.RectF
+ import android.os.Build
++import android.widget.RemoteViews
+ import android.os.Bundle
+ import android.os.IBinder
+ import androidx.annotation.OptIn
+@@ -26,6 +33,7 @@
+ import expo.modules.audio.AudioLockScreenOptions
+ import expo.modules.audio.AudioPlayer
+ import expo.modules.audio.Metadata
++import expo.modules.audio.R
+ import expo.modules.audio.getPlaybackServiceErrorMessage
+ import expo.modules.kotlin.AppContext
+ import kotlinx.coroutines.CoroutineScope
+@@ -49,6 +57,8 @@
+   private val scope = CoroutineScope(Dispatchers.IO)
+   private var currentArtworkUrl: URL? = null
+   private var currentArtwork: Bitmap? = null
++  /** `currentArtwork` with rounded corners, sized for a RemoteViews parcel. */
++  private var roundedArtwork: Bitmap? = null
+   private var artworkLoadJob: Job? = null
+   private val notificationId: Int
+     get() = currentPlayer?.hashCode() ?: CHANNEL_ID.hashCode()
+@@ -90,6 +100,11 @@
  
          ACTION_SEEK_FORWARD -> currentPlayerRef.seekTo(currentPlayerRef.currentPosition + SEEK_INTERVAL_MS)
          ACTION_SEEK_BACKWARD -> currentPlayerRef.seekTo(currentPlayerRef.currentPosition - SEEK_INTERVAL_MS)
@@ -191,7 +232,7 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
        }
      }
  
-@@ -161,13 +166,31 @@
+@@ -161,37 +176,88 @@
      )
    }
  
@@ -228,7 +269,48 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
      )
    }
  
-@@ -192,6 +215,18 @@
+   private fun buildNotification(): Notification? {
+     val session = mediaSession ?: return null
+ 
++    /*
++     * The app's own layout, where the system still honours one. Android 13
++     * and later render media notifications from the session and ignore
++     * custom views entirely, so there the plain media style is the whole
++     * story and `custom` is null.
++     */
++    val custom = customViews(session)
++
+     val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+       .setSmallIcon(androidx.media3.session.R.drawable.media3_icon_circular_play)
+       // If the title is null or empty string android sets the notification to "<AppName> is running..." we want to keep the notification empty so we \u200E to keep the text empty.
+       .setContentTitle(currentMetadata?.title ?: "\u200E")
+       .setContentText(currentMetadata?.artist)
+       .setSubText(currentMetadata?.albumTitle)
+-      .setLargeIcon(currentArtwork)
+       .setContentIntent(buildContentIntent())
+       .setAutoCancel(false)
+       .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+ 
+-    val style = MediaStyleNotificationHelper.MediaStyle(session)
++    // The large icon is the cover in the system's template. In the app's own
++    // layout the cover is drawn by the layout, and Android 10's decorated
++    // media frame would otherwise reserve its whole right half for the icon
++    // — a gradient over the buttons.
++    if (custom == null) builder.setLargeIcon(currentArtwork)
+ 
++    val style = if (custom != null) {
++      builder.setCustomContentView(custom.first)
++      builder.setCustomBigContentView(custom.second)
++      MediaStyleNotificationHelper.DecoratedMediaCustomViewStyle(session)
++    } else {
++      MediaStyleNotificationHelper.MediaStyle(session)
++    }
++
+     // Older Android system UI expects explicit notification actions for transport controls.
+-    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
++    // Not with the app's own layout, whose buttons the decorated style would
++    // otherwise show twice — once in the frame, once in the view.
++    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2 && custom == null) {
        val compactViewIndices = mutableListOf<Int>()
        var currentIndex = 0
  
@@ -247,7 +329,7 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
        if (currentOptions?.showSeekBackward == true) {
          builder.addAction(
            NotificationCompat.Action(
-@@ -227,9 +262,22 @@
+@@ -227,19 +293,138 @@
            )
          )
          compactViewIndices.add(currentIndex)
@@ -271,7 +353,100 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
      }
  
      builder.setStyle(style)
-@@ -240,6 +288,22 @@
+     return builder.build()
++  }
++
++  /**
++   * Collapsed and expanded views for the app's own notification layout, or
++   * null where the system would ignore them or the app did not ask.
++   *
++   * Every id set here exists in both layouts except the album line, which
++   * only the expanded one has — `RemoteViews` applies its actions when the
++   * system inflates the view, so an id that is not there fails on the far
++   * side, as a notification that never appears.
++   */
++  private fun customViews(session: MediaSession): Pair<RemoteViews, RemoteViews>? {
++    if (Build.VERSION.SDK_INT > Build.VERSION_CODES.S_V2) return null
++    if (currentOptions?.customNotification != true) return null
++
++    val playing = session.player.isPlaying
++    val collapsed = RemoteViews(packageName, R.layout.mufify_notification_collapsed)
++    val expanded = RemoteViews(packageName, R.layout.mufify_notification_expanded)
++    for (views in listOf(collapsed, expanded)) bindCustomView(views, playing)
++    expanded.setTextViewText(R.id.mufify_album, currentMetadata?.albumTitle ?: "")
++    return collapsed to expanded
++  }
++
++  private fun bindCustomView(views: RemoteViews, playing: Boolean) {
++    views.setTextViewText(R.id.mufify_title, currentMetadata?.title ?: "")
++    views.setTextViewText(R.id.mufify_artist, currentMetadata?.artist ?: "")
++
++    val artwork = roundedArtwork
++    if (artwork != null) {
++      views.setImageViewBitmap(R.id.mufify_artwork, artwork)
++    } else {
++      views.setImageViewResource(R.id.mufify_artwork, androidx.media3.session.R.drawable.media3_icon_circular_play)
++    }
++
++    // The skip buttons take the app's accent for the notification's theme;
++    // play/pause sits on its own disc and stays white.
++    val night = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
++      Configuration.UI_MODE_NIGHT_YES
++    val accent = if (night) ACCENT_ON_DARK else ACCENT_ON_LIGHT
++    views.setInt(R.id.mufify_previous, "setColorFilter", accent)
++    views.setInt(R.id.mufify_next, "setColorFilter", accent)
++
++    views.setImageViewResource(
++      R.id.mufify_play_pause,
++      if (playing) androidx.media3.session.R.drawable.media3_icon_pause
++      else androidx.media3.session.R.drawable.media3_icon_play
++    )
++    views.setContentDescription(
++      R.id.mufify_play_pause,
++      getString(if (playing) R.string.mufify_notification_pause else R.string.mufify_notification_play)
++    )
++
++    views.setOnClickPendingIntent(R.id.mufify_previous, buildActionPendingIntent(ACTION_PREVIOUS))
++    views.setOnClickPendingIntent(
++      R.id.mufify_play_pause,
++      buildActionPendingIntent(if (playing) ACTION_PAUSE else ACTION_PLAY)
++    )
++    views.setOnClickPendingIntent(R.id.mufify_next, buildActionPendingIntent(ACTION_NEXT))
++  }
++
++  /**
++   * A square, rounded, small copy of the cover for the custom layout.
++   *
++   * Small because a `RemoteViews` bitmap travels in the notification's parcel,
++   * twice — one view per layout — and the parcel has a hard limit of about a
++   * megabyte; 256 pixels square is a quarter of that once, well clear of it
++   * twice. Rounded here because a `RemoteViews` ImageView cannot clip.
++   */
++  private fun roundCorners(source: Bitmap): Bitmap {
++    val size = ARTWORK_PIXELS
++    val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
++    val canvas = Canvas(output)
++    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
++    val radius = size * 0.14f
++    canvas.drawRoundRect(RectF(0f, 0f, size.toFloat(), size.toFloat()), radius, radius, paint)
++    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
++
++    // Centre-cropped to a square, since a cover usually is one and a
++    // photograph used as one should not be squashed.
++    val side = minOf(source.width, source.height)
++    val cropped = Bitmap.createBitmap(
++      source,
++      (source.width - side) / 2,
++      (source.height - side) / 2,
++      side,
++      side
++    )
++    val scaled = Bitmap.createScaledBitmap(cropped, size, size, true)
++    canvas.drawBitmap(scaled, 0f, 0f, paint)
++    return output
+   }
+ 
+   private fun updateSessionCustomLayout(isPlaying: Boolean) {
      val session = mediaSession ?: return
      val mediaButtons = mutableListOf<CommandButton>()
  
@@ -294,7 +469,15 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
      // Add seek backward button if enabled
      if (currentOptions?.showSeekBackward == true) {
        mediaButtons.add(
-@@ -371,7 +435,7 @@
+@@ -356,6 +541,7 @@
+     metadata?.artworkUrl?.let {
+       loadArtworkFromUrl(it) { bitmap ->
+         currentArtwork = bitmap
++        roundedArtwork = bitmap?.let(::roundCorners)
+         postOrStartForegroundNotification(startInForeground = false)
+       }
+     }
+@@ -371,7 +557,7 @@
            updateMetadata(metadata)
          }
          val session = MediaSession.Builder(context, sessionPlayer)
@@ -303,7 +486,15 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
            .build()
  
          // Replace the basic media session with a session connected to our playback service.
-@@ -452,7 +516,7 @@
+@@ -405,6 +591,7 @@
+     currentMetadata?.artworkUrl?.let {
+       loadArtworkFromUrl(it) { bitmap ->
+         currentArtwork = bitmap
++        roundedArtwork = bitmap?.let(::roundCorners)
+         postOrStartForegroundNotification(startInForeground = false)
+       }
+     } ?: postOrStartForegroundNotification(startInForeground = false)
+@@ -452,7 +639,7 @@
            updateMetadata(metadata)
          }
          val session = MediaSession.Builder(context, sessionPlayer)
@@ -312,7 +503,15 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
            .build()
  
          player.mediaSession.release()
-@@ -510,6 +574,24 @@
+@@ -470,6 +657,7 @@
+       metadata?.artworkUrl?.let {
+         loadArtworkFromUrl(it) { bitmap ->
+           currentArtwork = bitmap
++        roundedArtwork = bitmap?.let(::roundCorners)
+           postOrStartForegroundNotification(startInForeground = false)
+         }
+       }
+@@ -510,6 +698,24 @@
      notificationManager.cancel(notificationId)
    }
  
@@ -337,7 +536,15 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
    override fun onDestroy() {
      super.onDestroy()
  
-@@ -551,6 +633,8 @@
+@@ -523,6 +729,7 @@
+     currentMetadata = null
+     currentOptions = null
+     currentArtwork = null
++    roundedArtwork = null
+     currentArtworkUrl = null
+     removePlayerListener()
+   }
+@@ -551,6 +758,8 @@
    }
  
    companion object {
@@ -346,7 +553,7 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
      private const val CHANNEL_ID = "expo_audio_channel"
      private const val ACTION_PLAY = "expo.modules.audio.action.PLAY"
      private const val ACTION_PAUSE = "expo.modules.audio.action.PAUSE"
-@@ -558,6 +642,8 @@
+@@ -558,7 +767,14 @@
  
      const val ACTION_SEEK_FORWARD = "expo.modules.audio.action.SEEK_FORWARD"
      const val ACTION_SEEK_BACKWARD = "expo.modules.audio.action.SEEK_BACKWARD"
@@ -354,7 +561,13 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
 +    private const val ACTION_PREVIOUS = "expo.modules.audio.action.PREVIOUS"
  
      const val SEEK_INTERVAL_MS = 10000L
++
++    /** The app's accent — `signal` in its tokens — for a light and a dark notification. */
++    private const val ACCENT_ON_LIGHT = 0xFF4B45CE.toInt()
++    private const val ACCENT_ON_DARK = 0xFF7C8CFF.toInt()
++    private const val ARTWORK_PIXELS = 256
    }
+ }
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
@@ -480,3 +693,205 @@ diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/se
    override fun getMediaMetadata(): MediaMetadata {
      val metadata = injectedMetadata
      return super.getMediaMetadata()
+diff --git a/node_modules/expo-audio/android/src/main/res/drawable/mufify_notification_play_bg.xml b/node_modules/expo-audio/android/src/main/res/drawable/mufify_notification_play_bg.xml
+new file mode 100644
+--- /dev/null
++++ b/node_modules/expo-audio/android/src/main/res/drawable/mufify_notification_play_bg.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- The play/pause button's disc. The app's accent, which reads on a light
++     notification and on a dark one; the icon on it is always white. -->
++<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
++  <solid android:color="#5D5BE6" />
++</shape>
+diff --git a/node_modules/expo-audio/android/src/main/res/layout/mufify_notification_collapsed.xml b/node_modules/expo-audio/android/src/main/res/layout/mufify_notification_collapsed.xml
+new file mode 100644
+--- /dev/null
++++ b/node_modules/expo-audio/android/src/main/res/layout/mufify_notification_collapsed.xml
+@@ -0,0 +1,79 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++  Mufify's media notification, collapsed: cover, title, artist, three buttons.
++
++  Inflated by the system inside its own decorated frame (app name, time, the
++  chevron), so no header of our own. 48dp tall, which is what Android 12 gives
++  a collapsed custom view; taller would be clipped there and is not needed. Text uses the compat notification styles,
++  which the system recolours for a dark or a light notification; the buttons
++  are recoloured from code for the same reason. Only used on Android 12 and
++  below — 13 and later draw media notifications from the session alone.
++-->
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
++  android:layout_width="match_parent"
++  android:layout_height="48dp"
++  android:orientation="horizontal"
++  android:gravity="center_vertical"
++  android:paddingStart="12dp"
++  android:paddingEnd="4dp">
++
++  <ImageView
++    android:id="@+id/mufify_artwork"
++    android:layout_width="40dp"
++    android:layout_height="40dp"
++    android:scaleType="centerCrop"
++    android:contentDescription="@null" />
++
++  <LinearLayout
++    android:layout_width="0dp"
++    android:layout_height="wrap_content"
++    android:layout_weight="1"
++    android:layout_marginStart="12dp"
++    android:layout_marginEnd="4dp"
++    android:orientation="vertical">
++
++    <TextView
++      android:id="@+id/mufify_title"
++      android:layout_width="match_parent"
++      android:layout_height="wrap_content"
++      android:singleLine="true"
++      android:ellipsize="end"
++      android:textAppearance="@style/TextAppearance.Compat.Notification.Title" />
++
++    <TextView
++      android:id="@+id/mufify_artist"
++      android:layout_width="match_parent"
++      android:layout_height="wrap_content"
++      android:singleLine="true"
++      android:ellipsize="end"
++      android:textAppearance="@style/TextAppearance.Compat.Notification.Line2" />
++  </LinearLayout>
++
++  <ImageView
++    android:id="@+id/mufify_previous"
++    android:layout_width="36dp"
++    android:layout_height="36dp"
++    android:padding="7dp"
++    android:src="@drawable/media3_icon_previous"
++    android:contentDescription="@string/mufify_notification_previous" />
++
++  <ImageView
++    android:id="@+id/mufify_play_pause"
++    android:layout_width="40dp"
++    android:layout_height="40dp"
++    android:layout_marginStart="4dp"
++    android:layout_marginEnd="4dp"
++    android:padding="8dp"
++    android:background="@drawable/mufify_notification_play_bg"
++    android:src="@drawable/media3_icon_pause"
++    android:tint="#FFFFFF"
++    android:contentDescription="@string/mufify_notification_pause" />
++
++  <ImageView
++    android:id="@+id/mufify_next"
++    android:layout_width="36dp"
++    android:layout_height="36dp"
++    android:padding="7dp"
++    android:src="@drawable/media3_icon_next"
++    android:contentDescription="@string/mufify_notification_next" />
++</LinearLayout>
+diff --git a/node_modules/expo-audio/android/src/main/res/layout/mufify_notification_expanded.xml b/node_modules/expo-audio/android/src/main/res/layout/mufify_notification_expanded.xml
+new file mode 100644
+--- /dev/null
++++ b/node_modules/expo-audio/android/src/main/res/layout/mufify_notification_expanded.xml
+@@ -0,0 +1,88 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- The expanded form: a bigger cover, the album as a third line, and the
++     same three buttons at a size a thumb can find. See the collapsed layout. -->
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
++  android:layout_width="match_parent"
++  android:layout_height="wrap_content"
++  android:orientation="horizontal"
++  android:gravity="center_vertical"
++  android:paddingStart="12dp"
++  android:paddingEnd="12dp"
++  android:paddingTop="8dp"
++  android:paddingBottom="8dp">
++
++  <ImageView
++    android:id="@+id/mufify_artwork"
++    android:layout_width="96dp"
++    android:layout_height="96dp"
++    android:scaleType="centerCrop"
++    android:contentDescription="@null" />
++
++  <LinearLayout
++    android:layout_width="0dp"
++    android:layout_height="wrap_content"
++    android:layout_weight="1"
++    android:layout_marginStart="14dp"
++    android:orientation="vertical">
++
++    <TextView
++      android:id="@+id/mufify_title"
++      android:layout_width="match_parent"
++      android:layout_height="wrap_content"
++      android:singleLine="true"
++      android:ellipsize="end"
++      android:textAppearance="@style/TextAppearance.Compat.Notification.Title" />
++
++    <TextView
++      android:id="@+id/mufify_artist"
++      android:layout_width="match_parent"
++      android:layout_height="wrap_content"
++      android:singleLine="true"
++      android:ellipsize="end"
++      android:textAppearance="@style/TextAppearance.Compat.Notification.Line2" />
++
++    <TextView
++      android:id="@+id/mufify_album"
++      android:layout_width="match_parent"
++      android:layout_height="wrap_content"
++      android:singleLine="true"
++      android:ellipsize="end"
++      android:textAppearance="@style/TextAppearance.Compat.Notification.Info" />
++
++    <LinearLayout
++      android:layout_width="match_parent"
++      android:layout_height="wrap_content"
++      android:layout_marginTop="8dp"
++      android:orientation="horizontal"
++      android:gravity="center_vertical">
++
++      <ImageView
++        android:id="@+id/mufify_previous"
++        android:layout_width="44dp"
++        android:layout_height="44dp"
++        android:padding="10dp"
++        android:src="@drawable/media3_icon_previous"
++            android:contentDescription="@string/mufify_notification_previous" />
++
++      <ImageView
++        android:id="@+id/mufify_play_pause"
++        android:layout_width="44dp"
++        android:layout_height="44dp"
++        android:layout_marginStart="12dp"
++        android:layout_marginEnd="12dp"
++        android:padding="10dp"
++        android:background="@drawable/mufify_notification_play_bg"
++        android:src="@drawable/media3_icon_pause"
++        android:tint="#FFFFFF"
++        android:contentDescription="@string/mufify_notification_pause" />
++
++      <ImageView
++        android:id="@+id/mufify_next"
++        android:layout_width="44dp"
++        android:layout_height="44dp"
++        android:padding="10dp"
++        android:src="@drawable/media3_icon_next"
++            android:contentDescription="@string/mufify_notification_next" />
++    </LinearLayout>
++  </LinearLayout>
++</LinearLayout>
+diff --git a/node_modules/expo-audio/android/src/main/res/values/mufify_notification_strings.xml b/node_modules/expo-audio/android/src/main/res/values/mufify_notification_strings.xml
+new file mode 100644
+--- /dev/null
++++ b/node_modules/expo-audio/android/src/main/res/values/mufify_notification_strings.xml
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Spoken by TalkBack for the notification's buttons. English only here;
++     the words on screen come from the app. -->
++<resources>
++  <string name="mufify_notification_previous">Previous track</string>
++  <string name="mufify_notification_next">Next track</string>
++  <string name="mufify_notification_play">Play</string>
++  <string name="mufify_notification_pause">Pause</string>
++</resources>

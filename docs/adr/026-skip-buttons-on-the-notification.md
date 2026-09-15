@@ -1,6 +1,6 @@
 # 026 — Previous and next on the notification, and a session that declares no custom buttons
 
-**Status:** accepted · extends [ADR 017](017-patching-expo-audio-for-track-navigation.md)
+**Status:** accepted · extends [ADR 017](017-patching-expo-audio-for-track-navigation.md) · custom layout added for 1.4.6
 **Date:** 2026-09-15
 
 ## Context
@@ -82,15 +82,49 @@ The engine passes `showSeekForward: false, showSeekBackward: false,
 showSkipControls: true`. The seek buttons are gone from the notification, as
 asked; seeking is on the screen.
 
-### Why not a custom notification layout
+### The custom layout, where Android still honours one
 
-Asked for, and not done. Android 13 and later render media notifications from
-the session alone — a custom `RemoteViews` is ignored. On Android 12 and below
-a custom layout is possible and every vendor draws the media template its own
-way, MIUI included, so a bespoke layout is the version most likely to look
-wrong on exactly the phone that reported this. What the app controls is what
-it now controls: which buttons, in which order, the icons on old Android, the
-text and the artwork.
+Asked for again, as a requirement with a fallback: *if it is not supported,
+the standard one is fine*. So it is done exactly that way. With
+`customNotification` set, on **Android 12 and below** the notification is the
+app's own `RemoteViews` — a rounded cover, title, artist, album, and three
+buttons: previous and next in the app's accent, play/pause on a disc of it —
+inside `DecoratedMediaCustomViewStyle`, which keeps the system's header and
+its recolouring of the compat text styles for a dark or a light notification.
+The accent for the skip buttons is chosen from the night mode at build time.
+The collapsed view is 48dp, which is what Android 12 gives a collapsed custom
+view; taller is clipped there. **Android 13 and later** render media
+notifications from the session alone and ignore custom views, so there nothing
+changes: the standard controls, with previous and next. That is the fallback,
+and it costs nothing to declare, so both are always declared.
+
+Three things had to give way for the layout to be *seen*:
+
+- **No `setLargeIcon` in custom mode.** Android 10's decorated media frame
+  reserves its whole right half for the large icon, under a gradient, and laid
+  the custom view in what was left — the text at a third of the width and two
+  of the three buttons under the gradient. The layout draws the cover itself.
+- **No notification actions in custom mode.** The decorated style shows them
+  in its frame, so the three buttons appeared twice.
+- **No theme attributes in the layouts.** `?android:attr/…` in a `RemoteViews`
+  resolves on the far side, against whatever theme SystemUI inflates with, and
+  an attribute that does not resolve is a notification that never appears.
+
+The placeholder cover turned out never to have worked in a release build, on
+any version: `Asset.fromModule(...).downloadAsync()` has no URL for an
+embedded image without expo-updates and resolves to an empty string. The PNG
+is three kilobytes and now lives in the source as base64, written to the cache
+directory at startup and handed over as a `file://` URL, which is what the
+service can load. `notificationArtwork.test.ts` pins the decoder, because a
+decoder one bit off is a file `BitmapFactory` refuses without a word.
+
+`RemoteViews` bitmaps travel in the notification's parcel, once per view, and
+the parcel has a hard limit of about a megabyte; the cover is rounded and
+scaled to 256 pixels square before it goes in.
+
+MIUI draws its own media template on Android 10 and may or may not honour an
+app's `RemoteViews`. If it does not, the user sees MIUI's — which is the
+fallback they accepted.
 
 ## Consequences
 
