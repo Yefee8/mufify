@@ -179,9 +179,9 @@ debug-signed one**. Uninstall first.
 Publishing one:
 
 ```bash
-gh release create v1.4.3 \
-  android/app/build/outputs/apk/release/app-release.apk#mufify-1.4.3.apk \
-  --title "Mufify 1.4.3" --notes-file <notes>
+gh release create v1.4.4 \
+  android/app/build/outputs/apk/release/app-release.apk#mufify-1.4.4.apk \
+  --title "Mufify 1.4.4" --notes-file <notes>
 ```
 
 Raise `android.versionCode` in `app.json` first, and raise it **whatever the
@@ -200,7 +200,7 @@ What the release build is checked for, and what `assembleRelease` produced on
 | `INTERNET` permission | **absent** — this is the whole promise, and `plugins/withOfflineOnly.js` is what keeps it out |
 | `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, `WRITE_EXTERNAL_STORAGE` | absent, blocked in `app.json` |
 | Debuggable | no |
-| `versionCode` / `versionName` | 13 / 1.4.3 |
+| `versionCode` / `versionName` | 14 / 1.4.4 |
 
 One permission does survive that is worth knowing about: `ACCESS_NETWORK_STATE`,
 pulled in by a dependency rather than asked for here. It cannot open a
