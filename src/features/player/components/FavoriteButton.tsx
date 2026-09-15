@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { Pressable } from 'react-native';
 
 import { setFavorite, useIsFavorite } from '@/db/queries/tracks';
-import { scheduleStatsBackup } from '@/services/backup/statsBackup';
 import { tapFeedback } from '@/services/haptics';
 import { useThemeColors } from '@/theme/useTheme';
 
@@ -30,7 +29,6 @@ export function FavoriteButton({ trackId }: FavoriteButtonProps) {
   const onPress = useCallback(() => {
     tapFeedback();
     void setFavorite(trackId, !isFavorite);
-    scheduleStatsBackup();
   }, [trackId, isFavorite]);
 
   return (

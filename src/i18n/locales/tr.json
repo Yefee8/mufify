@@ -72,7 +72,9 @@
     "likedAlbumFilter": "Yalnızca beğenilen albümler",
     "noLikedAlbums": "Henüz beğenilen albüm yok. Bir albüme uzun bas ve kalbe dokun.",
     "statsRestored_one": "Tekrar hoş geldin — bu klasörden {{count}} dinleme geri getirildi.",
-    "statsRestored_other": "Tekrar hoş geldin — bu klasörden {{count}} dinleme geri getirildi."
+    "statsRestored_other": "Tekrar hoş geldin — bu klasörden {{count}} dinleme geri getirildi.",
+    "playlistsRestored_one": "Yanında {{count}} liste de geri geldi.",
+    "playlistsRestored_other": "Yanında {{count}} liste de geri geldi."
   },
   "playlists": {
     "title": "Listeler",
@@ -217,7 +219,7 @@
     },
     "backup": {
       "enable": "Uygulama dışında bir kopya tut",
-      "enableHint": "Dinleme geçmişini müzik klasörünün içindeki gizli bir .mufify klasörüne yazar; böylece yeniden kurulumda kaybolmaz. Sonrasında klasörü yeniden ekle, geçmiş kendiliğinden geri gelir.",
+      "enableHint": "Dinleme geçmişini, listelerini ve beğenilerini müzik klasörünün içindeki gizli bir .mufify klasörüne yazar; böylece yeniden kurulumda kaybolmazlar. Sonrasında klasörü yeniden ekle, kendiliğinden geri gelirler.",
       "libraryFolder": "Klasör: {{folder}} (kitaplığın ilk klasörü)",
       "chosenFolder": "Klasör: {{folder}}",
       "noFolder": "Henüz klasör yok — kitaplığa bir klasör ekle ya da buradan seç.",
@@ -230,7 +232,9 @@
       "nothingFound": "O klasörde dinleme geçmişi yok.",
       "restored_one": "{{count}} dinleme geri getirildi.",
       "restored_other": "{{count}} dinleme geri getirildi.",
-      "failed": "O klasör kullanılamadı."
+      "failed": "O klasör kullanılamadı.",
+      "restoredPlaylists_one": "{{count}} liste oluşturuldu.",
+      "restoredPlaylists_other": "{{count}} liste oluşturuldu."
     },
     "motion": {
       "title": "Hareket",

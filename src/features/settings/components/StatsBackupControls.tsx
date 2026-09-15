@@ -59,8 +59,16 @@ export function StatsBackupControls() {
     setRestoring(true);
     try {
       const outcome = await restoreStatsFrom(folder);
-      if (!outcome.found) showToast(t('settings.backup.nothingFound'));
-      else showToast(t('settings.backup.restored', { count: outcome.restored }));
+      if (!outcome.found) {
+        showToast(t('settings.backup.nothingFound'));
+      } else {
+        const listens = t('settings.backup.restored', { count: outcome.restored });
+        const lists =
+          outcome.playlists > 0
+            ? ` ${t('settings.backup.restoredPlaylists', { count: outcome.playlists })}`
+            : '';
+        showToast(`${listens}${lists}`);
+      }
     } catch {
       showToast(t('settings.backup.failed'));
     } finally {

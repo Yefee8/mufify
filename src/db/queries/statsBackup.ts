@@ -4,6 +4,8 @@ import {
   BACKUP_FORMAT,
   BACKUP_VERSION,
   eventKey,
+  type LibraryAlbum,
+  type LibraryPlaylist,
   type LibraryTrack,
   type RestorePlan,
   type StatsBackup,
@@ -11,7 +13,15 @@ import {
 import { foldDeltas, rollupDeltas } from '@/services/stats/rollups';
 
 import { db } from '../client';
-import { albums, artists, playEvents, tracks, trackStats } from '../schema';
+import {
+  albums,
+  artists,
+  playEvents,
+  playlistTracks,
+  playlists,
+  tracks,
+  trackStats,
+} from '../schema';
 import { upsertRollups } from './playEvents';
 
 /**
@@ -50,7 +60,30 @@ export async function collectBackup(): Promise<StatsBackup> {
     .from(trackStats)
     .where(eq(trackStats.isFavorite, 1));
 
-  const ids = [...new Set([...rows.map((row) => row.trackId), ...favouriteRows.map((r) => r.trackId)])];
+  const playlistRows = await db.select().from(playlists).orderBy(playlists.id);
+  const entryRows = await db
+    .select({
+      playlistId: playlistTracks.playlistId,
+      trackId: playlistTracks.trackId,
+      position: playlistTracks.position,
+      addedAt: playlistTracks.addedAt,
+    })
+    .from(playlistTracks)
+    .orderBy(playlistTracks.playlistId, playlistTracks.position);
+
+  const albumFavouriteRows = await db
+    .select({ name: albums.name, artist: artists.name, favoriteAt: albums.favoriteAt })
+    .from(albums)
+    .leftJoin(artists, eq(artists.id, albums.artistId))
+    .where(eq(albums.isFavorite, 1));
+
+  const ids = [
+    ...new Set([
+      ...rows.map((row) => row.trackId),
+      ...favouriteRows.map((row) => row.trackId),
+      ...entryRows.map((row) => row.trackId),
+    ]),
+  ];
   const identity = new Map<number, StatsBackup['tracks'][number]>();
   for (let start = 0; start < ids.length; start += CHUNK) {
     const chunk = ids.slice(start, start + CHUNK);
@@ -118,6 +151,28 @@ export async function collectBackup(): Promise<StatsBackup> {
     favourites.push({ track, favoriteAt: row.favoriteAt });
   }
 
+  const entriesByPlaylist = new Map<number, StatsBackup['playlists'][number]['entries']>();
+  for (const row of entryRows) {
+    const track = indexFor(row.trackId);
+    if (track === null) continue;
+    const list = entriesByPlaylist.get(row.playlistId) ?? [];
+    list.push({ track, position: row.position, addedAt: row.addedAt });
+    entriesByPlaylist.set(row.playlistId, list);
+  }
+
+  const savedPlaylists: StatsBackup['playlists'] = playlistRows.map((row) => ({
+    name: row.name,
+    description: row.description,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    isFavorite: row.isFavorite === 1,
+    favoriteAt: row.favoriteAt,
+    // The file is named by the caller once it has copied the cover across;
+    // here the path says only whether there is one to copy.
+    cover: row.artworkPath === null ? null : coverFileName(row.createdAt),
+    entries: entriesByPlaylist.get(row.id) ?? [],
+  }));
+
   return {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
@@ -125,13 +180,34 @@ export async function collectBackup(): Promise<StatsBackup> {
     tracks: trackList,
     events,
     favourites,
+    playlists: savedPlaylists,
+    albumFavourites: albumFavouriteRows.map((row) => ({
+      name: row.name,
+      artist: row.artist,
+      favoriteAt: row.favoriteAt,
+    })),
   };
+}
+
+/** The cover file a playlist gets in the backup folder, by its identity. */
+export function coverFileName(createdAt: number): string {
+  return `${createdAt}.jpg`;
+}
+
+/** Playlists with a cover on disk, with the file the backup names for each. */
+export async function playlistCovers(): Promise<{ createdAt: number; path: string }[]> {
+  const rows = await db
+    .select({ createdAt: playlists.createdAt, path: playlists.artworkPath })
+    .from(playlists);
+  return rows.flatMap((row) => (row.path === null ? [] : [{ createdAt: row.createdAt, path: row.path }]));
 }
 
 /** Everything a restore needs to know about the library and the history. */
 export async function libraryForRestore(): Promise<{
   library: LibraryTrack[];
   existing: Set<string>;
+  playlists: LibraryPlaylist[];
+  albums: LibraryAlbum[];
 }> {
   const library = await db
     .select({
@@ -148,9 +224,29 @@ export async function libraryForRestore(): Promise<{
     .select({ trackId: playEvents.trackId, startedAtUtc: playEvents.startedAtUtc })
     .from(playEvents);
 
+  const playlistRows = await db
+    .select({ id: playlists.id, name: playlists.name, createdAt: playlists.createdAt })
+    .from(playlists);
+  const entryRows = await db
+    .select({ playlistId: playlistTracks.playlistId, trackId: playlistTracks.trackId })
+    .from(playlistTracks);
+  const trackIdsOf = new Map<number, number[]>();
+  for (const row of entryRows) {
+    const list = trackIdsOf.get(row.playlistId) ?? [];
+    list.push(row.trackId);
+    trackIdsOf.set(row.playlistId, list);
+  }
+
+  const albumRows = await db
+    .select({ id: albums.id, name: albums.name, artist: artists.name })
+    .from(albums)
+    .leftJoin(artists, eq(artists.id, albums.artistId));
+
   return {
     library,
     existing: new Set(held.map((row) => eventKey(row.trackId, row.startedAtUtc))),
+    playlists: playlistRows.map((row) => ({ ...row, trackIds: trackIdsOf.get(row.id) ?? [] })),
+    albums: albumRows,
   };
 }
 
@@ -168,8 +264,17 @@ export async function countPlayEvents(): Promise<number> {
  * the track rows as they are *now*. A restored listen is attributed the way a
  * new one would be.
  */
-export async function applyRestore(plan: RestorePlan): Promise<void> {
-  if (plan.events.length === 0 && plan.favourites.length === 0) return;
+export async function applyRestore(
+  plan: RestorePlan,
+  /** Local cover paths, by the backup's cover file name. Copied in by the caller. */
+  covers: ReadonlyMap<string, string> = new Map(),
+): Promise<void> {
+  const nothingToDo =
+    plan.events.length === 0 &&
+    plan.favourites.length === 0 &&
+    plan.playlists.length === 0 &&
+    plan.albumFavourites.length === 0;
+  if (nothingToDo) return;
 
   const trackIds = [...new Set(plan.events.map((event) => event.trackId))];
   const subjects = new Map<number, { artistId: number | null; albumId: number | null }>();
@@ -245,6 +350,71 @@ export async function applyRestore(plan: RestorePlan): Promise<void> {
             favoriteAt: sql`coalesce(${trackStats.favoriteAt}, ${favourite.favoriteAt})`,
           },
         });
+    }
+
+    for (const favourite of plan.albumFavourites) {
+      await tx
+        .update(albums)
+        .set({
+          isFavorite: 1,
+          favoriteAt: sql`coalesce(${albums.favoriteAt}, ${favourite.favoriteAt})`,
+        })
+        .where(eq(albums.id, favourite.albumId));
+    }
+
+    for (const item of plan.playlists) {
+      if (item.action === 'create') {
+        const { playlist, entries } = item;
+        const [created] = await tx
+          .insert(playlists)
+          .values({
+            name: playlist.name,
+            description: playlist.description,
+            artworkPath: playlist.cover === null ? null : (covers.get(playlist.cover) ?? null),
+            createdAt: playlist.createdAt,
+            updatedAt: playlist.updatedAt,
+            isFavorite: playlist.isFavorite ? 1 : 0,
+            favoriteAt: playlist.favoriteAt,
+          })
+          .returning({ id: playlists.id });
+        if (!created) continue;
+        for (let start = 0; start < entries.length; start += CHUNK) {
+          await tx.insert(playlistTracks).values(
+            entries.slice(start, start + CHUNK).map((entry, offset) => ({
+              playlistId: created.id,
+              trackId: entry.trackId,
+              position: start + offset,
+              addedAt: entry.addedAt,
+            })),
+          );
+        }
+        continue;
+      }
+
+      if (item.isFavorite) {
+        await tx
+          .update(playlists)
+          .set({ isFavorite: 1, favoriteAt: sql`coalesce(${playlists.favoriteAt}, ${item.favoriteAt})` })
+          .where(eq(playlists.id, item.playlistId));
+      }
+      if (item.entries.length === 0) continue;
+      const [row] = await tx
+        .select({ highest: sql<number | null>`max(${playlistTracks.position})` })
+        .from(playlistTracks)
+        .where(eq(playlistTracks.playlistId, item.playlistId));
+      let position = (row?.highest ?? -1) + 1;
+      await tx.insert(playlistTracks).values(
+        item.entries.map((entry) => ({
+          playlistId: item.playlistId,
+          trackId: entry.trackId,
+          position: position++,
+          addedAt: entry.addedAt,
+        })),
+      );
+      await tx
+        .update(playlists)
+        .set({ updatedAt: Date.now() })
+        .where(eq(playlists.id, item.playlistId));
     }
 
     const deltas = foldDeltas(

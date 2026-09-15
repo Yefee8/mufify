@@ -72,7 +72,9 @@
     "likedAlbumFilter": "Liked albums only",
     "noLikedAlbums": "No liked albums yet. Long press one and tap the heart.",
     "statsRestored_one": "Welcome back — {{count}} listen restored from this folder.",
-    "statsRestored_other": "Welcome back — {{count}} listens restored from this folder."
+    "statsRestored_other": "Welcome back — {{count}} listens restored from this folder.",
+    "playlistsRestored_one": "One playlist came back with it.",
+    "playlistsRestored_other": "{{count}} playlists came back with it."
   },
   "playlists": {
     "title": "Playlists",
@@ -217,7 +219,7 @@
     },
     "backup": {
       "enable": "Keep a copy outside the app",
-      "enableHint": "Writes your listening history to a hidden .mufify folder inside your music folder, so it survives a reinstall. Add the folder again afterwards and it comes back on its own.",
+      "enableHint": "Writes your listening history, playlists and likes to a hidden .mufify folder inside your music folder, so they survive a reinstall. Add the folder again afterwards and they come back on their own.",
       "libraryFolder": "Folder: {{folder}} (your library’s first)",
       "chosenFolder": "Folder: {{folder}}",
       "noFolder": "No folder yet — add one to the library, or choose one here.",
@@ -230,7 +232,9 @@
       "nothingFound": "No listening history in that folder.",
       "restored_one": "{{count}} listen brought back.",
       "restored_other": "{{count}} listens brought back.",
-      "failed": "That folder could not be used."
+      "failed": "That folder could not be used.",
+      "restoredPlaylists_one": "One playlist created.",
+      "restoredPlaylists_other": "{{count}} playlists created."
     },
     "motion": {
       "title": "Motion",

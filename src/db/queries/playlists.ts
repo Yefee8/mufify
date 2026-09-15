@@ -9,6 +9,7 @@ import {
   type PlaylistSummary,
 } from '@/services/playlists/order';
 
+import { notifyUserDataChanged } from '../changes';
 import { db } from '../client';
 import { albums, artists, playlistTracks, playlists, trackStats, tracks } from '../schema';
 
@@ -167,6 +168,7 @@ export async function createPlaylist(name: string): Promise<number | null> {
     .values({ name: trimmed, createdAt: now, updatedAt: now })
     .returning({ id: playlists.id });
 
+  notifyUserDataChanged();
   return row?.id ?? null;
 }
 
@@ -187,6 +189,7 @@ export async function setPlaylistFavorite(id: number, isFavorite: boolean): Prom
     .update(playlists)
     .set({ isFavorite: isFavorite ? 1 : 0, favoriteAt: isFavorite ? Date.now() : null })
     .where(eq(playlists.id, id));
+  notifyUserDataChanged();
 }
 
 /**
@@ -215,6 +218,7 @@ export async function setPlaylistCover(id: number, artworkPath: string | null): 
   if (previous?.artworkPath && previous.artworkPath !== artworkPath) {
     deleteCoverFile(previous.artworkPath);
   }
+  notifyUserDataChanged();
 }
 
 export async function renamePlaylist(id: number, name: string): Promise<void> {
@@ -224,6 +228,7 @@ export async function renamePlaylist(id: number, name: string): Promise<void> {
     .update(playlists)
     .set({ name: trimmed, updatedAt: Date.now() })
     .where(eq(playlists.id, id));
+  notifyUserDataChanged();
 }
 
 /** Entries go with it — `playlist_tracks` cascades on delete. */
@@ -238,6 +243,7 @@ export async function deletePlaylist(id: number): Promise<void> {
 
   await db.delete(playlists).where(eq(playlists.id, id));
   deleteCoverFile(row?.artworkPath);
+  notifyUserDataChanged();
 }
 
 /**
@@ -266,6 +272,7 @@ export async function addTracksToPlaylist(playlistId: number, trackIds: number[]
     );
 
   await db.update(playlists).set({ updatedAt: now }).where(eq(playlists.id, playlistId));
+  notifyUserDataChanged();
 }
 
 /**
@@ -325,6 +332,7 @@ export async function movePlaylistEntry(
 
     await tx.update(playlists).set({ updatedAt: Date.now() }).where(eq(playlists.id, playlistId));
   });
+  notifyUserDataChanged();
 }
 
 /**
@@ -344,4 +352,5 @@ export async function removeFromPlaylist(playlistId: number, position: number): 
     .where(and(eq(playlistTracks.playlistId, playlistId), gt(playlistTracks.position, position)));
 
   await db.update(playlists).set({ updatedAt: Date.now() }).where(eq(playlists.id, playlistId));
+  notifyUserDataChanged();
 }

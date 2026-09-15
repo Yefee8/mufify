@@ -20,6 +20,8 @@ import { Directory, File } from 'expo-file-system';
 
 export const BACKUP_DIRECTORY = '.mufify';
 export const BACKUP_FILE = 'statistics.json';
+/** Playlist covers, one JPEG each, named by the playlist's identity. */
+export const COVERS_DIRECTORY = 'covers';
 
 /** The hidden directory's URI, by the folder it is in. */
 const resolved = new Map<string, string>();
@@ -86,4 +88,49 @@ export async function readBackupFile(folderUri: string): Promise<string | null> 
   const file = findChild(directory, BACKUP_FILE);
   if (!(file instanceof File)) return null;
   return file.text();
+}
+
+function coversDirectory(folderUri: string, create: boolean): Directory | null {
+  const hidden = hiddenDirectory(folderUri, create);
+  if (hidden === null) return null;
+  const found = findChild(hidden, COVERS_DIRECTORY);
+  if (found instanceof Directory) return found;
+  return create ? hidden.createDirectory(COVERS_DIRECTORY) : null;
+}
+
+/**
+ * Copy a cover into the backup folder under `name`, replacing any old one.
+ *
+ * Skipped when a file of that name is already there and the same size — a
+ * cover is chosen once and rarely changes, and copying a hundred kilobytes
+ * per playlist on every write would be most of the write.
+ */
+export async function writeCoverFile(folderUri: string, name: string, localPath: string): Promise<void> {
+  const source = new File(`file://${localPath}`);
+  if (!source.exists) return;
+  const directory = coversDirectory(folderUri, true);
+  if (directory === null) throw new Error('Covers directory could not be created');
+
+  const existing = findChild(directory, name);
+  if (existing instanceof File) {
+    if (existing.size === source.size) return;
+    existing.delete();
+  }
+  // Bytes through memory rather than `copy`: a cover is a few hundred
+  // kilobytes at most, and the copy strategy wants to name the child after
+  // the source, which is the playlist's *current* id — not an identity.
+  const target = directory.createFile(name, 'image/jpeg');
+  target.write(await source.bytes());
+}
+
+/** Copy a cover out of the backup folder to `localUri`; false if it is not there. */
+export async function readCoverFile(folderUri: string, name: string, localUri: string): Promise<boolean> {
+  const directory = coversDirectory(folderUri, false);
+  if (directory === null) return false;
+  const source = findChild(directory, name);
+  if (!(source instanceof File)) return false;
+  const target = new File(localUri);
+  if (target.exists) target.delete();
+  target.write(await source.bytes());
+  return true;
 }

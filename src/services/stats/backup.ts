@@ -29,10 +29,16 @@ import { normalizeName } from '@/services/text/similarity';
  * Events, not rollups. The rollups are keyed by artist and album ids, which
  * are as ephemeral as track ids; the events carry everything needed to build
  * them again, and `recordListen` already knows how.
+ *
+ * Playlists too, since version 2: their rows, their entries by track identity,
+ * their hearts, and the name of a cover file kept beside this one. An album
+ * heart travels by the album's name and band, which is how the scanner keys
+ * albums in the first place.
  */
 
 export const BACKUP_FORMAT = 'mufify-statistics';
-export const BACKUP_VERSION = 1;
+/** 2 added playlists and album hearts. A version-1 file is still read. */
+export const BACKUP_VERSION = 2;
 
 /** A track as the backup knows it. */
 export interface BackupTrack {
@@ -64,6 +70,35 @@ export interface BackupFavourite {
   favoriteAt: number | null;
 }
 
+export interface BackupPlaylistEntry {
+  track: number;
+  position: number;
+  addedAt: number;
+}
+
+/**
+ * A playlist, identified across a reinstall by its name and the instant it
+ * was created — the one pair nothing else in the app produces twice.
+ */
+export interface BackupPlaylist {
+  name: string;
+  description: string | null;
+  createdAt: number;
+  updatedAt: number;
+  isFavorite: boolean;
+  favoriteAt: number | null;
+  /** A file name inside the backup's `covers` folder, or null for the mosaic. */
+  cover: string | null;
+  entries: BackupPlaylistEntry[];
+}
+
+/** An album heart, by the album's name and its band's — the scanner's key. */
+export interface BackupAlbumFavourite {
+  name: string;
+  artist: string | null;
+  favoriteAt: number | null;
+}
+
 export interface StatsBackup {
   format: typeof BACKUP_FORMAT;
   version: typeof BACKUP_VERSION;
@@ -71,6 +106,8 @@ export interface StatsBackup {
   tracks: BackupTrack[];
   events: BackupEvent[];
   favourites: BackupFavourite[];
+  playlists: BackupPlaylist[];
+  albumFavourites: BackupAlbumFavourite[];
 }
 
 /** The file, as text. Compact: a year of listening is thousands of rows. */
@@ -93,9 +130,14 @@ export function parseBackup(text: string): StatsBackup | null {
     return null;
   }
   if (!isRecord(parsed)) return null;
-  if (parsed.format !== BACKUP_FORMAT || parsed.version !== BACKUP_VERSION) return null;
+  if (parsed.format !== BACKUP_FORMAT) return null;
+  if (parsed.version !== 1 && parsed.version !== BACKUP_VERSION) return null;
   if (!Array.isArray(parsed.tracks) || !Array.isArray(parsed.events)) return null;
   if (!Array.isArray(parsed.favourites)) return null;
+  // Version 1 had neither. Absent is the same as empty; present must be a list.
+  const rawPlaylists = parsed.playlists ?? [];
+  const rawAlbumFavourites = parsed.albumFavourites ?? [];
+  if (!Array.isArray(rawPlaylists) || !Array.isArray(rawAlbumFavourites)) return null;
 
   const tracks: BackupTrack[] = [];
   for (const entry of parsed.tracks) {
@@ -143,6 +185,42 @@ export function parseBackup(text: string): StatsBackup | null {
     });
   }
 
+  const playlists: BackupPlaylist[] = [];
+  for (const entry of rawPlaylists) {
+    if (!isRecord(entry) || typeof entry.name !== 'string') return null;
+    if (typeof entry.createdAt !== 'number' || !Array.isArray(entry.entries)) return null;
+    const entries: BackupPlaylistEntry[] = [];
+    for (const item of entry.entries) {
+      if (!isRecord(item) || !isIndex(item.track, tracks.length)) return null;
+      if (typeof item.position !== 'number') return null;
+      entries.push({
+        track: item.track,
+        position: item.position,
+        addedAt: typeof item.addedAt === 'number' ? item.addedAt : entry.createdAt,
+      });
+    }
+    playlists.push({
+      name: entry.name,
+      description: typeof entry.description === 'string' ? entry.description : null,
+      createdAt: entry.createdAt,
+      updatedAt: typeof entry.updatedAt === 'number' ? entry.updatedAt : entry.createdAt,
+      isFavorite: entry.isFavorite === true,
+      favoriteAt: typeof entry.favoriteAt === 'number' ? entry.favoriteAt : null,
+      cover: typeof entry.cover === 'string' ? entry.cover : null,
+      entries,
+    });
+  }
+
+  const albumFavourites: BackupAlbumFavourite[] = [];
+  for (const entry of rawAlbumFavourites) {
+    if (!isRecord(entry) || typeof entry.name !== 'string') return null;
+    albumFavourites.push({
+      name: entry.name,
+      artist: typeof entry.artist === 'string' ? entry.artist : null,
+      favoriteAt: typeof entry.favoriteAt === 'number' ? entry.favoriteAt : null,
+    });
+  }
+
   return {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
@@ -150,6 +228,8 @@ export function parseBackup(text: string): StatsBackup | null {
     tracks,
     events,
     favourites,
+    playlists,
+    albumFavourites,
   };
 }
 
@@ -171,13 +251,59 @@ export interface RestorableEvent extends Omit<BackupEvent, 'track'> {
   trackId: number;
 }
 
+/** A playlist as the database has it now. */
+export interface LibraryPlaylist {
+  id: number;
+  name: string;
+  createdAt: number;
+  /** Track ids already in it, so an entry is not added twice. */
+  trackIds: readonly number[];
+}
+
+/** An album as the database has it now. */
+export interface LibraryAlbum {
+  id: number;
+  name: string;
+  artist: string | null;
+}
+
+export interface RestorableEntry {
+  trackId: number;
+  addedAt: number;
+}
+
+/** A playlist to create, entries in order. `cover` names a file to copy in. */
+export interface PlaylistCreation {
+  action: 'create';
+  playlist: Omit<BackupPlaylist, 'entries'>;
+  entries: RestorableEntry[];
+}
+
+/** A playlist that already exists; only what it lacks is appended. */
+export interface PlaylistAppend {
+  action: 'append';
+  playlistId: number;
+  isFavorite: boolean;
+  favoriteAt: number | null;
+  entries: RestorableEntry[];
+}
+
 export interface RestorePlan {
   events: RestorableEvent[];
   favourites: { trackId: number; favoriteAt: number | null }[];
+  playlists: (PlaylistCreation | PlaylistAppend)[];
+  albumFavourites: { albumId: number; favoriteAt: number | null }[];
   /** Backup tracks with no counterpart in the library. Their listens wait. */
   unmatchedTracks: number;
   /** Events already in the database, skipped. */
   alreadyPresent: number;
+}
+
+export interface RestoreInput {
+  library: readonly LibraryTrack[];
+  existing: ReadonlySet<string>;
+  playlists?: readonly LibraryPlaylist[];
+  albums?: readonly LibraryAlbum[];
 }
 
 /**
@@ -193,11 +319,8 @@ export interface RestorePlan {
  * backup and come in on a later restore, once the track is there to attach
  * them to.
  */
-export function planRestore(
-  backup: StatsBackup,
-  library: readonly LibraryTrack[],
-  existing: ReadonlySet<string>,
-): RestorePlan {
+export function planRestore(backup: StatsBackup, input: RestoreInput): RestorePlan {
+  const { library, existing } = input;
   const byUri = new Map<string, number>();
   const byTags = new Map<string, LibraryTrack[]>();
   for (const track of library) {
@@ -234,7 +357,71 @@ export function planRestore(
     favourites.push({ trackId, favoriteAt: favourite.favoriteAt });
   }
 
-  return { events, favourites, unmatchedTracks, alreadyPresent };
+  const playlists = planPlaylists(backup.playlists, matched, input.playlists ?? []);
+  const albumFavourites = planAlbumFavourites(backup.albumFavourites, input.albums ?? []);
+
+  return { events, favourites, playlists, albumFavourites, unmatchedTracks, alreadyPresent };
+}
+
+/**
+ * A playlist that exists — same name, created at the same instant — gains
+ * only the tracks it does not already hold, at the end. One that does not is
+ * created with its entries in the order they were, positions closed up over
+ * any track the library does not hold yet.
+ */
+function planPlaylists(
+  saved: readonly BackupPlaylist[],
+  matched: readonly (number | null)[],
+  current: readonly LibraryPlaylist[],
+): RestorePlan['playlists'] {
+  const plans: RestorePlan['playlists'] = [];
+
+  for (const playlist of saved) {
+    const ordered = [...playlist.entries].sort((a, b) => a.position - b.position);
+    const entries: RestorableEntry[] = [];
+    for (const entry of ordered) {
+      const trackId = matched[entry.track];
+      if (trackId !== null && trackId !== undefined) entries.push({ trackId, addedAt: entry.addedAt });
+    }
+
+    const found = current.find(
+      (candidate) => candidate.createdAt === playlist.createdAt && candidate.name === playlist.name,
+    );
+    if (found) {
+      const held = new Set(found.trackIds);
+      const missing = entries.filter((entry) => !held.has(entry.trackId));
+      plans.push({
+        action: 'append',
+        playlistId: found.id,
+        isFavorite: playlist.isFavorite,
+        favoriteAt: playlist.favoriteAt,
+        entries: missing,
+      });
+      continue;
+    }
+
+    const { entries: _entries, ...rest } = playlist;
+    plans.push({ action: 'create', playlist: rest, entries });
+  }
+
+  return plans;
+}
+
+/** An album heart finds its album by name and band, the scanner's own key. */
+function planAlbumFavourites(
+  saved: readonly BackupAlbumFavourite[],
+  albums: readonly LibraryAlbum[],
+): RestorePlan['albumFavourites'] {
+  const byKey = new Map<string, number>();
+  for (const album of albums) byKey.set(tagKey(album.name, album.artist), album.id);
+
+  const result: RestorePlan['albumFavourites'] = [];
+  for (const favourite of saved) {
+    if (normalizeName(favourite.name).length === 0) continue;
+    const albumId = byKey.get(tagKey(favourite.name, favourite.artist));
+    if (albumId !== undefined) result.push({ albumId, favoriteAt: favourite.favoriteAt });
+  }
+  return result;
 }
 
 /** Two seconds, or two percent: the same allowance `dedupeTracks` gives. */

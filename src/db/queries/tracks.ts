@@ -6,6 +6,7 @@ import { dedupeTracks } from '@/services/library/dedupeTracks';
 import { useDuplicateSetting } from '@/services/library/duplicateSetting';
 import * as perf from '@/services/perf';
 
+import { notifyUserDataChanged } from '../changes';
 import { db } from '../client';
 import { useThrottledData } from '../useThrottledData';
 import { albums, artists, trackStats, tracks, type NewTrack } from '../schema';
@@ -256,6 +257,7 @@ export async function setAlbumFavorite(id: number, isFavorite: boolean): Promise
     .update(albums)
     .set({ isFavorite: isFavorite ? 1 : 0, favoriteAt: isFavorite ? Date.now() : null })
     .where(eq(albums.id, id));
+  notifyUserDataChanged();
 }
 
 /**
@@ -355,6 +357,7 @@ export async function setFavorite(trackId: number, isFavorite: boolean): Promise
     .insert(trackStats)
     .values({ trackId, isFavorite: flag, favoriteAt })
     .onConflictDoUpdate({ target: trackStats.trackId, set: { isFavorite: flag, favoriteAt } });
+  notifyUserDataChanged();
 }
 
 /**

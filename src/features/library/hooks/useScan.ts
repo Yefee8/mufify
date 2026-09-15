@@ -214,8 +214,13 @@ export function useScan(): UseScanResult {
          * empty. Nothing is asked; the file was theirs to begin with.
          */
         const outcome = await restoreStatsAfterImport(treeUri);
-        if (outcome && outcome.restored > 0) {
-          showToast(t('library.statsRestored', { count: outcome.restored }));
+        if (outcome && (outcome.restored > 0 || outcome.playlists > 0)) {
+          const listens = t('library.statsRestored', { count: outcome.restored });
+          const lists =
+            outcome.playlists > 0
+              ? ` ${t('library.playlistsRestored', { count: outcome.playlists })}`
+              : '';
+          showToast(`${listens}${lists}`);
         }
       } finally {
         setFolderImporting(false);

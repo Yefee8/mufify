@@ -1,6 +1,6 @@
 # 027 — The listening history lives outside the app too
 
-**Status:** accepted
+**Status:** accepted · playlists added the same day, for 1.4.6
 **Date:** 2026-09-15
 
 ## Context
@@ -97,8 +97,18 @@ back as "no backup" rather than as a crash halfway through a restore.
 - The music folder gains a hidden directory with one JSON file in it. A user
   who syncs that folder elsewhere syncs the file too; that is a feature for
   anyone moving phones, and a switch for anyone who minds.
-- Playlists are still lost with the app. Recorded here so it is not mistaken
-  for an oversight: it is the next thing, not this thing.
+- Playlists were the next thing, and are in the file since format version 2
+  (1.4.6): each row with its entries by track identity, its heart, and the
+  name of a cover kept beside the JSON in `.mufify/covers/`, named by the
+  instant the playlist was created — the one thing about a playlist that is
+  the same on every install. On restore a playlist that exists (same name,
+  same instant) gains only the tracks it lacks, at the end; one that does not
+  is created with its entries in order, positions closed up over any track the
+  library does not hold yet. Album hearts travel by name and band, the
+  scanner's own key. The query functions for playlists and hearts announce
+  every change on `db/changes`, a module with no dependencies, and the backup
+  listens — the queries cannot import it, because it imports them. A
+  version-1 file is still read; it simply has no playlists in it.
 - `services/stats` stays pure. The format and the matching live there and are
   tested there; the database side is `db/queries/statsBackup`, the file is
   `services/backup/backupFile`, and `services/backup/statsBackup` owns the

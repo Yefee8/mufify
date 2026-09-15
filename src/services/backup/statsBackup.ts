@@ -1,11 +1,16 @@
 import { useSyncExternalStore } from 'react';
 
+import { Directory, File, Paths } from 'expo-file-system';
+
+import { onUserDataChanged } from '@/db/changes';
 import { listScanFolders } from '@/db/queries/scanning';
 import {
   applyRestore,
   collectBackup,
   countPlayEvents,
+  coverFileName,
   libraryForRestore,
+  playlistCovers,
 } from '@/db/queries/statsBackup';
 import {
   getStatsBackupAt,
@@ -15,9 +20,14 @@ import {
   setStatsBackupEnabled,
   setStatsBackupFolder,
 } from '@/services/settings';
-import { parseBackup, planRestore, serializeBackup } from '@/services/stats/backup';
+import {
+  parseBackup,
+  planRestore,
+  serializeBackup,
+  type RestorePlan,
+} from '@/services/stats/backup';
 
-import { readBackupFile, writeBackupFile } from './backupFile';
+import { readBackupFile, readCoverFile, writeBackupFile, writeCoverFile } from './backupFile';
 
 /**
  * Keeping the listening history somewhere the app does not own.
@@ -32,9 +42,10 @@ import { readBackupFile, writeBackupFile } from './backupFile';
  *
  * This is the port between the pure format (`services/stats/backup`), the
  * database (`db/queries/statsBackup`) and the file (`./backupFile`). It owns
- * the *when*: a write is scheduled after every recorded listen and coalesced,
- * so a listening session is one write, not one per track; and a restore runs
- * when a folder is added to an empty history, or when the user asks.
+ * the *when*: a write is scheduled after every recorded listen, every heart
+ * and every playlist edit, and coalesced, so a session is one write, not one
+ * per change; and a restore runs when a folder is added to an empty history,
+ * or when the user asks. Playlist covers travel as files beside the JSON.
  */
 
 /** How long after the last listen the file is written. */
@@ -57,6 +68,8 @@ export interface RestoreOutcome {
   found: boolean;
   /** Tracks in the file that the library does not hold yet. */
   unmatched: number;
+  /** Playlists created. Ones that already existed are merged, not counted. */
+  playlists: number;
 }
 
 let status: StatsBackupStatus = {
@@ -74,6 +87,10 @@ function publish(next: Partial<StatsBackupStatus>): void {
   status = { ...status, ...next };
   for (const listener of listeners) listener();
 }
+
+// Playlists and hearts announce themselves from the query layer, which cannot
+// import this module. Listens do not: their recorder asks directly.
+onUserDataChanged(() => scheduleStatsBackup());
 
 /** The folder the file goes in: the chosen one, else the library's first. */
 export async function resolveBackupFolder(): Promise<string | null> {
@@ -116,6 +133,11 @@ async function writeOnce(): Promise<void> {
   try {
     const backup = await collectBackup();
     writeBackupFile(folderUri, serializeBackup(backup));
+    // Covers after the file, so a file naming a cover that is not there yet
+    // is a window of a moment rather than a state.
+    for (const cover of await playlistCovers()) {
+      await writeCoverFile(folderUri, coverFileName(cover.createdAt), cover.path);
+    }
     setStatsBackupAt(backup.createdAt);
     publish({ lastBackupAt: backup.createdAt });
   } catch (error) {
@@ -143,15 +165,45 @@ export async function restoreStatsFrom(folderUri: string): Promise<RestoreOutcom
   try {
     const text = await readBackupFile(folderUri);
     const backup = text === null ? null : parseBackup(text);
-    if (backup === null) return { restored: 0, found: false, unmatched: 0 };
+    if (backup === null) return { restored: 0, found: false, unmatched: 0, playlists: 0 };
 
-    const { library, existing } = await libraryForRestore();
-    const plan = planRestore(backup, library, existing);
-    await applyRestore(plan);
-    return { restored: plan.events.length, found: true, unmatched: plan.unmatchedTracks };
+    const plan = planRestore(backup, await libraryForRestore());
+    const covers = await bringCoversIn(folderUri, plan);
+    await applyRestore(plan, covers);
+    return {
+      restored: plan.events.length,
+      found: true,
+      unmatched: plan.unmatchedTracks,
+      playlists: plan.playlists.filter((item) => item.action === 'create').length,
+    };
   } finally {
     publish({ busy: false });
   }
+}
+
+/**
+ * Covers for the playlists about to be created, copied into the app's own
+ * documents first — the same place a chosen cover lives — so the rows point
+ * at files the app owns. A cover that is missing from the backup leaves the
+ * playlist with the mosaic, which is what it would have had anyway.
+ */
+async function bringCoversIn(folderUri: string, plan: RestorePlan): Promise<Map<string, string>> {
+  const covers = new Map<string, string>();
+  const directory = new Directory(Paths.document, 'playlist-covers');
+  if (!directory.exists) directory.create({ intermediates: true });
+
+  for (const item of plan.playlists) {
+    if (item.action !== 'create' || item.playlist.cover === null) continue;
+    const target = new File(directory, `restored-${item.playlist.createdAt}-${Date.now()}.jpg`);
+    try {
+      if (await readCoverFile(folderUri, item.playlist.cover, target.uri)) {
+        covers.set(item.playlist.cover, target.uri.replace('file://', ''));
+      }
+    } catch (error) {
+      if (__DEV__) console.warn('Playlist cover could not be restored:', error);
+    }
+  }
+  return covers;
 }
 
 /**
