@@ -14,20 +14,29 @@ import { isSimilar } from '@/services/text/similarity';
  * no such reading — three spellings of one band are never three bands — so that
  * one is not optional and this one is.
  *
- * Three conditions, all required, and each is there to stop a specific wrong
- * merge:
+ * **Two ways of deciding what "the same song" means**, and the user picks:
  *
- * - **The titles are alike.** The obvious one.
- * - **The artists are alike**, compared *separately*. Joining the two into one
- *   string and comparing that is the tempting shortcut and it is wrong: "Red
- *   Hot Chili Peppers — Song Pt. 1" against "…Pt. 2" is one character in
- *   thirty-one, which scores 0.97 and merges two different songs. Compared on
- *   its own the title is one character in ten, which does not.
- * - **The durations are close.** A studio recording and a live version share a
- *   title and an artist and are not the same track. Length is what separates
- *   them, and hiding one behind the other is exactly the complaint this feature
- *   would otherwise create.
+ * - `title` — the names are alike, and nothing else is asked. The same song
+ *   copied into two folders is the same song whatever its tags say, and tags
+ *   are exactly what differ between two copies of one file. The cost is that
+ *   two different songs sharing a name — every album's "Intro" — are one row.
+ * - `strict` — three conditions, all required, each stopping a specific wrong
+ *   merge:
+ *   - **The titles are alike.** The obvious one.
+ *   - **The artists are alike**, compared *separately*. Joining the two into
+ *     one string and comparing that is the tempting shortcut and it is wrong:
+ *     "Red Hot Chili Peppers — Song Pt. 1" against "…Pt. 2" is one character
+ *     in thirty-one, which scores 0.97 and merges two different songs. Compared
+ *     on its own the title is one character in ten, which does not.
+ *   - **The durations are close.** A studio recording and a live version share
+ *     a title and an artist and are not the same track. Length is what
+ *     separates them, and hiding one behind the other is exactly the complaint
+ *     this feature would otherwise create.
  */
+
+/** How two rows come to count as one song. */
+export const DUPLICATE_MATCHES = ['title', 'strict'] as const;
+export type DuplicateMatch = (typeof DUPLICATE_MATCHES)[number];
 
 /** What this needs from a row. Structural, to keep the db out of it. */
 export interface DedupableTrack {
@@ -58,16 +67,20 @@ function sameLength(left: number, right: number): boolean {
  * One row per song, in the order the list was already in.
  *
  * Titles are clustered first — that is the cheap pass, and it is where the
- * sliding window earns its keep on a ten-thousand-row library. Each resulting
- * cluster is then a handful of rows at most, so artist and duration are checked
- * pairwise inside it, exactly.
+ * sliding window earns its keep on a ten-thousand-row library. In `title` mode
+ * that is the whole decision. In `strict` mode each resulting cluster is a
+ * handful of rows at most, so artist and duration are checked pairwise inside
+ * it, exactly.
  *
  * The row that survives is the **most played**: if two copies of a song are in
  * the library, the one with the listening behind it is the one whose file the
  * user is actually pointing at, and keeping it means their play counts and
  * statistics go on referring to the row they can still see.
  */
-export function dedupeTracks<T extends DedupableTrack>(tracks: readonly T[]): T[] {
+export function dedupeTracks<T extends DedupableTrack>(
+  tracks: readonly T[],
+  match: DuplicateMatch = 'strict',
+): T[] {
   if (tracks.length < 2) return [...tracks];
 
   const byTitle = clusterBySimilarName(tracks, (track) => track.title, {
@@ -79,6 +92,11 @@ export function dedupeTracks<T extends DedupableTrack>(tracks: readonly T[]): T[
   for (const titleGroup of byTitle) {
     if (titleGroup.length === 1) {
       kept.push(titleGroup[0] as T);
+      continue;
+    }
+
+    if (match === 'title') {
+      kept.push(titleGroup.reduce(mostPlayed));
       continue;
     }
 

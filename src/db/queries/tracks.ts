@@ -3,7 +3,7 @@ import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useEffect, useMemo } from 'react';
 
 import { dedupeTracks } from '@/services/library/dedupeTracks';
-import { useHideDuplicates } from '@/services/library/duplicateSetting';
+import { useDuplicateSetting } from '@/services/library/duplicateSetting';
 import * as perf from '@/services/perf';
 
 import { db } from '../client';
@@ -184,12 +184,12 @@ export function useTracks(
    * the screen a number and a queue that disagreed with its own rows.
    */
   const throttled = useThrottledData(data);
-  const hideDuplicates = useHideDuplicates();
+  const { hidden: hideDuplicates, match } = useDuplicateSetting();
   // Not named `tracks`: that is the schema table this file queries, and
   // shadowing it here detaches every column reference above from its table.
   const listed = useMemo(
-    () => (hideDuplicates ? dedupeTracks(throttled) : throttled),
-    [hideDuplicates, throttled],
+    () => (hideDuplicates ? dedupeTracks(throttled, match) : throttled),
+    [hideDuplicates, match, throttled],
   );
 
   // `updatedAt` is undefined until the first result lands. Without it an empty

@@ -284,7 +284,12 @@
     "duplicates": {
       "title": "Duplicates",
       "hide": "Hide duplicate songs",
-      "hideHint": "Lists one row where the same song is in the library more than once. Titles and artists have to match closely and the lengths have to agree, so a live version is never hidden behind the studio one.",
+      "hideHint": "Lists one row where the same song is in the library more than once. What counts as the same song is the choice below.",
+      "match": "What counts as the same song",
+      "byTitle": "Title only",
+      "byTitleHint": "Two songs with the same name are one song, whatever the tags say. The same file copied twice never differs in its name; it does in everything else.",
+      "strict": "Title, artist and length",
+      "strictHint": "The artists have to match closely too, and the lengths have to agree — so a live version is never hidden behind the studio one, and two different songs called “Intro” stay two.",
       "artists": "Spellings of one artist’s name — “Linkin Park” and “LINKIN PARK” — are always counted together in statistics. That one is not a choice: they are not two bands."
     }
   },

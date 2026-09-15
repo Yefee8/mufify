@@ -284,7 +284,12 @@
     "duplicates": {
       "title": "Kopyalar",
       "hide": "Aynı şarkıyı bir kez göster",
-      "hideHint": "Kitaplıkta birden fazla kez bulunan şarkıyı tek satırda listeler. Ad ve sanatçı yakın eşleşmeli, süreler de uyuşmalı — böylece canlı bir kayıt stüdyo sürümünün arkasına saklanmaz.",
+      "hideHint": "Kitaplıkta birden fazla kez bulunan şarkıyı tek satırda listeler. Neyin aynı şarkı sayılacağı aşağıdaki seçim.",
+      "match": "Aynı şarkı sayılan",
+      "byTitle": "Yalnızca ad",
+      "byTitleHint": "Adı aynı olan iki şarkı, etiketler ne derse desin tek şarkı sayılır. İki kez kopyalanan dosyanın adı hiç değişmez; değişen etiketleridir.",
+      "strict": "Ad, sanatçı ve süre",
+      "strictHint": "Sanatçı adları da yakın eşleşmeli ve süreler uyuşmalı — böylece canlı bir kayıt stüdyo sürümünün arkasına saklanmaz, “Intro” adlı iki farklı şarkı da iki kalır.",
       "artists": "Bir sanatçı adının farklı yazımları — “Linkin Park” ile “LINKIN PARK” — istatistikte her zaman birlikte sayılır. O bir tercih değil: ikisi ayrı grup değil."
     }
   },

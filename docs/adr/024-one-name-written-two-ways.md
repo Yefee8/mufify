@@ -58,7 +58,21 @@ is wrong — two copies can be a CD rip and a vinyl rip somebody wants side by
 side. So it is a switch, defaulted on because a library listing the same song
 three times is the complaint.
 
-Three conditions, all required, each stopping a specific wrong merge:
+*Since 2026-09-15* there are two answers to "what is the same song", and the
+user picks in the same group:
+
+- **Title only** — the names are alike and nothing else is asked. This is the
+  default, and it was asked for by name: the same file copied into two folders
+  is the same song whatever its tags say, and the tags are exactly what differ
+  between two copies once one of them has been through a re-tagger. The cost is
+  stated on the option itself — two different songs sharing a name, every
+  album's "Intro", become one row.
+- **Title, artist and length** — the original rule, three conditions, all
+  required, each stopping a specific wrong merge. `dedupeTracks` defaults to
+  this one when called without a mode, because the safe answer for code that
+  has not been told is the one that hides less.
+
+The strict rule's conditions:
 
 - **Titles alike.** The obvious one.
 - **Artists alike, compared separately.** Joining the two into one string is the
@@ -109,7 +123,9 @@ afford to be exact.
   rewritten.
 - Hidden duplicates are hidden from the library list, which is also what the
   header counts and what Play and Shuffle enqueue — so the number, the rows and
-  the queue cannot disagree.
+  the queue cannot disagree. Which rows those are depends on the matching mode,
+  and both the switch and the mode live in one store (`duplicateSetting`) so the
+  library re-lists the moment either changes on the Settings tab.
 - `Math.floor(10 * (1 - 0.9))` is **0**, because `1 - 0.9` is
   0.09999999999999998. The early-exit budget in `isSimilar` uses `ceil` and the
   decision reuses `similarity`'s own expression, so a pair exactly 0.9 similar

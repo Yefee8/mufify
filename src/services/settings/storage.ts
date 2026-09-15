@@ -30,6 +30,8 @@ export const SETTINGS_KEYS = {
   equalizerActivePreset: 'settings.equalizerActivePreset',
   /** Hide the second copy of a song the library holds twice. */
   hideDuplicateTracks: 'settings.hideDuplicateTracks',
+  /** What makes two rows one song: the title alone, or title, artist and length. */
+  duplicateMatch: 'settings.duplicateMatch',
   /** The queue and position, so playback can resume where it stopped. */
   lastSession: 'settings.lastSession',
   /**

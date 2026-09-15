@@ -4,6 +4,7 @@ import {
   type EqualizerPresetId,
 } from '@/services/equalizer/presets';
 import { parseSavedPresets, type SavedPreset } from '@/services/equalizer/savedPresets';
+import { DUPLICATE_MATCHES, type DuplicateMatch } from '@/services/library/dedupeTracks';
 import { ANIMATION_SPEEDS, type AnimationSpeed } from '@/services/motion';
 import { DEFAULT_SHUFFLE, SHUFFLE_ALGORITHMS, type ShuffleAlgorithm } from '@/services/shuffle';
 import { WEEK_STARTS, type WeekStart } from '@/services/stats/periodKeys';
@@ -142,6 +143,23 @@ export function getHideDuplicateTracks(): boolean {
 
 export function setHideDuplicateTracks(enabled: boolean): void {
   settingsStorage.set(SETTINGS_KEYS.hideDuplicateTracks, enabled);
+}
+
+/**
+ * What makes two rows one song.
+ *
+ * `title` compares the names and nothing else, which is what the user asked
+ * for: the same song copied into two folders is the same song whatever the
+ * tags say about it. `strict` also wants the artist and the length to agree,
+ * so a live take is never hidden behind the studio one — and so two different
+ * songs that happen to share a name stay two rows. See `dedupeTracks`.
+ */
+export function getDuplicateMatch(): DuplicateMatch {
+  return readStoredValue(SETTINGS_KEYS.duplicateMatch, DUPLICATE_MATCHES, 'title');
+}
+
+export function setDuplicateMatch(match: DuplicateMatch): void {
+  settingsStorage.set(SETTINGS_KEYS.duplicateMatch, match);
 }
 
 export function getIgnoreShortFiles(): boolean {

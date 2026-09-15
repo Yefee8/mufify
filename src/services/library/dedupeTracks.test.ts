@@ -177,3 +177,70 @@ describe('dedupeTracks', () => {
     expect(tracks).toHaveLength(2);
   });
 });
+
+/**
+ * The title-only mode asks one question and ignores the rest. What it must
+ * still do is keep the survivor the user is pointing at, and what it must not
+ * do is leak into the strict mode — the two hide different rows on purpose.
+ */
+describe('dedupeTracks by title alone', () => {
+  it('hides a copy whatever its tags say', () => {
+    // The same file copied twice never differs in its name; it does in
+    // everything a re-tag can touch.
+    const kept = dedupeTracks(
+      [
+        track({ title: 'Numb', artistName: 'Linkin Park', durationMs: 180_000 }),
+        track({ title: 'Numb', artistName: 'LP (2003)', durationMs: 186_000 }),
+      ],
+      'title',
+    );
+
+    expect(kept).toHaveLength(1);
+  });
+
+  it('still keeps the most played copy', () => {
+    const kept = dedupeTracks(
+      [
+        track({ id: 1, title: 'Numb', artistName: 'Linkin Park', playCount: 1 }),
+        track({ id: 2, title: 'numb', artistName: 'Unknown', playCount: 9 }),
+      ],
+      'title',
+    );
+
+    expect(kept[0]?.id).toBe(2);
+  });
+
+  it('folds two different songs that share a name — the documented cost', () => {
+    const kept = dedupeTracks(
+      [
+        track({ title: 'Intro', artistName: 'Muse', durationMs: 40_000 }),
+        track({ title: 'Intro', artistName: 'The xx', durationMs: 130_000 }),
+      ],
+      'title',
+    );
+
+    expect(kept).toHaveLength(1);
+  });
+
+  it('still refuses two titles a digit apart', () => {
+    // The threshold is the one guard this mode keeps, and it has to hold.
+    const kept = dedupeTracks([track({ title: 'Song Pt. 1' }), track({ title: 'Song Pt. 2' })], 'title');
+
+    expect(kept).toHaveLength(2);
+  });
+
+  it('still keeps untitled rows apart', () => {
+    const kept = dedupeTracks([track({ title: '' }), track({ title: '' })], 'title');
+
+    expect(kept).toHaveLength(2);
+  });
+
+  it('is the strict mode by default, so a live take stays visible', () => {
+    const kept = dedupeTracks([
+      track({ title: 'Numb', durationMs: 180_000 }),
+      track({ title: 'Numb', durationMs: 260_000 }),
+    ]);
+
+    expect(kept).toHaveLength(2);
+  });
+});
