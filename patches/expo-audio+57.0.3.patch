@@ -708,17 +708,25 @@ diff --git a/node_modules/expo-audio/android/src/main/res/layout/mufify_notifica
 new file mode 100644
 --- /dev/null
 +++ b/node_modules/expo-audio/android/src/main/res/layout/mufify_notification_collapsed.xml
-@@ -0,0 +1,79 @@
+@@ -0,0 +1,87 @@
 +<?xml version="1.0" encoding="utf-8"?>
 +<!--
-+  Mufify's media notification, collapsed: cover, title, artist, three buttons.
++  Mufify's media notification, collapsed: cover, three buttons, title, artist.
 +
 +  Inflated by the system inside its own decorated frame (app name, time, the
-+  chevron), so no header of our own. 48dp tall, which is what Android 12 gives
-+  a collapsed custom view; taller would be clipped there and is not needed. Text uses the compat notification styles,
++  chevron), so no header of our own. Text uses the compat notification styles,
 +  which the system recolours for a dark or a light notification; the buttons
 +  are recoloured from code for the same reason. Only used on Android 12 and
 +  below — 13 and later draw media notifications from the session alone.
++
++  Everything that must be seen sits at the START. Some vendors' shades (MIUI
++  among them) hand a custom view more width than they show and clip the rest
++  on the right, so nothing here is anchored to the right edge: the buttons
++  follow the cover directly, and the text takes whatever is left — the one
++  thing that can lose its tail without losing its meaning.
++
++  48dp tall, which is what Android 12 gives a collapsed custom view; taller
++  would be clipped there and is not needed.
 +-->
 +<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 +  android:layout_width="match_parent"
@@ -735,12 +743,40 @@ new file mode 100644
 +    android:scaleType="centerCrop"
 +    android:contentDescription="@null" />
 +
++  <ImageView
++    android:id="@+id/mufify_previous"
++    android:layout_width="36dp"
++    android:layout_height="36dp"
++    android:layout_marginStart="8dp"
++    android:padding="7dp"
++    android:src="@drawable/media3_icon_previous"
++    android:contentDescription="@string/mufify_notification_previous" />
++
++  <ImageView
++    android:id="@+id/mufify_play_pause"
++    android:layout_width="36dp"
++    android:layout_height="36dp"
++    android:layout_marginStart="4dp"
++    android:layout_marginEnd="4dp"
++    android:padding="7dp"
++    android:background="@drawable/mufify_notification_play_bg"
++    android:src="@drawable/media3_icon_pause"
++    android:tint="#FFFFFF"
++    android:contentDescription="@string/mufify_notification_pause" />
++
++  <ImageView
++    android:id="@+id/mufify_next"
++    android:layout_width="36dp"
++    android:layout_height="36dp"
++    android:padding="7dp"
++    android:src="@drawable/media3_icon_next"
++    android:contentDescription="@string/mufify_notification_next" />
++
 +  <LinearLayout
 +    android:layout_width="0dp"
 +    android:layout_height="wrap_content"
 +    android:layout_weight="1"
 +    android:layout_marginStart="12dp"
-+    android:layout_marginEnd="4dp"
 +    android:orientation="vertical">
 +
 +    <TextView
@@ -759,126 +795,111 @@ new file mode 100644
 +      android:ellipsize="end"
 +      android:textAppearance="@style/TextAppearance.Compat.Notification.Line2" />
 +  </LinearLayout>
-+
-+  <ImageView
-+    android:id="@+id/mufify_previous"
-+    android:layout_width="36dp"
-+    android:layout_height="36dp"
-+    android:padding="7dp"
-+    android:src="@drawable/media3_icon_previous"
-+    android:contentDescription="@string/mufify_notification_previous" />
-+
-+  <ImageView
-+    android:id="@+id/mufify_play_pause"
-+    android:layout_width="40dp"
-+    android:layout_height="40dp"
-+    android:layout_marginStart="4dp"
-+    android:layout_marginEnd="4dp"
-+    android:padding="8dp"
-+    android:background="@drawable/mufify_notification_play_bg"
-+    android:src="@drawable/media3_icon_pause"
-+    android:tint="#FFFFFF"
-+    android:contentDescription="@string/mufify_notification_pause" />
-+
-+  <ImageView
-+    android:id="@+id/mufify_next"
-+    android:layout_width="36dp"
-+    android:layout_height="36dp"
-+    android:padding="7dp"
-+    android:src="@drawable/media3_icon_next"
-+    android:contentDescription="@string/mufify_notification_next" />
 +</LinearLayout>
 diff --git a/node_modules/expo-audio/android/src/main/res/layout/mufify_notification_expanded.xml b/node_modules/expo-audio/android/src/main/res/layout/mufify_notification_expanded.xml
 new file mode 100644
 --- /dev/null
 +++ b/node_modules/expo-audio/android/src/main/res/layout/mufify_notification_expanded.xml
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,101 @@
 +<?xml version="1.0" encoding="utf-8"?>
-+<!-- The expanded form: a bigger cover, the album as a third line, and the
-+     same three buttons at a size a thumb can find. See the collapsed layout. -->
++<!--
++  The expanded form: cover beside three lines of text, and the three buttons
++  on a row of their own underneath, starting at the left edge.
++
++  The buttons are on their own row rather than under the text, and the row
++  starts at the left rather than the right, for the reason given in the
++  collapsed layout: a shade that clips the right side takes text tails, not
++  controls. See there.
++-->
 +<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 +  android:layout_width="match_parent"
 +  android:layout_height="wrap_content"
-+  android:orientation="horizontal"
-+  android:gravity="center_vertical"
++  android:orientation="vertical"
 +  android:paddingStart="12dp"
 +  android:paddingEnd="12dp"
 +  android:paddingTop="8dp"
 +  android:paddingBottom="8dp">
 +
-+  <ImageView
-+    android:id="@+id/mufify_artwork"
-+    android:layout_width="96dp"
-+    android:layout_height="96dp"
-+    android:scaleType="centerCrop"
-+    android:contentDescription="@null" />
-+
 +  <LinearLayout
-+    android:layout_width="0dp"
++    android:layout_width="match_parent"
 +    android:layout_height="wrap_content"
-+    android:layout_weight="1"
-+    android:layout_marginStart="14dp"
-+    android:orientation="vertical">
++    android:orientation="horizontal"
++    android:gravity="center_vertical">
 +
-+    <TextView
-+      android:id="@+id/mufify_title"
-+      android:layout_width="match_parent"
-+      android:layout_height="wrap_content"
-+      android:singleLine="true"
-+      android:ellipsize="end"
-+      android:textAppearance="@style/TextAppearance.Compat.Notification.Title" />
-+
-+    <TextView
-+      android:id="@+id/mufify_artist"
-+      android:layout_width="match_parent"
-+      android:layout_height="wrap_content"
-+      android:singleLine="true"
-+      android:ellipsize="end"
-+      android:textAppearance="@style/TextAppearance.Compat.Notification.Line2" />
-+
-+    <TextView
-+      android:id="@+id/mufify_album"
-+      android:layout_width="match_parent"
-+      android:layout_height="wrap_content"
-+      android:singleLine="true"
-+      android:ellipsize="end"
-+      android:textAppearance="@style/TextAppearance.Compat.Notification.Info" />
++    <ImageView
++      android:id="@+id/mufify_artwork"
++      android:layout_width="72dp"
++      android:layout_height="72dp"
++      android:scaleType="centerCrop"
++      android:contentDescription="@null" />
 +
 +    <LinearLayout
-+      android:layout_width="match_parent"
++      android:layout_width="0dp"
 +      android:layout_height="wrap_content"
-+      android:layout_marginTop="8dp"
-+      android:orientation="horizontal"
-+      android:gravity="center_vertical">
++      android:layout_weight="1"
++      android:layout_marginStart="14dp"
++      android:orientation="vertical">
 +
-+      <ImageView
-+        android:id="@+id/mufify_previous"
-+        android:layout_width="44dp"
-+        android:layout_height="44dp"
-+        android:padding="10dp"
-+        android:src="@drawable/media3_icon_previous"
-+            android:contentDescription="@string/mufify_notification_previous" />
++      <TextView
++        android:id="@+id/mufify_title"
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:singleLine="true"
++        android:ellipsize="end"
++        android:textAppearance="@style/TextAppearance.Compat.Notification.Title" />
 +
-+      <ImageView
-+        android:id="@+id/mufify_play_pause"
-+        android:layout_width="44dp"
-+        android:layout_height="44dp"
-+        android:layout_marginStart="12dp"
-+        android:layout_marginEnd="12dp"
-+        android:padding="10dp"
-+        android:background="@drawable/mufify_notification_play_bg"
-+        android:src="@drawable/media3_icon_pause"
-+        android:tint="#FFFFFF"
-+        android:contentDescription="@string/mufify_notification_pause" />
++      <TextView
++        android:id="@+id/mufify_artist"
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:singleLine="true"
++        android:ellipsize="end"
++        android:textAppearance="@style/TextAppearance.Compat.Notification.Line2" />
 +
-+      <ImageView
-+        android:id="@+id/mufify_next"
-+        android:layout_width="44dp"
-+        android:layout_height="44dp"
-+        android:padding="10dp"
-+        android:src="@drawable/media3_icon_next"
-+            android:contentDescription="@string/mufify_notification_next" />
++      <TextView
++        android:id="@+id/mufify_album"
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:singleLine="true"
++        android:ellipsize="end"
++        android:textAppearance="@style/TextAppearance.Compat.Notification.Info" />
 +    </LinearLayout>
++  </LinearLayout>
++
++  <LinearLayout
++    android:layout_width="match_parent"
++    android:layout_height="wrap_content"
++    android:layout_marginTop="10dp"
++    android:orientation="horizontal"
++    android:gravity="center_vertical|start">
++
++    <ImageView
++      android:id="@+id/mufify_previous"
++      android:layout_width="44dp"
++      android:layout_height="44dp"
++      android:padding="10dp"
++      android:src="@drawable/media3_icon_previous"
++      android:contentDescription="@string/mufify_notification_previous" />
++
++    <ImageView
++      android:id="@+id/mufify_play_pause"
++      android:layout_width="44dp"
++      android:layout_height="44dp"
++      android:layout_marginStart="12dp"
++      android:layout_marginEnd="12dp"
++      android:padding="10dp"
++      android:background="@drawable/mufify_notification_play_bg"
++      android:src="@drawable/media3_icon_pause"
++      android:tint="#FFFFFF"
++      android:contentDescription="@string/mufify_notification_pause" />
++
++    <ImageView
++      android:id="@+id/mufify_next"
++      android:layout_width="44dp"
++      android:layout_height="44dp"
++      android:padding="10dp"
++      android:src="@drawable/media3_icon_next"
++      android:contentDescription="@string/mufify_notification_next" />
 +  </LinearLayout>
 +</LinearLayout>
 diff --git a/node_modules/expo-audio/android/src/main/res/values/mufify_notification_strings.xml b/node_modules/expo-audio/android/src/main/res/values/mufify_notification_strings.xml

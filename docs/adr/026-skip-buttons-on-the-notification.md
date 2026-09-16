@@ -126,6 +126,23 @@ MIUI draws its own media template on Android 10 and may or may not honour an
 app's `RemoteViews`. If it does not, the user sees MIUI's — which is the
 fallback they accepted.
 
+#### What MIUI actually did (1.4.7)
+
+It honoured the layout and showed **the left half of it**: the right half was
+cut off, on both forms. MIUI hands a custom view more width than its card
+shows and clips the rest — the buttons, which sat at the right edge, were the
+part that went. The controls still worked, because the taps landed on the
+half that was drawn.
+
+So nothing is anchored to the right edge any more. Collapsed: cover, then the
+three buttons directly after it, then title and artist taking whatever width
+is left. Expanded: cover beside the three text lines, and the buttons on a
+row of their own underneath, starting at the left. Every control now sits
+within the first ~190dp of either view; a shade that clips the right side
+loses text tails, which ellipsis was going to take anyway, and never a button.
+Verified again on Android 10, light and dark, both forms, every button — the
+layout on stock Android is a different arrangement, not a worse one.
+
 ## Consequences
 
 - Verified on emulators: the notification shows ⏮ ⏸ ⏭ on Android 10 and each
