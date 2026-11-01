@@ -235,54 +235,55 @@ export function MiniPlayer({ onPrepareOpen, onExpandedChange }: MiniPlayerProps)
       */}
       <MiniProgress />
 
-      {/*
-        The gesture takes the whole strip; only the content moves under it.
-        Sliding the transport out with the title was the other half of why the
-        old swipe read badly — the controls are furniture, and watching them
-        fly off said something had happened to *them*. See `MiniTransport`.
-      */}
+      {/* The gesture takes the whole strip; only the content moves under it.
+          Sliding the transport out with it was the other half of why the old
+          swipe read badly — the controls are furniture. See `MiniTransport`. */}
       <GestureDetector gesture={pan}>
         <View className="flex-row items-center gap-1 px-4 py-2">
-          <Animated.View style={contentStyle} className="flex-1 flex-row">
-            <Pressable
-              onPress={openPlayer}
-              /*
-               * Mount Now Playing when the finger lands, not when it lifts:
-               * the whole player screen used to mount on the frame the spring
-               * started, so the opening spent its first frames waiting for a
-               * render it had itself triggered.
-               */
-              onPressIn={onPrepareOpen}
-              android_ripple={{ color: colors.etch }}
-              accessibilityRole="button"
-              accessibilityLabel={t('player.open')}
-              className="min-h-11 flex-1 flex-row items-center gap-3"
-            >
-              {artworkUri ? (
-                <Image
-                  source={{ uri: artworkUri }}
-                  recyclingKey={String(track.id)}
-                  cachePolicy="memory-disk"
-                  contentFit="cover"
-                  transition={0}
-                  className="h-10 w-10 rounded-xs"
-                />
-              ) : (
-                <View className="h-10 w-10 items-center justify-center rounded-xs bg-surface">
-                  <Music color={colors.legend} size={18} strokeWidth={2} />
-                </View>
-              )}
+          {/* A window to leave through: unclipped, a rightward drag slid
+              half-faded text across the transport icons. */}
+          <View className="flex-1 overflow-hidden">
+            <Animated.View style={contentStyle} className="flex-row">
+              <Pressable
+                onPress={openPlayer}
+                /*
+                 * Mount Now Playing when the finger lands, not when it lifts:
+                 * the whole player screen used to mount on the frame the spring
+                 * started, so the opening spent its first frames waiting for a
+                 * render it had itself triggered.
+                 */
+                onPressIn={onPrepareOpen}
+                android_ripple={{ color: colors.etch }}
+                accessibilityRole="button"
+                accessibilityLabel={t('player.open')}
+                className="min-h-11 flex-1 flex-row items-center gap-3"
+              >
+                {artworkUri ? (
+                  <Image
+                    source={{ uri: artworkUri }}
+                    recyclingKey={String(track.id)}
+                    cachePolicy="memory-disk"
+                    contentFit="cover"
+                    transition={0}
+                    className="h-10 w-10 rounded-xs"
+                  />
+                ) : (
+                  <View className="h-10 w-10 items-center justify-center rounded-xs bg-surface">
+                    <Music color={colors.legend} size={18} strokeWidth={2} />
+                  </View>
+                )}
 
-              <View className="flex-1">
-                <Text numberOfLines={1} className="font-body-medium text-sm text-primary">
-                  {track.title}
-                </Text>
-                <Text numberOfLines={1} className="font-body text-sm text-muted">
-                  {track.artistName ?? t('common.unknownArtist')}
-                </Text>
-              </View>
-            </Pressable>
-          </Animated.View>
+                <View className="flex-1">
+                  <Text numberOfLines={1} className="font-body-medium text-sm text-primary">
+                    {track.title}
+                  </Text>
+                  <Text numberOfLines={1} className="font-body text-sm text-muted">
+                    {track.artistName ?? t('common.unknownArtist')}
+                  </Text>
+                </View>
+              </Pressable>
+            </Animated.View>
+          </View>
 
           <MiniTransport
             isPlaying={isPlaying}
