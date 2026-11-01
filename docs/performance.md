@@ -411,3 +411,39 @@ Two SystemUI ANRs and a restart mid-session, and taps that silently do nothing
 often enough that every step had to be confirmed from `MUFIFY_PERF` in the
 Metro log rather than assumed. The `library.play.handler` measure is the only
 reliable signal that a row press landed.
+
+## The release build itself, 2026-11-01
+
+Everything above measures the app running. This is about what is shipped.
+
+The React Native template leaves `android.enableMinifyInReleaseBuilds` unset —
+which is `false` — and nothing here had ever set it, so **every release up to
+1.4.7 shipped with R8 switched off**: 49.1 MB of dex across five files, none
+of it shrunk, obfuscated or optimised. Google Play reads the same thing back
+as "Code obfuscation: 1%, Dex code optimisation: Low".
+
+Turning it on, with four keep rules rather than a blanket one — see
+[ADR 028](adr/028-the-release-build-is-optimised.md) for why four is enough:
+
+| | 1.4.7 | 1.5.0 |
+|---|---|---|
+| dex, uncompressed | 49.1 MB | **18.1 MB** |
+| dex files | 5 | 3 |
+| universal APK | 133.8 MB | 123.1 MB |
+| cold start (`am start -W`, Android 10 AVD) | — | 528 ms |
+
+The APK moves less than the dex does because 101 MB of it is native libraries
+for four ABIs, which R8 does not touch and which Play splits per device out of
+the bundle regardless.
+
+**Verify the native paths against a minified build, not a debug one.** R8
+breaks reflection, and every native path in this app is reached through some.
+The pass that accepted this one: launch and theme (MMKV through Nitro — the
+riskiest, since the theme is read before the first frame), library and scan,
+playback and media session, the custom notification *and its resources*,
+media buttons, the equaliser, statistics, the SAF backup, playlists, and
+shutdown on task removal. A debug build proves none of it.
+
+Resource shrinking has its own check: the notification layouts live in a
+library module and are reached only through `R.layout.…` from Kotlin, so
+confirm them with `aapt2 dump resources` on the built APK rather than assuming.

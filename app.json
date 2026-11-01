@@ -2,7 +2,7 @@
   "expo": {
     "name": "Mufify",
     "slug": "mufify",
-    "version": "1.4.7",
+    "version": "1.5.0",
     "orientation": "portrait",
     "scheme": "mufify",
     "userInterfaceStyle": "automatic",
@@ -12,7 +12,7 @@
     "icon": "./assets/images/icon.png",
     "android": {
       "package": "dev.mufify.app",
-      "versionCode": 17,
+      "versionCode": 18,
       "adaptiveIcon": {
         "backgroundColor": "#151922",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -36,7 +36,10 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 26
+            "minSdkVersion": 26,
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "# Mufify. R8 runs in full mode and these are the only things it cannot see.\n#\n# Deliberately short. Expo and React Native ship consumer rules that already\n# cover everything reached by reflection in their own worlds — anything\n# extending `expo.modules.kotlin.modules.Module`, implementing `Record` or\n# `Enumerable`, or annotated `@DoNotStrip` — and that includes every module\n# under `dev.mufify`. A blanket keep on our own packages would have cost most\n# of the obfuscation for nothing.\n\n# Nitro's C++ side finds these across JNI, by name. react-native-mmkv is a\n# Nitro module, MMKV holds every setting, and the theme is read from it\n# before the first frame — so this failing is a blank app, not a lost value.\n-keep class com.margelo.nitro.** { *; }\n\n# `@Keep` is androidx's, and react-native-mmkv marks its JNI entry points\n# with Fresco's `DoNotStrip` rather than the one React Native's own rules\n# name. Neither is covered by the default file this build uses.\n-keep @androidx.annotation.Keep class * { *; }\n-keepclassmembers class * { @androidx.annotation.Keep *; }\n-keep @com.facebook.common.internal.DoNotStrip class * { *; }\n-keepclassmembers class * { @com.facebook.common.internal.DoNotStrip *; }\n\n# Exception class names, so a failure that reaches the user still says what\n# it was: `TagReader` falls back to the simple name when there is no message,\n# and \"a\" is not a thing anyone can report.\n-keepnames class * extends java.lang.Throwable"
           }
         }
       ],
