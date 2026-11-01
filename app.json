@@ -62,7 +62,8 @@
           "recordAudioAndroid": false
         }
       ],
-      "./plugins/withOfflineOnly"
+      "./plugins/withOfflineOnly",
+      "./plugins/withR8Optimization"
     ],
     "experiments": {
       "typedRoutes": true,
