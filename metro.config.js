@@ -17,6 +17,9 @@ config.resolver.extraNodeModules = {
   ...config.resolver.extraNodeModules,
   'audio-tags': path.resolve(__dirname, 'modules/audio-tags'),
   'audio-focus': path.resolve(__dirname, 'modules/audio-focus'),
+  'audio-eq': path.resolve(__dirname, 'modules/audio-eq'),
+  'app-lifecycle': path.resolve(__dirname, 'modules/app-lifecycle'),
+  'system-bars': path.resolve(__dirname, 'modules/system-bars'),
 };
 config.watchFolders = [...(config.watchFolders ?? []), path.resolve(__dirname, 'modules')];
 

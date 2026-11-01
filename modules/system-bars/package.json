@@ -1,0 +1,7 @@
+{
+  "name": "system-bars",
+  "version": "0.1.0",
+  "description": "The navigation bar's button colour, which React Native does not expose.",
+  "main": "index.ts",
+  "private": true
+}

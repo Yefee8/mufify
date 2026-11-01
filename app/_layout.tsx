@@ -9,6 +9,8 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { setLightNavigationBar } from 'system-bars';
+
 import { useDatabase } from '@/db/useDatabase';
 import { PlayerLayer } from '@/features/player/PlayerLayer';
 import { startListenRecording } from '@/features/player/listenRecorder';
@@ -49,6 +51,23 @@ export default function RootLayout() {
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(colors.chassis);
   }, [colors.chassis]);
+
+  /*
+   * The navigation bar's buttons, which nothing else sets.
+   *
+   * `StatusBar` below does the status bar and there is no React Native
+   * equivalent for the other end, so with edge-to-edge on the buttons kept
+   * the platform default: white, measured at 1.06:1 against the light
+   * theme's `#F6F4F1`. With three-button navigation — the Xiaomi default —
+   * back, home and recents were invisible on every screen.
+   *
+   * Beside the background colour rather than inside `StatusBar`, because it
+   * is the same fact arriving at a different window attribute, and both have
+   * to be re-applied when the theme changes.
+   */
+  useEffect(() => {
+    setLightNavigationBar(resolved === 'light');
+  }, [resolved]);
 
   // Listens are recorded for as long as the app is alive, not for as long as
   // a particular screen is mounted — playback outlives every screen.
