@@ -1,6 +1,7 @@
 import { Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { panelInset } from '@/components/ui/panelInset';
 import { SPACING } from '@/theme/tokens';
 
 import type { TrackListItem } from '@/db/queries/tracks';
@@ -60,8 +61,8 @@ export function TrackInfoSheet({ track, onClose }: TrackInfoSheetProps) {
       >
         <Pressable
           onPress={absorb}
-          style={{ paddingBottom: insets.bottom + SPACING[5] }}
-          className="gap-4 rounded-md border border-subtle bg-surface-elevated px-5 pt-5"
+          style={panelInset(insets, { bottom: SPACING[5], side: SPACING[5] })}
+          className="gap-4 rounded-md border border-subtle bg-surface-elevated pt-5"
         >
           <Text className="font-body-semibold text-base text-primary">{t('track.info')}</Text>
 

@@ -95,7 +95,7 @@ export function QueueScreen({ onClose }: QueueScreenProps) {
     /* `bottom` as well as `top`: this is a full-screen sheet now, not a route
        inside a navigator that was insetting it, so the last queue row would sit
        under the navigation bar the way the transport row did. */
-    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
+    <SafeAreaView edges={['top', 'bottom', 'left', 'right']} className="flex-1 bg-surface">
       {/*
         Laid out rather than spaced apart. This was `justify-between` over three
         children where the third was the clear button or, when the queue was

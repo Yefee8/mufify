@@ -28,13 +28,13 @@ it is repeated here because that is the thing a reader needs before touching it.
 
 | Component | What it is for |
 |---|---|
-| `Screen` | The standard frame: safe area, surface, display-face title. |
+| `Screen` | The standard frame: surface, display-face title, and the safe area on top, left and right. The side edges matter only in landscape, where the navigation bar becomes a column — see `docs/adr/029`. |
 | `EmptyState` | Icon, one line, and the way out. Picks one of several phrasings per mount so the app does not read like a recording. |
 | `ErrorState` | What failed in one plain sentence, and the retry. Never a raw error string. |
 | `TabErrorBoundary` | Contains a render failure to its selected tab and shows `ErrorState`; retry remounts only that tab. |
 | `Skeleton` | One placeholder block, sized by the caller. Pulses via a Reanimated worklet; stops dead under reduce-motion. |
 | `SkeletonRows` | A list's worth, shaped like real rows so nothing jumps when data lands. Hidden from screen readers. |
-| `SkeletonCards` | The same for the artist and album grids. Mirrors `CollectionGrid`'s two-column layout exactly. |
+| `SkeletonCards` | The same for the artist and album grids. Takes its column count from `useCardColumns`, the same hook the real grid uses, so nothing reflows when data lands. Sized in rows, not cards. |
 | `SegmentedControl` | Two to four short, self-evident choices on one line. `perRow` wraps when there are more. |
 | `OptionList` | One choice per row with a sentence explaining it. The right control when the names need explaining — which is why shuffle uses it and theme does not. |
 | `SettingGroup` / `SettingRow` / `SettingSwitch` | A titled block, a labelled row with a description line, and an on/off row. Every setting gets a description; a list of bare names makes the user guess. |
@@ -44,6 +44,8 @@ it is repeated here because that is the thing a reader needs before touching it.
 | `SwipeableRow` | Reveals one action when dragged left. **Transient by design**: it never stays open, because this lives in a recycling list and a row holding open state gets recycled with it. |
 | `Toaster` | Where transient confirmations appear. Reads a module-level store, so a toast re-renders this and nothing else. Sits above the mini player in the tab bar stack. |
 | `ProgressBar` | A determinate bar. Used by the scan banner. |
+| `useCardColumns` | Cards per row for the card grids, from the window width. Two on a portrait phone, up to five on a tablet. |
+| `panelInset` | The padding a bottom-anchored sheet needs to clear the system bars — bottom and sides together, because in landscape the navigation bar is a side. |
 
 ---
 

@@ -57,7 +57,7 @@ export function NowPlayingOverlay({
         a second for a scrubber nobody can see.
       */}
       {obscured ? null : (
-        <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
+        <SafeAreaView edges={['top', 'bottom', 'left', 'right']} className="flex-1 bg-surface">
           <PlayerScreen
             onExpandedChange={onExpandedChange}
             onOpenQueue={onOpenQueue}

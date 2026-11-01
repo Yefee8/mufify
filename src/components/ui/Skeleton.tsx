@@ -9,6 +9,8 @@ import Animated, {
 
 import { useReducedMotion } from '@/theme/useReducedMotion';
 
+import { useCardColumns } from './useCardColumns';
+
 /** The pulse's quietest and loudest points. Deliberately a narrow range. */
 const DIM = 0.45;
 const BRIGHT = 1;
@@ -101,20 +103,28 @@ export function SkeletonRows({
 /**
  * A card grid's worth of placeholders, for the album and artist shelves.
  *
- * Two per row, matching `AlbumCard`'s layout, so the shelf does not reflow when
- * the real cards arrive.
+ * As many per row as `CollectionGrid` will use, from the same hook, so the
+ * shelf does not reflow when the real cards arrive — including on a landscape
+ * phone or a tablet, where that number is no longer two.
+ *
+ * The prop is rows rather than cards for the same reason: four placeholders
+ * across five columns is a ragged single row.
  */
-export function SkeletonCards({ count = 4 }: { count?: number }) {
+export function SkeletonCards({ rows = 2 }: { rows?: number }) {
+  const columns = useCardColumns();
+
   return (
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
       className="flex-row flex-wrap px-4"
     >
-      {Array.from({ length: count }, (_, index) => (
-        // Half-width cells with padding, matching `CollectionGrid` exactly, so
-        // the real cards land where the placeholders were.
-        <View key={index} className="w-1/2 gap-2 p-2">
+      {Array.from({ length: rows * columns }, (_, index) => (
+        // Cell width from the column count, which no class can carry: the
+        // padding still comes from the spacing scale, and the width matches
+        // `CollectionGrid`'s cells exactly so the real cards land where the
+        // placeholders were.
+        <View key={index} style={{ width: `${100 / columns}%` }} className="gap-2 p-2">
           <Skeleton className="aspect-square w-full rounded-xs" />
           <Skeleton className="h-4 w-4/5 rounded-xs" />
           <Skeleton className="h-3 w-2/5 rounded-xs" />

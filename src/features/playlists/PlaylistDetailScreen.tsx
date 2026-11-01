@@ -162,7 +162,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
     : (playlist?.mosaic ?? []);
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-surface">
+    <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-surface">
       <PlaylistDetailHeader
         name={name}
         trackCount={entries.length}

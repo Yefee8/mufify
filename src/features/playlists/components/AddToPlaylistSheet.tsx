@@ -8,6 +8,7 @@ import { NameDialog } from '@/components/ui/NameDialog';
 import { addTracksToPlaylist, createPlaylist, usePlaylists } from '@/db/queries/playlists';
 import { commitFeedback } from '@/services/haptics';
 import { useThemeColors } from '@/theme/useTheme';
+import { panelInset } from '@/components/ui/panelInset';
 import { SPACING } from '@/theme/tokens';
 
 
@@ -70,8 +71,8 @@ export function AddToPlaylistSheet({ trackIds, onClose }: AddToPlaylistSheetProp
             the bottom of the window — see `ActionSheet`. */}
         <Pressable
           onPress={absorb}
-          style={{ paddingBottom: insets.bottom + SPACING[5] }}
-          className="max-h-full gap-4 rounded-md border border-subtle bg-surface-elevated px-5 pt-5"
+          style={panelInset(insets, { bottom: SPACING[5], side: SPACING[5] })}
+          className="max-h-full gap-4 rounded-md border border-subtle bg-surface-elevated pt-5"
         >
           <Text className="font-body-semibold text-base text-primary">
             {trackIds.length > 1

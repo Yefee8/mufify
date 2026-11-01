@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EQUALIZER_PRESET_IDS, type EqualizerPresetId } from '@/services/equalizer/presets';
 import type { SavedPreset } from '@/services/equalizer/savedPresets';
+import { panelInset } from '@/components/ui/panelInset';
 import { SPACING } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/useTheme';
 
@@ -117,8 +118,8 @@ export function PresetPicker({
               to the window bottom puts its last row under the system buttons. */}
           <Pressable
             onPress={absorb}
-            style={{ paddingBottom: insets.bottom + SPACING[5] }}
-            className="max-h-full rounded-md border border-subtle bg-surface-elevated px-5 pt-5"
+            style={panelInset(insets, { bottom: SPACING[5], side: SPACING[5] })}
+            className="max-h-full rounded-md border border-subtle bg-surface-elevated pt-5"
           >
             <Text className="pb-2 font-body-semibold text-base text-primary">
               {t('settings.equalizer.preset')}

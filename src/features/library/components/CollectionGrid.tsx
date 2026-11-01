@@ -4,14 +4,12 @@ import type { ReactElement } from 'react';
 import { useCallback } from 'react';
 import { View } from 'react-native';
 
+import { useCardColumns } from '@/components/ui/useCardColumns';
 import type { CollectionCard as Card } from '@/db/queries/tracks';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { SPACING } from '@/theme/tokens';
 
 import { CollectionCard } from './CollectionCard';
-
-/** Cards per row. Two keeps the covers big enough to recognise on a phone. */
-const COLUMNS = 2;
 
 export interface CollectionGridProps {
   kind: 'artist' | 'album';
@@ -45,6 +43,7 @@ export function CollectionGrid({
   empty,
 }: CollectionGridProps) {
   const bottomInset = useMiniPlayerInset();
+  const columns = useCardColumns();
 
   const renderItem = useCallback<ListRenderItem<Card>>(
     ({ item }) => (
@@ -68,7 +67,7 @@ export function CollectionGrid({
       data={cards}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
-      numColumns={COLUMNS}
+      numColumns={columns}
       /*
         One style rather than a class plus a style. The bottom inset is a
         runtime measurement — the transport strip's height — which no Tailwind

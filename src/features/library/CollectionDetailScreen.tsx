@@ -91,7 +91,7 @@ export function CollectionDetailScreen({ kind, id }: CollectionDetailScreenProps
   const goBack = useCallback(() => router.back(), [router]);
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-surface">
+    <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-surface">
       {/* Back on the left, actions on the right — the arrangement the playlist
           screen already uses, so an album and a playlist read as two of the
           same kind of thing rather than two different screens. */}

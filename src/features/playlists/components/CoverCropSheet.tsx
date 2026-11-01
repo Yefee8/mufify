@@ -60,16 +60,27 @@ export function CoverCropSheet({ source, onCancel, onConfirm }: CoverCropSheetPr
   const { t } = useTranslation();
   const colors = useThemeColors();
 
-  /** Side of the square window, measured — it depends on the screen. */
-  const [window, setWindow] = useState(0);
+  /*
+   * The square window's side, from a measurement of the space it is given.
+   *
+   * Both axes, not the width alone. `aspect-square w-full` is right in
+   * portrait and wrong the moment the screen is wider than it is tall: the
+   * square became as wide as the screen and ran off the bottom of it, taking
+   * the Cancel and Use buttons with it. Bounded by the shorter side, the frame
+   * is as large as it can be and always on screen.
+   */
+  const [frame, setFrame] = useState({ width: 0, height: 0 });
+  const window = Math.min(frame.width, frame.height);
 
   const width = source?.width ?? 0;
   const height = source?.height ?? 0;
   const base = baseScale(width, height, window);
 
-  const onWindowLayout = useCallback((event: LayoutChangeEvent) => {
-    const measured = event.nativeEvent.layout.width;
-    if (measured > 0) setWindow(measured);
+  const onFrameLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    setFrame((current) =>
+      current.width === width && current.height === height ? current : { width, height },
+    );
   }, []);
 
   /*
@@ -149,7 +160,7 @@ export function CoverCropSheet({ source, onCancel, onConfirm }: CoverCropSheetPr
         finger, with nothing in the logs to say why.
       */}
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
+        <SafeAreaView edges={['top', 'bottom', 'left', 'right']} className="flex-1 bg-surface">
           <View className="flex-row items-center gap-1 px-4 pt-2">
             <Pressable
               onPress={onCancel}
@@ -172,10 +183,10 @@ export function CoverCropSheet({ source, onCancel, onConfirm }: CoverCropSheetPr
           square is not going to be in the cover — showing it faintly suggests
           otherwise.
         */}
-          <View className="flex-1 items-center justify-center px-6">
+          <View onLayout={onFrameLayout} className="flex-1 items-center justify-center px-6">
             <View
-              onLayout={onWindowLayout}
-              className="aspect-square w-full overflow-hidden rounded-md bg-surface-elevated"
+              style={{ width: window, height: window }}
+              className="overflow-hidden rounded-md bg-surface-elevated"
             >
               {source && window > 0 ? (
                 <GestureDetector gesture={gesture}>

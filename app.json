@@ -3,7 +3,7 @@
     "name": "Mufify",
     "slug": "mufify",
     "version": "1.5.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "scheme": "mufify",
     "userInterfaceStyle": "automatic",
     "platforms": [

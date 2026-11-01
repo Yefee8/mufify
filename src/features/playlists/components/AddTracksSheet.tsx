@@ -7,6 +7,7 @@ import { Modal, Pressable, Text, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
+import { panelInset } from '@/components/ui/panelInset';
 import { SearchField } from '@/components/ui/SearchField';
 import { addTracksToPlaylist } from '@/db/queries/playlists';
 import { useDebounced } from '@/features/library/hooks/useDebounced';
@@ -128,7 +129,7 @@ export function AddTracksSheet({ visible, playlistId, existing, onClose }: AddTr
         */}
         <View
           onStartShouldSetResponder={absorb}
-          style={{ height: height * SHEET_HEIGHT_RATIO, paddingBottom: insets.bottom + SPACING[4] }}
+          style={[{ height: height * SHEET_HEIGHT_RATIO }, panelInset(insets, { bottom: SPACING[4] })]}
           className="rounded-md border border-subtle bg-surface-elevated pt-5"
         >
           <View className="flex-row items-center gap-3 px-5 pb-3">

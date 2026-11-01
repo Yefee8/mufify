@@ -98,7 +98,10 @@ export function PlayerLayer({ children }: PlayerLayerProps) {
         className="absolute inset-x-0 z-20"
         style={[{ bottom: isTabRoute ? tabBarHeight : 0 }, strip]}
       >
-        <SafeAreaView edges={isTabRoute ? [] : ['bottom']} className="bg-surface-elevated">
+        <SafeAreaView
+          edges={isTabRoute ? ['left', 'right'] : ['bottom', 'left', 'right']}
+          className="bg-surface-elevated"
+        >
           <MiniPlayer onPrepareOpen={player.prepare} onExpandedChange={player.setOpen} />
         </SafeAreaView>
       </Animated.View>
