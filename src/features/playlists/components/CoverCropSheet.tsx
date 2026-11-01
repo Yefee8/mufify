@@ -213,11 +213,18 @@ export function CoverCropSheet({ source, onCancel, onConfirm }: CoverCropSheetPr
                 </GestureDetector>
               ) : null}
             </View>
-
-            <Text className="pt-4 text-center font-body text-sm text-muted">
-              {t('playlists.cover.cropHint')}
-            </Text>
           </View>
+
+          {/*
+            Outside the measured frame, not inside it. The square takes the
+            shorter side of whatever that frame is given, so a line of text
+            sharing the frame is a line of text the square has already spent —
+            sideways it ended up behind the buttons, which is where this was
+            found.
+          */}
+          <Text className="px-6 pb-1 text-center font-body text-sm text-muted">
+            {t('playlists.cover.cropHint')}
+          </Text>
 
           <View className="flex-row gap-3 px-6 pb-2" style={{ paddingTop: SPACING[2] }}>
             <Pressable
