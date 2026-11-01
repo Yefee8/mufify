@@ -1,3 +1,5 @@
+import { searchHaystack } from '@/services/text/search';
+
 import { LIKED_SONGS_ID, MOSAIC_SIZE, type PlaylistSummary } from '@/services/playlists/order';
 
 /**
@@ -62,6 +64,9 @@ export function buildPlaylistRows(
         .slice(0, MOSAIC_SIZE),
       artworkPath: null,
       coverPath: null,
+      // By its name only: `FavoriteRow` is artwork, and the liked tracks
+      // themselves are a query this module deliberately does not make.
+      search: searchHaystack([likedSongsName]),
     },
     ...listed,
   ];

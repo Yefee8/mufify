@@ -17,7 +17,7 @@ import {
 } from '@/db/queries/playlists';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { useMessages } from '@/i18n';
-import { matchesSearch } from '@/services/text/search';
+import { matchesHaystack } from '@/services/text/search';
 import { SPACING } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/useTheme';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
@@ -69,9 +69,21 @@ export function PlaylistsScreen() {
 
   // Built first, filtered second, so Liked Songs is searchable by its name like
   // any other row rather than being pinned to the top of a list it does not match.
-  const rows = buildPlaylistRows(likedEntries, playlists, t('playlists.likedSongs'), likedOnly).filter(
-    (row) => matchesSearch(search, row.name),
-  );
+  /*
+   * One box, matching the name *and* what is in the list.
+   *
+   * Searching only names answered "which list is called this" and not "which
+   * list has this song in it", which is the question somebody with thirty
+   * playlists actually has. The haystack is built with the query result rather
+   * than here — see `foldPlaylistRows` — so a keystroke is a substring test
+   * per row and not every playlist's contents through the normaliser.
+   */
+  const rows = buildPlaylistRows(
+    likedEntries,
+    playlists,
+    t('playlists.likedSongs'),
+    likedOnly,
+  ).filter((row) => matchesHaystack(search, row.search));
   const searching = search.trim().length > 0;
 
   return (
@@ -100,7 +112,12 @@ export function PlaylistsScreen() {
       </View>
 
       <View className="mb-4 px-6">
-        <SearchField value={search} onChange={setSearch} inRow placeholder={t('playlists.search')} />
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          inRow
+          placeholder={t('playlists.search')}
+        />
       </View>
 
       <FlatList

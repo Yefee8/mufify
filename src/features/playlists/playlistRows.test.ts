@@ -5,7 +5,16 @@ import { buildPlaylistRows, shouldShowEmptyState, type FavoriteRow } from './pla
 const LIKED = 'Liked Songs';
 
 function playlist(id: number, trackCount = 0, isFavorite = false): PlaylistSummary {
-  return { id, name: `list-${id}`, trackCount, isFavorite, artworkPath: null, coverPath: null, mosaic: [] };
+  return {
+    id,
+    name: `list-${id}`,
+    trackCount,
+    isFavorite,
+    artworkPath: null,
+    coverPath: null,
+    mosaic: [],
+    search: `list${id}`,
+  };
 }
 
 function favorites(count: number, withArtwork = 0): FavoriteRow[] {
@@ -99,7 +108,7 @@ describe('buildPlaylistRows, liked filter', () => {
     expect(rows[0]?.isFavorite).toBe(false);
   });
 
-  it('leaves the order alone — pinning is the query\'s job, not this one\'s', () => {
+  it("leaves the order alone — pinning is the query's job, not this one's", () => {
     const given = [playlist(9, 0, true), playlist(4, 0, true), playlist(2, 0, true)];
 
     expect(buildPlaylistRows([], given, LIKED, true).map((row) => row.id)).toEqual([9, 4, 2]);

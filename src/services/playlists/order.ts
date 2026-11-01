@@ -13,6 +13,8 @@
  */
 
 /** How many covers the mosaic grid can show. */
+import { searchHaystack } from '@/services/text/search';
+
 export const MOSAIC_SIZE = 4;
 
 /**
@@ -50,6 +52,14 @@ export interface PlaylistSummary {
    * what is available.
    */
   mosaic: string[];
+  /**
+   * The playlist's name and everything in it, normalised for the search box.
+   *
+   * Prebuilt because the Playlists tab filters on every keystroke and the
+   * contents of every playlist is a lot of text to fold per character. See
+   * `searchHaystack`.
+   */
+  search: string;
 }
 
 /** One row of the flat playlist join: a playlist, and one of its entries. */
@@ -62,6 +72,10 @@ export interface PlaylistRow {
   isFavorite: boolean;
   /** The playlist's own cover, if the user chose one. */
   coverPath: string | null;
+  /** The entry's track, for searching a playlist by what is in it. */
+  trackTitle: string | null;
+  artistName: string | null;
+  albumName: string | null;
 }
 
 /**
@@ -102,6 +116,7 @@ export function foldPlaylistRows(rows: readonly PlaylistRow[]): PlaylistSummary[
         artworkPath: row.coverPath,
         coverPath: row.coverPath,
         mosaic: [],
+        search: searchHaystack([row.name]),
       };
       byId.set(row.id, summary);
     }
@@ -110,6 +125,18 @@ export function foldPlaylistRows(rows: readonly PlaylistRow[]): PlaylistSummary[
     // the absence of a track, not a track.
     if (row.position === null) continue;
     summary.trackCount += 1;
+
+    /*
+     * The playlist's own searchable text grows with its contents.
+     *
+     * Built here, once per query result, rather than in the filter: the tab
+     * filters on every keystroke, and normalising every title, artist and
+     * album in every playlist per character typed is the whole tab's text
+     * through the normaliser for each letter. Duplicates are not worth
+     * removing — `includes` does not care, and the check would cost more than
+     * the bytes.
+     */
+    summary.search += ` ${searchHaystack([row.trackTitle, row.artistName, row.albumName])}`;
 
     if (row.artworkPath === null) continue;
     summary.artworkPath ??= row.artworkPath;

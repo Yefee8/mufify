@@ -1,3 +1,5 @@
+import { matchesHaystack } from '@/services/text/search';
+
 import { foldPlaylistRows, reorder, type PlaylistRow } from './order';
 
 /**
@@ -16,6 +18,9 @@ function row(partial: Partial<PlaylistRow> & { id: number }): PlaylistRow {
     artworkPath: null,
     isFavorite: false,
     coverPath: null,
+    trackTitle: null,
+    artistName: null,
+    albumName: null,
     ...partial,
   };
 }
@@ -74,6 +79,7 @@ describe('foldPlaylistRows', () => {
         artworkPath: null,
         coverPath: null,
         mosaic: [],
+        search: 'list1',
       },
     ]);
   });
@@ -161,5 +167,49 @@ describe('foldPlaylistRows, liked and chosen covers', () => {
 
     expect(folded[0]?.coverPath).toBeNull();
     expect(folded[0]?.artworkPath).toBe('/a.jpg');
+  });
+});
+
+describe('foldPlaylistRows, the search haystack', () => {
+  it('matches a playlist by its own name', () => {
+    const [summary] = foldPlaylistRows([row({ id: 1, name: 'Late nights' })]);
+
+    expect(matchesHaystack('late', summary?.search ?? '')).toBe(true);
+  });
+
+  it('matches a playlist by a track inside it', () => {
+    // The point of building this at all: typing an artist in the Playlists
+    // tab should show which lists have them, not an empty screen.
+    const [summary] = foldPlaylistRows([
+      row({
+        id: 1,
+        name: 'Late nights',
+        position: 0,
+        trackTitle: 'Numb',
+        artistName: 'Linkin Park',
+        albumName: 'Meteora',
+      }),
+    ]);
+
+    expect(matchesHaystack('linkin', summary?.search ?? '')).toBe(true);
+    expect(matchesHaystack('meteora', summary?.search ?? '')).toBe(true);
+    expect(matchesHaystack('numb', summary?.search ?? '')).toBe(true);
+  });
+
+  it('does not match a track that is in a different playlist', () => {
+    const [first, second] = foldPlaylistRows([
+      row({ id: 1, name: 'One', position: 0, trackTitle: 'Numb' }),
+      row({ id: 2, name: 'Two', position: 0, trackTitle: 'Faint' }),
+    ]);
+
+    expect(matchesHaystack('numb', first?.search ?? '')).toBe(true);
+    expect(matchesHaystack('numb', second?.search ?? '')).toBe(false);
+  });
+
+  it('ignores the empty row a playlist with no tracks produces', () => {
+    // A left join on an empty playlist yields one row with null everything.
+    const [summary] = foldPlaylistRows([row({ id: 1, name: 'Empty' })]);
+
+    expect(summary?.search.trim()).toBe('empty');
   });
 });

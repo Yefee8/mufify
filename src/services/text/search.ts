@@ -25,21 +25,38 @@ import { normalizeName } from './similarity';
  * an empty search box means.
  */
 export function matchesSearch(query: string, ...fields: (string | null | undefined)[]): boolean {
-  const words = normalizeName(query).split(' ').filter((word) => word.length > 0);
-  if (words.length === 0) return true;
+  return matchesHaystack(query, searchHaystack(fields));
+}
 
-  /*
-   * Spaces are dropped from the haystack, and from each word, so punctuation
-   * cannot get between a query and its match: the normaliser turns "AC/DC"
-   * into "ac dc", and somebody typing "acdc" — which is what a phone keyboard
-   * produces — has to find it. The cost is that "kin par" also matches "Linkin
-   * Park", across a word boundary. For a search box that is a match the user
-   * can see and dismiss, not a wrong answer.
-   */
-  const haystack = fields
+/**
+ * The fields, folded into the one string a query is tested against.
+ *
+ * Separate from the matching so a list whose haystack is expensive to build
+ * can build it once — the Playlists tab matches every track title, artist and
+ * album in every playlist, and rebuilding that on each keystroke would be the
+ * whole list's text through the normaliser per character typed. Lists with a
+ * field or two call `matchesSearch` and never think about it.
+ *
+ * Spaces are dropped from each field so punctuation cannot get between a query
+ * and its match: the normaliser turns "AC/DC" into "ac dc", and somebody
+ * typing "acdc" — which is what a phone keyboard produces — has to find it.
+ * The cost is that "kin par" also matches "Linkin Park", across a word
+ * boundary. For a search box that is a match the user can see and dismiss, not
+ * a wrong answer.
+ */
+export function searchHaystack(fields: readonly (string | null | undefined)[]): string {
+  return fields
     .filter((field): field is string => typeof field === 'string' && field.length > 0)
     .map((field) => normalizeName(field).replace(/ /gu, ''))
     .join(' ');
+}
+
+/** Whether every word of the query appears in an already-built haystack. */
+export function matchesHaystack(query: string, haystack: string): boolean {
+  const words = normalizeName(query)
+    .split(' ')
+    .filter((word) => word.length > 0);
+  if (words.length === 0) return true;
 
   return words.every((word) => haystack.includes(word.replace(/ /gu, '')));
 }

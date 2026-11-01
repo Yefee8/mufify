@@ -75,10 +75,17 @@ export function usePlaylists(): PlaylistSummary[] {
       artworkPath: tracks.artworkPath,
       coverPath: playlists.artworkPath,
       isFavorite: sql`${playlists.isFavorite}`.mapWith(Boolean),
+      // What the tab's search box matches besides the playlist's own name.
+      // Two more joins on a query that already returns a row per entry.
+      trackTitle: tracks.title,
+      artistName: artists.name,
+      albumName: albums.name,
     })
     .from(playlists)
     .leftJoin(playlistTracks, eq(playlistTracks.playlistId, playlists.id))
     .leftJoin(tracks, eq(tracks.id, playlistTracks.trackId))
+    .leftJoin(artists, eq(artists.id, tracks.artistId))
+    .leftJoin(albums, eq(albums.id, tracks.albumId))
     /*
      * Liked first, then most recently liked, then the ordinary order.
      *

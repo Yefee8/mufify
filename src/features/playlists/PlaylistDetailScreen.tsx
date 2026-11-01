@@ -66,7 +66,13 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
   const shown = useMemo(
     () =>
       searching
-        ? entries.filter((entry) => matchesSearch(search, entry.title, entry.artistName))
+        ? entries.filter((entry) =>
+            // Album too, from one box: the library's own search has matched
+            // all three since it existed, and a playlist that matched fewer
+            // fields than the list it was filled from reads as a search that
+            // missed rather than as a narrower rule.
+            matchesSearch(search, entry.title, entry.artistName, entry.albumName),
+          )
         : entries,
     [entries, search, searching],
   );
@@ -88,10 +94,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
   const currentTrack = useCurrentTrack();
 
   /** What is already here, so the picker can say so rather than hide it. */
-  const existingIds = useMemo(
-    () => new Set(entries.map((entry) => entry.trackId)),
-    [entries],
-  );
+  const existingIds = useMemo(() => new Set(entries.map((entry) => entry.trackId)), [entries]);
 
   const { playAll, shuffleAll, playAt } = usePlaylistPlayback(entries, playlistId, isLiked);
 
