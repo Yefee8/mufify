@@ -447,3 +447,38 @@ shutdown on task removal. A debug build proves none of it.
 Resource shrinking has its own check: the notification layouts live in a
 library module and are reached only through `R.layout.…` from Kotlin, so
 confirm them with `aapt2 dump resources` on the built APK rather than assuming.
+
+### What 1.5.0 was still carrying, 2026-11-01
+
+R8 was running and it was not optimising. AGP ships its defaults twice —
+`proguard-android.txt` and `proguard-android-optimize.txt`, the same file
+without one line — and the React Native template points `proguardFiles` at the
+first, whose line 16 is `-dontoptimize`. R8 honours it, so 1.5.0 shipped
+shrunk and obfuscated with inlining, class merging and dead-branch removal all
+switched off, and Play went on reporting optimisation as not enabled.
+`plugins/withR8Optimization.js` swaps the file at prebuild, because
+`extraProguardRules` only ever appends and nothing appended can undo
+`-dontoptimize`.
+
+The other half was fonts. Each `@expo-google-fonts` package's root index
+`require`s every weight it ships — eighteen for Archivo alone — and Metro keeps
+a `require` it can see, so importing two names from the root bundled all
+eighteen files. Subpath imports pull exactly one `.ttf` each.
+
+| | 1.5.0 | 1.6.0 | |
+|---|---|---|---|
+| dex, uncompressed | 17.3 MB | **11.1 MB** | −36% |
+| dex files | 3 | 2 | |
+| fonts | 10.8 MB in 54 files | **2.3 MB in 9 files** | −8.5 MB |
+| universal APK | 123.1 MB | 116.9 MB | −6.2 MB |
+| **bundle (what Play takes)** | 86.7 MB | **82.7 MB** | −4.0 MB |
+
+Two of those nine fonts are not ours and the other seven are every weight the
+app actually uses; the forty-six that went were never referenced by anything.
+
+What is *still* not fixed, and cannot be here: Play's "unused resources" note.
+The shrinker falls back to safe mode because `resources.txt` reports
+`Resources#getIdentifier present: true`, and the only caller is expo-asset's
+`ResourceAsset.kt`, resolving the fonts that live in `res/raw/`.
+`tools:shrinkMode="strict"` would let it delete those fonts, so the waste was
+removed at the source instead.
