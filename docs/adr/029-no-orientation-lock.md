@@ -18,10 +18,10 @@ regardless and an app that assumed otherwise is simply wrong on screen rather
 than portrait. So the lock stops being a guarantee and becomes only a signal
 that the layouts were never checked.
 
-They mostly had been, by accident. The app is built out of flex rows and
+Some of it had been checked by accident. The app is built out of flex rows and
 FlashLists, `artworkSize.ts` already bounds the Now Playing cover by both axes,
 and `Sheet` takes its travel from `useWindowDimensions`, which re-renders on
-rotation. Three things were genuinely pinned to a portrait window:
+rotation. Four things were genuinely pinned to a portrait window:
 
 - **The card grid.** `const COLUMNS = 2` meant each album cover was half the
   *long* edge in landscape — taller than the screen it was on, one album per
@@ -35,6 +35,13 @@ rotation. Three things were genuinely pinned to a portrait window:
   `insets.bottom`, and nothing reserved left or right — so titles, list rows and
   the last action in every sheet went under the navigation bar the moment the
   lock came off.
+- **Every screen's header, which is the one that mattered.** Each screen stacks
+  controls above a list: title, count, scan buttons, the view switch, the search
+  box, play and shuffle. That is 400 to 500 points of header, and a landscape
+  phone is about 411 points tall. Turned sideways, the library showed its
+  controls and roughly thirty points of list — a screen where nothing was broken
+  and nothing could be done. Measured on a Pixel 7 emulator before this change,
+  not assumed.
 
 ## Decision
 
@@ -53,11 +60,21 @@ template's value in place.
 - Every full-screen frame reserves `left` and `right` as well. They are zero in
   portrait, which is exactly why they were easy to miss.
 
-**No tablet layout.** No master-detail, no two-pane Now Playing. A wider window
-gets more columns and more rows of the same design; that is the whole
-adaptation. A second layout is a second set of empty, loading and error states
-to keep honest, and this is a phone app that must not break when someone turns
-their phone.
+**A short window puts the header beside the list instead of above it.**
+`ShortWindowSplit` wraps the four screens that stack a header on a list; under
+520 points of height, and only when there is 600 points of width to spend, the
+header becomes a scrollable column two fifths wide and the list takes the full
+height. Above that threshold it renders its children exactly as before, so the
+layout the app was designed in is byte-for-byte untouched. The test is the
+window rather than the orientation, because a phone in split-screen is short for
+the same reason and wants the same answer. `Screen` shrinks its title under the
+same rule.
+
+**No tablet layout.** No master-detail, no two-pane Now Playing. A tablet is not
+short, so it stacks exactly like a phone and gets more grid columns instead.
+That is the whole adaptation. A second full layout is a second set of empty,
+loading and error states to keep honest, and this is a phone app that must not
+break when someone turns their phone.
 
 The activity still declares `orientation|screenSize|screenLayout` in
 `configChanges` — from the template, unchanged — so rotation resizes the window

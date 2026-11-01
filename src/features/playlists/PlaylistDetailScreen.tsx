@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { NameDialog } from '@/components/ui/NameDialog';
 import { SearchField } from '@/components/ui/SearchField';
+import { ShortWindowSplit } from '@/components/ui/ShortWindowSplit';
 import {
   deletePlaylist,
   LIKED_SONGS_ID,
@@ -161,63 +162,70 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-surface">
-      <PlaylistDetailHeader
-        name={name}
-        trackCount={entries.length}
-        covers={covers}
-        onPlay={playAll}
-        onShuffle={() => void shuffleAll()}
-        cover={playlist?.coverPath ?? null}
-        onChangeCover={isLiked ? undefined : cover.open}
-        onAddTracks={isLiked ? undefined : () => setAdding(true)}
-        onRename={isLiked ? undefined : () => setRenaming(true)}
-        onDelete={isLiked ? undefined : onDelete}
-        isFavorite={playlist?.isFavorite ?? false}
-        onToggleFavorite={isLiked ? undefined : onToggleFavorite}
-      />
+      <ShortWindowSplit
+        bottomInset={bottomInset}
+        aside={
+          <>
+            <PlaylistDetailHeader
+              name={name}
+              trackCount={entries.length}
+              covers={covers}
+              onPlay={playAll}
+              onShuffle={() => void shuffleAll()}
+              cover={playlist?.coverPath ?? null}
+              onChangeCover={isLiked ? undefined : cover.open}
+              onAddTracks={isLiked ? undefined : () => setAdding(true)}
+              onRename={isLiked ? undefined : () => setRenaming(true)}
+              onDelete={isLiked ? undefined : onDelete}
+              isFavorite={playlist?.isFavorite ?? false}
+              onToggleFavorite={isLiked ? undefined : onToggleFavorite}
+            />
 
-      {/*
-        Always, not above some number of rows.
+            {/*
+            Always, not above some number of rows.
 
-        It used to appear only past twelve entries, on the reasoning that a
-        list which fits on one screen does not need searching. That reasoning
-        was about the *list* and the user's question is about the *box*: the
-        library has one, the Playlists tab has one, and a playlist that has
-        none reads as a screen where search is not a thing — so a fix to what
-        the box matches is invisible to anyone whose playlists are short.
-      */}
-      <View className="px-6 pb-4">
-        <SearchField
-          value={search}
-          onChange={setSearch}
-          inRow
-          placeholder={t('playlists.searchIn')}
-        />
-      </View>
-
-      {/* Bounded, so the list re-lays out when the rows above it change. */}
-      <View className="flex-1">
-        {entries.length === 0 ? (
-          <EmptyState
-            icon={ListMusic}
-            messages={detailMessages}
-            /* An empty playlist's one job is to be filled, so the way to fill
-               it is the thing on screen rather than an icon in the bar. */
-            actionLabel={isLiked ? undefined : t('playlists.addTracks.title')}
-            onAction={isLiked ? undefined : () => setAdding(true)}
-          />
-        ) : shown.length === 0 ? (
-          <EmptyState icon={SearchX} messages={[t('library.noResults', { term: search })]} />
-        ) : (
-          <FlashList
-            data={shown}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            overrideItemLayout={setEntryHeight}
-            contentContainerStyle={{ paddingBottom: bottomInset }}
-          />
-        )}
-      </View>
+            It used to appear only past twelve entries, on the reasoning that a
+            list which fits on one screen does not need searching. That reasoning
+            was about the *list* and the user's question is about the *box*: the
+            library has one, the Playlists tab has one, and a playlist that has
+            none reads as a screen where search is not a thing — so a fix to what
+            the box matches is invisible to anyone whose playlists are short.
+          */}
+            <View className="px-6 pb-4">
+              <SearchField
+                value={search}
+                onChange={setSearch}
+                inRow
+                placeholder={t('playlists.searchIn')}
+              />
+            </View>
+          </>
+        }
+      >
+        {/* Bounded, so the list re-lays out when the rows above it change. */}
+        <View className="flex-1">
+          {entries.length === 0 ? (
+            <EmptyState
+              icon={ListMusic}
+              messages={detailMessages}
+              /* An empty playlist's one job is to be filled, so the way to fill
+                 it is the thing on screen rather than an icon in the bar. */
+              actionLabel={isLiked ? undefined : t('playlists.addTracks.title')}
+              onAction={isLiked ? undefined : () => setAdding(true)}
+            />
+          ) : shown.length === 0 ? (
+            <EmptyState icon={SearchX} messages={[t('library.noResults', { term: search })]} />
+          ) : (
+            <FlashList
+              data={shown}
+              renderItem={renderItem}
+              keyExtractor={keyExtractor}
+              overrideItemLayout={setEntryHeight}
+              contentContainerStyle={{ paddingBottom: bottomInset }}
+            />
+          )}
+        </View>
+      </ShortWindowSplit>
 
       {isLiked ? null : (
         <AddTracksSheet

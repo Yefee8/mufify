@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { NameDialog } from '@/components/ui/NameDialog';
 import { LikedFilter } from '@/components/ui/LikedFilter';
 import { Screen } from '@/components/ui/Screen';
+import { ShortWindowSplit } from '@/components/ui/ShortWindowSplit';
 import { SearchField } from '@/components/ui/SearchField';
 import {
   createPlaylist,
@@ -88,66 +89,75 @@ export function PlaylistsScreen() {
 
   return (
     <Screen title={t('playlists.title')}>
-      <View className="flex-row items-center gap-3 px-6 pb-4">
-        {/* `rows.length`, so the number describes the list under it. */}
-        <Text className="flex-1 font-mono text-sm text-muted">
-          {t('playlists.count', { count: rows.length })}
-        </Text>
+      <ShortWindowSplit
+        bottomInset={bottomInset}
+        aside={
+          <>
+            <View className="flex-row items-center gap-3 px-6 pb-4">
+              {/* `rows.length`, so the number describes the list under it. */}
+              <Text className="flex-1 font-mono text-sm text-muted">
+                {t('playlists.count', { count: rows.length })}
+              </Text>
 
-        <LikedFilter
-          active={likedOnly}
-          onChange={setLikedOnly}
-          accessibilityLabel={t('playlists.likedFilter')}
-        />
-
-        <Pressable
-          onPress={openNaming}
-          accessibilityRole="button"
-          accessibilityLabel={t('playlists.create')}
-          className="min-h-11 flex-row items-center gap-2 rounded-sm border border-subtle px-4"
-        >
-          <Plus color={colors.signal} size={18} strokeWidth={2} />
-          <Text className="font-body-medium text-sm text-accent">{t('playlists.create')}</Text>
-        </Pressable>
-      </View>
-
-      <View className="mb-4 px-6">
-        <SearchField
-          value={search}
-          onChange={setSearch}
-          inRow
-          placeholder={t('playlists.search')}
-        />
-      </View>
-
-      <FlatList
-        data={rows}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        contentContainerStyle={{ paddingBottom: SPACING[8] + bottomInset }}
-        ListFooterComponent={
-          shouldShowEmptyState(rows) ? (
-            searching ? (
-              /* Nothing matched is not "no playlists": the box that emptied the
-                 list is on screen, and Create here would be answering a
-                 question nobody asked. */
-              <EmptyState icon={SearchX} messages={[t('library.noResults', { term: search })]} />
-            ) : likedOnly ? (
-              /* Nothing liked is not "no playlists": offering Create here would
-                 answer a question the filter did not ask. The heart stays on
-                 screen above, which is the way back. */
-              <EmptyState icon={HeartOff} messages={[t('playlists.noLiked')]} />
-            ) : (
-              <EmptyState
-                icon={ListMusic}
-                messages={messages}
-                actionLabel={t('playlists.create')}
-                onAction={openNaming}
+              <LikedFilter
+                active={likedOnly}
+                onChange={setLikedOnly}
+                accessibilityLabel={t('playlists.likedFilter')}
               />
-            )
-          ) : null
+
+              <Pressable
+                onPress={openNaming}
+                accessibilityRole="button"
+                accessibilityLabel={t('playlists.create')}
+                className="min-h-11 flex-row items-center gap-2 rounded-sm border border-subtle px-4"
+              >
+                <Plus color={colors.signal} size={18} strokeWidth={2} />
+                <Text className="font-body-medium text-sm text-accent">
+                  {t('playlists.create')}
+                </Text>
+              </Pressable>
+            </View>
+
+            <View className="mb-4 px-6">
+              <SearchField
+                value={search}
+                onChange={setSearch}
+                inRow
+                placeholder={t('playlists.search')}
+              />
+            </View>
+          </>
         }
-      />
+      >
+        <FlatList
+          data={rows}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          contentContainerStyle={{ paddingBottom: SPACING[8] + bottomInset }}
+          ListFooterComponent={
+            shouldShowEmptyState(rows) ? (
+              searching ? (
+                /* Nothing matched is not "no playlists": the box that emptied the
+                   list is on screen, and Create here would be answering a
+                   question nobody asked. */
+                <EmptyState icon={SearchX} messages={[t('library.noResults', { term: search })]} />
+              ) : likedOnly ? (
+                /* Nothing liked is not "no playlists": offering Create here would
+                   answer a question the filter did not ask. The heart stays on
+                   screen above, which is the way back. */
+                <EmptyState icon={HeartOff} messages={[t('playlists.noLiked')]} />
+              ) : (
+                <EmptyState
+                  icon={ListMusic}
+                  messages={messages}
+                  actionLabel={t('playlists.create')}
+                  onAction={openNaming}
+                />
+              )
+            ) : null
+          }
+        />
+      </ShortWindowSplit>
 
       <NameDialog
         visible={naming}

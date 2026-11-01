@@ -43,7 +43,7 @@ export function CollectionGrid({
   empty,
 }: CollectionGridProps) {
   const bottomInset = useMiniPlayerInset();
-  const columns = useCardColumns();
+  const { columns, onLayout } = useCardColumns();
 
   const renderItem = useCallback<ListRenderItem<Card>>(
     ({ item }) => (
@@ -63,21 +63,26 @@ export function CollectionGrid({
   );
 
   return (
-    <FlashList
-      data={cards}
-      renderItem={renderItem}
-      keyExtractor={keyExtractor}
-      numColumns={columns}
-      /*
+    // The wrapper is what gets measured: `useCardColumns` needs the width the
+    // grid actually has, which in a short window is a column rather than the
+    // screen.
+    <View className="flex-1" onLayout={onLayout}>
+      <FlashList
+        data={cards}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        numColumns={columns}
+        /*
         One style rather than a class plus a style. The bottom inset is a
         runtime measurement — the transport strip's height — which no Tailwind
         class can carry, and mixing `contentContainerClassName` with
         `contentContainerStyle` leaves which padding wins to NativeWind's merge
         order. The values are still design-system tokens.
       */
-      contentContainerStyle={{ paddingHorizontal: SPACING[4], paddingBottom: bottomInset }}
-      ListEmptyComponent={empty}
-    />
+        contentContainerStyle={{ paddingHorizontal: SPACING[4], paddingBottom: bottomInset }}
+        ListEmptyComponent={empty}
+      />
+    </View>
   );
 }
 

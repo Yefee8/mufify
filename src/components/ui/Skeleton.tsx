@@ -111,10 +111,11 @@ export function SkeletonRows({
  * across five columns is a ragged single row.
  */
 export function SkeletonCards({ rows = 2 }: { rows?: number }) {
-  const columns = useCardColumns();
+  const { columns, onLayout } = useCardColumns();
 
   return (
     <View
+      onLayout={onLayout}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
       className="flex-row flex-wrap px-4"

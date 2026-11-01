@@ -14,7 +14,7 @@ import {
 } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, useWindowDimensions, View } from 'react-native';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AudioEngine } from '@/services/audio/AudioEngine';
@@ -48,13 +48,13 @@ export interface PlayerScreenProps {
   onPrepareQueue: () => void;
 }
 
-export function PlayerScreen({
-  onExpandedChange,
-  onOpenQueue,
-  onPrepareQueue,
-}: PlayerScreenProps) {
+/** The same short window `ShortWindowSplit` and `Screen` mean. */
+const SHORT_HEIGHT = 520;
+
+export function PlayerScreen({ onExpandedChange, onOpenQueue, onPrepareQueue }: PlayerScreenProps) {
   const { t, i18n } = useTranslation();
   const colors = useThemeColors();
+  const { height } = useWindowDimensions();
 
   const { phase, track, positionMs, durationMs, error } = usePlayback();
   const { toggle, toggleShuffle, next, previous, seekTo } = usePlaybackControls();
@@ -115,6 +115,16 @@ export function PlayerScreen({
     );
   }
 
+  /*
+   * A landscape phone has about 411 points of height and this column needs
+   * every one of them: header, cover, title, scrubber, transport and the spec
+   * strip. At the usual spacing the strip fell off the bottom edge — not
+   * scrollable, not reachable. Tightening the gaps is what buys it back; the
+   * cover keeps whatever is left, which sideways is not much, and that is the
+   * honest trade for a screen the app does not lay out twice.
+   */
+  const short = height < SHORT_HEIGHT;
+
   const isPlaying = phase === 'playing';
   const isLoading = phase === 'loading';
   const algorithm = getShuffleAlgorithm();
@@ -134,7 +144,7 @@ export function PlayerScreen({
         air the column did not have — see `artworkSize.ts` for what the overflow
         did to both ends of the screen.
       */}
-      <View className="flex-1 gap-6 pb-4">
+      <View className={short ? 'flex-1 gap-2 pb-1' : 'flex-1 gap-6 pb-4'}>
         {/*
           The artwork carries the gestures, not the whole screen: the scrubber
           below owns a pan of its own, and two competing pans on one surface

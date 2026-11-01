@@ -5,6 +5,8 @@ import { Linking, View } from 'react-native';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Screen } from '@/components/ui/Screen';
+import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
+import { ShortWindowSplit } from '@/components/ui/ShortWindowSplit';
 import { SearchField } from '@/components/ui/SearchField';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
 import { LikedFilter } from '@/components/ui/LikedFilter';
@@ -55,6 +57,9 @@ export function LibraryScreen() {
   const { t } = useTranslation();
 
   const [view, setView] = useState<LibraryView>('tracks');
+  // Only the aside needs it — the lists ask for it themselves — and only when
+  // the window is short enough to put the aside beside them.
+  const bottomInset = useMiniPlayerInset();
   const [search, setSearch] = useState('');
   const [likedOnly, setLikedOnly] = useState(false);
   // The field stays instant; only the query waits.
@@ -139,107 +144,120 @@ export function LibraryScreen() {
 
   return (
     <Screen title={t('library.title')}>
-      <LibraryHeader
-        count={displayedTrackCount}
-        isScanning={isScanning}
-        onAddFolder={chooseFolder}
-        onScan={askToScan}
-      />
+      <ShortWindowSplit
+        bottomInset={bottomInset}
+        aside={
+          <>
+            <LibraryHeader
+              count={displayedTrackCount}
+              isScanning={isScanning}
+              onAddFolder={chooseFolder}
+              onScan={askToScan}
+            />
 
-      <View className="px-6 pb-4">
-        <SegmentedControl
-          options={viewOptions}
-          value={view}
-          onChange={setView}
-          accessibilityLabel={t('library.view.label')}
-        />
-      </View>
+            <View className="px-6 pb-4">
+              <SegmentedControl
+                options={viewOptions}
+                value={view}
+                onChange={setView}
+                accessibilityLabel={t('library.view.label')}
+              />
+            </View>
 
-      {/*
-        One search box for every view. It used to appear on the tracks view
-        only, on the grounds that a grid of a few cards did not need one — which
-        stopped being true the first time a library held two hundred albums.
-        The same field, the same text: switching view keeps what was typed,
-        because the question "where is X" does not change with the shape of the
-        answer.
+            {/*
+            One search box for every view. It used to appear on the tracks view
+            only, on the grounds that a grid of a few cards did not need one — which
+            stopped being true the first time a library held two hundred albums.
+            The same field, the same text: switching view keeps what was typed,
+            because the question "where is X" does not change with the shape of the
+            answer.
 
-        The liked filter stays with the tracks view. The shelves have a heart of
-        their own where it applies.
-      */}
-      <View className="mb-4 flex-row items-center gap-3 px-6">
-        <SearchField value={search} onChange={setSearch} inRow />
+            The liked filter stays with the tracks view. The shelves have a heart of
+            their own where it applies.
+          */}
+            <View className="mb-4 flex-row items-center gap-3 px-6">
+              <SearchField value={search} onChange={setSearch} inRow />
+              {view === 'tracks' ? (
+                <LikedFilter
+                  active={likedOnly}
+                  onChange={setLikedOnly}
+                  accessibilityLabel={t('library.likedFilter')}
+                />
+              ) : null}
+            </View>
+
+            {/* Starting the whole library from the top, rather than only by tapping a
+              row — which starts at that row. Hidden while there is nothing to play. */}
+            {view === 'tracks' ? (
+              <PlayShuffleBar
+                onPlay={playAll}
+                onShuffle={shuffleAll}
+                disabled={tracks.length === 0}
+              />
+            ) : null}
+
+            {/*
+            Above the list rather than in place of it, and present for as long as
+            the refusal is — not only in the seconds after a scan. Without the
+            permission MediaStore returns nothing rather than failing, so a library
+            that looks merely empty is the symptom this explains.
+          */}
+            {permission.denied ? (
+              <WarningBanner
+                message={
+                  permission.blocked
+                    ? t('library.scanError.permissionBlocked')
+                    : t('library.scanError.permission')
+                }
+                actionLabel={
+                  permission.blocked
+                    ? t('library.scanError.openSettings')
+                    : t('library.scanError.grant')
+                }
+                onAction={askAgain}
+              />
+            ) : null}
+
+            {isScanning && !isFolderImporting ? (
+              <ScanBanner progress={progress} onCancel={cancel} />
+            ) : null}
+
+            {hasFailed ? (
+              <ErrorState
+                message={t('library.scanError.generic')}
+                detail={progress.error}
+                retryLabel={t('library.scanError.retry')}
+                onRetry={chooseFolder}
+              />
+            ) : null}
+          </>
+        }
+      >
+        {/*
+          Every view owns whatever height is left, explicitly. Without a bounded
+          flex parent a virtualized list keeps the height it first measured, so
+          mounting the scan banner above it shrinks the space without shrinking the
+          list — which is where the blank band above the first row came from.
+        */}
         {view === 'tracks' ? (
-          <LikedFilter
-            active={likedOnly}
-            onChange={setLikedOnly}
-            accessibilityLabel={t('library.likedFilter')}
+          <LibraryTracks
+            tracks={tracks}
+            isLoading={waiting}
+            search={search}
+            likedOnly={likedOnly}
+            suppressEmpty={hasFailed}
+            onAddFolder={chooseFolder}
           />
-        ) : null}
-      </View>
-
-      {/* Starting the whole library from the top, rather than only by tapping a
-          row — which starts at that row. Hidden while there is nothing to play. */}
-      {view === 'tracks' ? (
-        <PlayShuffleBar onPlay={playAll} onShuffle={shuffleAll} disabled={tracks.length === 0} />
-      ) : null}
-
-      {/*
-        Above the list rather than in place of it, and present for as long as
-        the refusal is — not only in the seconds after a scan. Without the
-        permission MediaStore returns nothing rather than failing, so a library
-        that looks merely empty is the symptom this explains.
-      */}
-      {permission.denied ? (
-        <WarningBanner
-          message={
-            permission.blocked
-              ? t('library.scanError.permissionBlocked')
-              : t('library.scanError.permission')
-          }
-          actionLabel={
-            permission.blocked ? t('library.scanError.openSettings') : t('library.scanError.grant')
-          }
-          onAction={askAgain}
-        />
-      ) : null}
-
-      {isScanning && !isFolderImporting ? (
-        <ScanBanner progress={progress} onCancel={cancel} />
-      ) : null}
-
-      {hasFailed ? (
-        <ErrorState
-          message={t('library.scanError.generic')}
-          detail={progress.error}
-          retryLabel={t('library.scanError.retry')}
-          onRetry={chooseFolder}
-        />
-      ) : null}
-
-      {/*
-        Every view owns whatever height is left, explicitly. Without a bounded
-        flex parent a virtualized list keeps the height it first measured, so
-        mounting the scan banner above it shrinks the space without shrinking the
-        list — which is where the blank band above the first row came from.
-      */}
-      {view === 'tracks' ? (
-        <LibraryTracks
-          tracks={tracks}
-          isLoading={waiting}
-          search={search}
-          likedOnly={likedOnly}
-          suppressEmpty={hasFailed}
-          onAddFolder={chooseFolder}
-        />
-      ) : (
-        <LibraryCollections
-          kind={view === 'artists' ? 'artist' : 'album'}
-          cards={collectionCards}
-          search={search}
-          isLoading={waiting}
-          onOpen={view === 'artists' ? openArtist : openAlbum}
-        />
-      )}
+        ) : (
+          <LibraryCollections
+            kind={view === 'artists' ? 'artist' : 'album'}
+            cards={collectionCards}
+            search={search}
+            isLoading={waiting}
+            onOpen={view === 'artists' ? openArtist : openAlbum}
+          />
+        )}
+      </ShortWindowSplit>
 
       {/*
         Scanning reads every audio file on the device, so it says so before it
