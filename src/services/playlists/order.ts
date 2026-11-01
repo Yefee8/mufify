@@ -79,20 +79,30 @@ export interface PlaylistRow {
 }
 
 /**
- * The new order of positions after moving `from` to `to`.
+ * The list with the item at `from` lifted out and dropped at `to`.
  *
  * Returns null when either index is outside the list, so a stale drag against a
  * playlist that changed underneath is a no-op rather than a write that shuffles
  * rows the user never touched.
+ *
+ * Generic because the same move happens twice for one drag: over positions, on
+ * the way to the database, and over the rows themselves, to show the new order
+ * before the write lands — see `useReorderableEntries`. Two copies of
+ * `splice`-out-`splice`-in is two places for the off-by-one to live.
  */
-export function reorder(positions: readonly number[], from: number, to: number): number[] | null {
-  if (from < 0 || to < 0 || from >= positions.length || to >= positions.length) return null;
+export function moveItem<T>(items: readonly T[], from: number, to: number): T[] | null {
+  if (from < 0 || to < 0 || from >= items.length || to >= items.length) return null;
 
-  const next = [...positions];
+  const next = [...items];
   const [moved] = next.splice(from, 1);
   if (moved === undefined) return null;
   next.splice(to, 0, moved);
   return next;
+}
+
+/** `moveItem` over a playlist's positions. */
+export function reorder(positions: readonly number[], from: number, to: number): number[] | null {
+  return moveItem(positions, from, to);
 }
 
 /**

@@ -1,6 +1,6 @@
 import { matchesHaystack } from '@/services/text/search';
 
-import { foldPlaylistRows, reorder, type PlaylistRow } from './order';
+import { foldPlaylistRows, moveItem, reorder, type PlaylistRow } from './order';
 
 /**
  * The two pure parts of the playlist queries.
@@ -24,6 +24,31 @@ function row(partial: Partial<PlaylistRow> & { id: number }): PlaylistRow {
     ...partial,
   };
 }
+
+describe('moveItem', () => {
+  it('moves the row itself, not a copy of it', () => {
+    const rows = [{ id: 1 }, { id: 2 }, { id: 3 }];
+    const moved = moveItem(rows, 0, 2);
+
+    expect(moved?.map((entry) => entry.id)).toEqual([2, 3, 1]);
+    // The list the screen renders after a drop holds the same objects it held
+    // before it, so the rows keep their React keys and their state.
+    expect(moved?.[2]).toBe(rows[0]);
+  });
+
+  it('leaves the list it was given alone', () => {
+    const rows = ['a', 'b', 'c'];
+
+    expect(moveItem(rows, 2, 0)).toEqual(['c', 'a', 'b']);
+    expect(rows).toEqual(['a', 'b', 'c']);
+  });
+
+  it('refuses an index outside the list', () => {
+    expect(moveItem(['a', 'b'], 0, 5)).toBeNull();
+    expect(moveItem(['a', 'b'], -1, 1)).toBeNull();
+    expect(moveItem([], 0, 0)).toBeNull();
+  });
+});
 
 describe('reorder', () => {
   const positions = [0, 1, 2, 3, 4];

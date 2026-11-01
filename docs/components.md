@@ -44,6 +44,7 @@ it is repeated here because that is the thing a reader needs before touching it.
 | `SwipeableRow` | Reveals one action when dragged left. **Transient by design**: it never stays open, because this lives in a recycling list and a row holding open state gets recycled with it. |
 | `Toaster` | Where transient confirmations appear. Reads a module-level store, so a toast re-renders this and nothing else. Sits above the mini player in the tab bar stack. |
 | `ProgressBar` | A determinate bar. Used by the scan banner. |
+| `ShortWindowSplit` | Header above the list, or beside it when the window is shorter than 520 points — a landscape phone, or split-screen. Upright it renders its children unchanged. |
 | `useCardColumns` | Cards per row for the card grids, from the window width. Two on a portrait phone, up to five on a tablet. |
 | `panelInset` | The padding a bottom-anchored sheet needs to clear the system bars — bottom and sides together, because in landscape the navigation bar is a side. |
 
@@ -94,7 +95,8 @@ it is repeated here because that is the thing a reader needs before touching it.
 | `PlaylistsScreen` / `PlaylistRow` | The list, and one playlist in it. |
 | `PlaylistDetailScreen` / `PlaylistDetailHeader` | One playlist, laid out the way a streaming app does because that arrangement is already in everyone's hands. |
 | `PlaylistMosaic` | A playlist's cover: the first four album covers in a 2×2 grid. Each count is a deliberate case, not a degradation — one cover fills the square rather than repeating four times. |
-| `ReorderableEntry` | Drag by a handle, not by long-press: long-press is the action sheet everywhere else, and a list where holding sometimes does either is a list nobody trusts. |
+| `ReorderableEntry` | Drag by a handle, not by long-press: long-press is the action sheet everywhere else, and a list where holding sometimes does either is a list nobody trusts. The rest of the list opens a gap as the held row passes, so you can see where it will land. |
+| `useReorderableEntries` | The order to render while the write is in flight: the drop shows immediately and the query replaces it when it arrives. Without it the row snapped back to where it was picked up and jumped forward a moment later. |
 | `AddToPlaylistSheet` | Pick a playlist for some tracks, or make one. |
 | `NamePlaylistDialog` | A `Modal`, not `Alert.prompt`, which is iOS-only and silently does nothing on Android. |
 

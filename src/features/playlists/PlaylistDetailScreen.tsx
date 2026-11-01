@@ -12,7 +12,6 @@ import { SearchField } from '@/components/ui/SearchField';
 import {
   deletePlaylist,
   LIKED_SONGS_ID,
-  movePlaylistEntry,
   removeFromPlaylist,
   renamePlaylist,
   setPlaylistFavorite,
@@ -30,6 +29,7 @@ import { AddTracksSheet } from './components/AddTracksSheet';
 import { CoverActionSheet } from './components/CoverActionSheet';
 import { CoverCropSheet } from './components/CoverCropSheet';
 import { usePlaylistCover } from './hooks/usePlaylistCover';
+import { useReorderableEntries } from './hooks/useReorderableEntries';
 import { usePlaylistPlayback } from './hooks/usePlaylistPlayback';
 import { PlaylistDetailHeader } from './components/PlaylistDetailHeader';
 import { PlaylistEntryRow } from './components/PlaylistEntryRow';
@@ -49,12 +49,15 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
 
   const playlistEntries = usePlaylistEntries(playlistId);
   const likedEntries = useFavoriteEntries();
-  const entries = isLiked ? likedEntries : playlistEntries;
+  // Reordering is the only thing this adds, and liked songs are ordered by when
+  // they were liked, so the hook's `move` goes unused there rather than wrong.
+  const { entries, move } = useReorderableEntries(
+    playlistId,
+    isLiked ? likedEntries : playlistEntries,
+  );
 
   /*
-   * A search box for the list, shown only once it is long enough to need one.
-   * Twelve rows fit on a screen and a box above them is noise; a hundred do
-   * not. What is *played* stays the whole playlist — Play and Shuffle start the
+   * What is *played* stays the whole playlist — Play and Shuffle start the
    * list, not the filtered view of it, because a search is for finding a row,
    * and the queue a person expects from "Play" is the playlist they opened.
    */
@@ -97,11 +100,6 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
 
   const remove = useCallback(
     (position: number) => void removeFromPlaylist(playlistId, position),
-    [playlistId],
-  );
-
-  const move = useCallback(
-    (from: number, to: number) => void movePlaylistEntry(playlistId, from, to),
     [playlistId],
   );
 

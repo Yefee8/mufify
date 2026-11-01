@@ -283,7 +283,7 @@ export async function addTracksToPlaylist(playlistId: number, trackIds: number[]
 }
 
 /**
- * Move one entry to a new position, keeping the rest contiguous.
+ * Move the entry at `fromPosition` to `toPosition`, keeping the rest contiguous.
  *
  * Done as a full rewrite of the affected span rather than a clever three-step
  * swap, and the reason is the unique index on `(playlist_id, position)`. Any
@@ -298,10 +298,10 @@ export async function addTracksToPlaylist(playlistId: number, trackIds: number[]
  */
 export async function movePlaylistEntry(
   playlistId: number,
-  from: number,
-  to: number,
+  fromPosition: number,
+  toPosition: number,
 ): Promise<void> {
-  if (from === to) return;
+  if (fromPosition === toPosition) return;
 
   await db.transaction(async (tx) => {
     const rows = await tx
@@ -310,11 +310,20 @@ export async function movePlaylistEntry(
       .where(eq(playlistTracks.playlistId, playlistId))
       .orderBy(asc(playlistTracks.position));
 
-    const order = reorder(
-      rows.map((row) => row.position),
-      from,
-      to,
-    );
+    /*
+     * Positions rather than the row numbers the screen dragged.
+     *
+     * They are the same number in a playlist whose files are all present —
+     * positions are dense, so position *is* index — and they are not the same
+     * number in a playlist with a missing file, because the screen does not
+     * show missing tracks and this query does not skip them. Dragging the third
+     * visible row then moved the third row of the full list, which is a
+     * different track. Looking the positions up here keeps the correction in
+     * one place; a caller that passes something not in the list gets the
+     * existing null-guarded no-op.
+     */
+    const positions = rows.map((row) => row.position);
+    const order = reorder(positions, positions.indexOf(fromPosition), positions.indexOf(toPosition));
     if (order === null) return;
 
     // Park everything out of the way first. Negative positions cannot collide

@@ -9,10 +9,11 @@ import { useThemeColors } from '@/theme/useTheme';
 
 import {
   beginDrag,
+  cancelDrag,
   dragFrom,
   dragOffset,
+  dragSettled,
   dragTo,
-  dropInto,
   endDrag,
   shiftFor,
   updateDrag,
@@ -61,7 +62,9 @@ export interface ReorderableEntryProps {
  * as a glitch rather than as picking something up.
  *
  * The database is still only written on release — see `reorderDrag` — so what
- * moves during the drag is pixels, not rows.
+ * moves during the drag is pixels, not rows. The row lands in its new slot
+ * without waiting for that write: `useReorderableEntries` renders the drop and
+ * lets the query catch up.
  */
 export function ReorderableEntry({
   children,
@@ -83,17 +86,31 @@ export function ReorderableEntry({
     })
     .onEnd(() => {
       const target = dragTo.value;
-      if (target !== index) runOnJS(onMove)(index, target);
 
-      // Travels to the slot the list is holding open, then releases the drag
-      // state — by which point the write has landed and the list has
-      // re-rendered in the new order. See `dropInto`.
-      dropInto(index, target, ENTRY_HEIGHT);
+      if (target === index) {
+        // Went nowhere. Ease it back, because nothing else is going to move.
+        cancelDrag();
+        return;
+      }
+
+      /*
+       * Hand the move over and drop the drag in the same breath.
+       *
+       * `onMove` puts the row in its new slot immediately — the list does not
+       * wait for the database, see `useReorderableEntries` — so the transforms
+       * that were standing in for the new order have to stop in the same
+       * moment, or the row would be offset by a row on top of a layout that
+       * already moved it. `endDrag(true)` makes that reset a fact rather than
+       * an animation, which is the difference between this and the version that
+       * bounced twice on every drop.
+       */
+      runOnJS(onMove)(index, target);
+      endDrag(true);
     })
     .onFinalize(() => {
       // A cancelled gesture never reaches `onEnd`; without this the list would
       // stay shifted around a drag that is no longer happening.
-      if (dragFrom.value === index && dragOffset.value === 0) endDrag();
+      if (dragFrom.value === index) cancelDrag();
     });
 
   const style = useAnimatedStyle(() => {
@@ -111,13 +128,17 @@ export function ReorderableEntry({
       };
     }
 
+    const shift = shiftFor(index, from, dragTo.value, ENTRY_HEIGHT);
+
     return {
       transform: [
         {
-          translateY: withTiming(shiftFor(index, from, dragTo.value, ENTRY_HEIGHT), {
-            duration: SHIFT_MS,
-            easing: Easing.out(Easing.quad),
-          }),
+          // Instant after a committed drop, animated otherwise — see
+          // `dragSettled`. Both are a trip to zero; only one of them has
+          // anywhere to travel.
+          translateY: dragSettled.value
+            ? shift
+            : withTiming(shift, { duration: SHIFT_MS, easing: Easing.out(Easing.quad) }),
         },
         { scale: withTiming(1, { duration: LIFT_MS }) },
       ],
