@@ -35,9 +35,6 @@ import { PlaylistDetailHeader } from './components/PlaylistDetailHeader';
 import { PlaylistEntryRow } from './components/PlaylistEntryRow';
 import { ENTRY_HEIGHT, ReorderableEntry } from './components/ReorderableEntry';
 
-/** Below this many rows the whole list is on one screen and a box is noise. */
-const SEARCHABLE_FROM = 12;
-
 export interface PlaylistDetailScreenProps {
   playlistId: number;
 }
@@ -181,16 +178,24 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
         onToggleFavorite={isLiked ? undefined : onToggleFavorite}
       />
 
-      {entries.length >= SEARCHABLE_FROM ? (
-        <View className="px-6 pb-4">
-          <SearchField
-            value={search}
-            onChange={setSearch}
-            inRow
-            placeholder={t('playlists.searchIn')}
-          />
-        </View>
-      ) : null}
+      {/*
+        Always, not above some number of rows.
+
+        It used to appear only past twelve entries, on the reasoning that a
+        list which fits on one screen does not need searching. That reasoning
+        was about the *list* and the user's question is about the *box*: the
+        library has one, the Playlists tab has one, and a playlist that has
+        none reads as a screen where search is not a thing — so a fix to what
+        the box matches is invisible to anyone whose playlists are short.
+      */}
+      <View className="px-6 pb-4">
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          inRow
+          placeholder={t('playlists.searchIn')}
+        />
+      </View>
 
       {/* Bounded, so the list re-lays out when the rows above it change. */}
       <View className="flex-1">
