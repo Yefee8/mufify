@@ -1,14 +1,16 @@
 import { Image } from 'expo-image';
-import { Music, Pause, Play, SkipBack, SkipForward } from 'lucide-react-native';
+import { Music } from 'lucide-react-native';
 import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  Easing,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 import { tapFeedback } from '@/services/haptics';
@@ -19,26 +21,48 @@ import { useThemeColors } from '@/theme/useTheme';
 import { useCurrentTrack, usePlaybackControls, usePlaybackPhase } from '../hooks/usePlayback';
 import { playerExpansion, setPlayerExpansion } from '../playerExpansion';
 import { MiniProgress } from './MiniProgress';
+import { MiniTransport } from './MiniTransport';
 
 /** px/s upward that opens it regardless of distance. */
 const OPEN_VELOCITY = 600;
 /** Sideways travel that changes track. Shorter than the player's — less room. */
 const SKIP_DISTANCE = 56;
+/** px/s sideways that changes track however short the drag was. */
+const SKIP_VELOCITY = 450;
 /** Below this the pan never claims the touch, so the buttons still work. */
 const ACTIVATION_SLOP = 10;
 /**
- * Movement needed before the gesture commits to an axis.
- *
- * Not cosmetic. Deciding on the first `onUpdate` compares two translations that
- * are both still zero, and `Math.abs(0) >= Math.abs(0)` is true — so every
- * gesture locked to horizontal and vertical ones were silently discarded. A
- * downward drag simply sprang back. Waiting for real movement is the fix.
+ * Movement needed before the gesture commits to an axis. Not cosmetic:
+ * deciding on the first `onUpdate` compares two translations that are both
+ * still zero, and `Math.abs(0) >= Math.abs(0)` is true — so every gesture
+ * locked to horizontal and the vertical ones were silently discarded.
  */
 const AXIS_LOCK_SLOP = 6;
-/** How far the strip follows the finger. Damped, so it reads as resistance. */
-const FOLLOW_RATIO = 0.4;
 
-const SPRING = { damping: 20, stiffness: 220 } as const;
+/*
+ * The skip transition: out, swap, in.
+ *
+ * What this replaces read as three contradictory signals. The strip followed
+ * the finger at 0.4, so it lagged behind the thing dragging it; it then sprang
+ * back to the centre, overshooting, while the new title appeared at some
+ * unrelated point during the spring. A drag that went left ended with the
+ * content arriving from the left — the opposite of changing track.
+ *
+ * Now the content keeps going the way it was thrown and its replacement comes
+ * from the other side, with one shared value driving both the travel and the
+ * fade: the exit is fully faded exactly where it stops, and an entry that
+ * starts partway in starts partway faded. Ratios are of the screen's width, so
+ * the motion matches everything else the width governs.
+ */
+/** Where the outgoing content is by the time it has faded out. */
+const EXIT_RATIO = 0.5;
+/** Where the incoming content starts. Short, because the fade carries it. */
+const ENTER_RATIO = 0.28;
+const EXIT_MS = 140;
+const ENTER_MS = 200;
+
+/** A drag that did not commit returns home without a wobble. */
+const SETTLE = { damping: 26, stiffness: 340, mass: 0.7 } as const;
 
 export interface MiniPlayerProps {
   /** Mounts Now Playing as soon as a vertical drag begins, or a finger lands. */
@@ -69,17 +93,13 @@ export function MiniPlayer({ onPrepareOpen, onExpandedChange }: MiniPlayerProps)
   useLifecycleTrace('MiniPlayer');
   const { t } = useTranslation();
   const colors = useThemeColors();
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
 
   /*
-   * Phase and track, never position.
-   *
-   * Measured on the Pixel_7 AVD over ten seconds of playback: subscribing to
-   * the whole engine state re-rendered this component 20 times — exactly the
-   * engine's 2 Hz status interval — and 0 times after the split. Twenty
-   * reconciliations of an `expo-image` and four Pressables per ten seconds, for
-   * a strip whose text has not changed. Position belongs to `MiniProgress`,
-   * which is one animated view and re-renders never.
+   * Phase and track, never position. Measured on the Pixel_7 AVD over ten
+   * seconds of playback: the whole engine state re-rendered this 20 times —
+   * the engine's 2 Hz status interval — and 0 times after the split. Position
+   * belongs to `MiniProgress`, one animated view that re-renders never.
    */
   const phase = usePlaybackPhase();
   const track = useCurrentTrack();
@@ -96,27 +116,22 @@ export function MiniPlayer({ onPrepareOpen, onExpandedChange }: MiniPlayerProps)
 
   const offsetX = useSharedValue(0);
   const axis = useSharedValue(0);
+  /** Set when the release started a skip, so the release does not also undo it. */
+  const skipping = useSharedValue(false);
 
   /*
    * The gesture is built here rather than in a shared wrapper, and that is the
-   * fix for "swiping the mini player up does not open the player".
+   * fix for "swiping the mini player up does not open the player". A generic
+   * pan with both `activeOffsetX` and `activeOffsetY` on a container made
+   * entirely of Pressables lost the race to a child's press responder, so the
+   * swipe worked sometimes; a small minimum distance claims both axes and
+   * still leaves taps alone. `activeOffsetY` alone meant a purely horizontal
+   * drag could never activate, so track swipes did not exist in practice.
    *
-   * The previous version put a generic pan on a container whose children are all
-   * Pressables, with `activeOffsetX` and `activeOffsetY` both set. Two axes of
-   * activation on a surface made entirely of touch targets meant the pan
-   * routinely lost the race to a child's press responder, so the swipe worked
-   * sometimes and looked broken the rest of the time.
-   *
-   * A small minimum distance lets the pan claim both axes while leaving taps
-   * to the child Pressables. `activeOffsetY` looked safer but meant a purely
-   * horizontal drag could never activate, so mini-player track swipes did not
-   * exist in practice.
-   *
-   * Built inline rather than memoized, like `Scrubber` and unlike
-   * `SwipeableRow`: there is exactly one mini player, so a rebuild per render
-   * costs nothing, and keeping the shared values out of a hook's closure avoids
-   * the React Compiler's immutability rule — which is right about ordinary
-   * values and simply does not model Reanimated.
+   * Built inline rather than memoized, like `Scrubber`: there is one mini
+   * player, so a rebuild per render costs nothing, and keeping the shared
+   * values out of a hook's closure avoids the React Compiler's immutability
+   * rule — right about ordinary values, and no model of Reanimated.
    */
   const pan = Gesture.Pan()
     .minDistance(ACTIVATION_SLOP)
@@ -134,15 +149,46 @@ export function MiniPlayer({ onPrepareOpen, onExpandedChange }: MiniPlayerProps)
       }
 
       if (axis.value === 1) {
-        offsetX.value = event.translationX * FOLLOW_RATIO;
+        // One to one. The content is the thing being dragged, so it goes where
+        // the finger goes — a damped follow reads as lag, not as resistance.
+        offsetX.value = event.translationX;
         return;
       }
       setPlayerExpansion(Math.min(1, Math.max(0, -event.translationY / height)));
     })
     .onEnd((event) => {
       if (axis.value === 1) {
-        if (event.translationX <= -SKIP_DISTANCE) runOnJS(next)();
-        else if (event.translationX >= SKIP_DISTANCE) runOnJS(previous)();
+        // Left is next, as it is everywhere else: the next thing comes from
+        // the right. Velocity commits a short flick, distance a slow drag.
+        const direction =
+          event.translationX <= -SKIP_DISTANCE || event.velocityX <= -SKIP_VELOCITY
+            ? -1
+            : event.translationX >= SKIP_DISTANCE || event.velocityX >= SKIP_VELOCITY
+              ? 1
+              : 0;
+
+        if (direction === 0) return;
+
+        skipping.value = true;
+        // Asked for at the release rather than at the end of the exit, so the
+        // engine loads the track during the 140ms the old one spends leaving.
+        if (direction === -1) runOnJS(next)();
+        else runOnJS(previous)();
+
+        offsetX.value = withTiming(
+          direction * width * EXIT_RATIO,
+          { duration: EXIT_MS, easing: Easing.out(Easing.quad) },
+          (finished) => {
+            if (!finished) return;
+            // Placed on the far side and brought in: by now the strip is
+            // showing the track that was asked for.
+            offsetX.value = -direction * width * ENTER_RATIO;
+            offsetX.value = withTiming(0, {
+              duration: ENTER_MS,
+              easing: Easing.out(Easing.cubic),
+            });
+          },
+        );
         return;
       }
 
@@ -153,18 +199,27 @@ export function MiniPlayer({ onPrepareOpen, onExpandedChange }: MiniPlayerProps)
     })
     .onFinalize(() => {
       axis.value = 0;
-      offsetX.value = withSpring(0, SPRING);
+      // A committed skip owns the shared value until its own animation ends.
+      if (skipping.value) {
+        skipping.value = false;
+        return;
+      }
+      offsetX.value = withSpring(0, SETTLE);
     });
 
   /*
-   * Only the sideways follow. The fade moved up to `PlayerLayer`, which wraps
-   * the whole strip — this style covered the row but not the strip's panel
-   * background, its top hairline or `MiniProgress`, and those three carried on
-   * drawing over an open Now Playing.
+   * The sideways follow and its fade, from one value, so the two cannot
+   * drift. Travel is clamped so a drag past the exit point does not go
+   * negative. The strip's *own* fade — for an opening Now Playing — is in
+   * `PlayerLayer`; this one is only the content that changes with the track.
    */
-  const followStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: offsetX.value }],
-  }));
+  const contentStyle = useAnimatedStyle(() => {
+    const travelled = Math.min(1, Math.abs(offsetX.value) / (width * EXIT_RATIO));
+    return {
+      transform: [{ translateX: offsetX.value }],
+      opacity: 1 - travelled,
+    };
+  });
 
   if (phase === 'idle' || track === null) return null;
 
@@ -174,26 +229,28 @@ export function MiniPlayer({ onPrepareOpen, onExpandedChange }: MiniPlayerProps)
   return (
     <View className="border-t border-subtle bg-surface-elevated">
       {/*
-        A hairline of progress rather than a scrub bar. The mini player says
-        where you are; seeking is the full player's job, and a 2px target is not
-        a control anyone can hit.
-
-        Outside the gesture wrapper: the bar reports position and should not
-        slide around with the strip that reports the track.
+        A hairline of progress rather than a scrub bar: seeking is the full
+        player's job and a 2px target is not a control anyone can hit. Outside
+        the gesture wrapper, because position does not change with the track.
       */}
       <MiniProgress />
 
+      {/*
+        The gesture takes the whole strip; only the content moves under it.
+        Sliding the transport out with the title was the other half of why the
+        old swipe read badly — the controls are furniture, and watching them
+        fly off said something had happened to *them*. See `MiniTransport`.
+      */}
       <GestureDetector gesture={pan}>
-        <Animated.View style={followStyle}>
-          <View className="flex-row items-center gap-1 px-4 py-2">
+        <View className="flex-row items-center gap-1 px-4 py-2">
+          <Animated.View style={contentStyle} className="flex-1 flex-row">
             <Pressable
               onPress={openPlayer}
               /*
-               * Mount Now Playing when the finger lands, not when it lifts.
-               * The tap path used to mount the whole player screen — a carousel
-               * of three images, the scrubber, the spec strip — on the very
-               * frame the spring started, so the opening animation spent its
-               * first frames waiting for a render it had itself triggered.
+               * Mount Now Playing when the finger lands, not when it lifts:
+               * the whole player screen used to mount on the frame the spring
+               * started, so the opening spent its first frames waiting for a
+               * render it had itself triggered.
                */
               onPressIn={onPrepareOpen}
               android_ripple={{ color: colors.etch }}
@@ -225,47 +282,15 @@ export function MiniPlayer({ onPrepareOpen, onExpandedChange }: MiniPlayerProps)
                 </Text>
               </View>
             </Pressable>
+          </Animated.View>
 
-            {/*
-              Previous belongs here as much as next does. Skipping back is the
-              commonest correction there is — you skip one too many and want it
-              back — and having only "next" made the strip a one-way control.
-            */}
-            <Pressable
-              onPress={previous}
-              android_ripple={{ color: colors.etch, borderless: true }}
-              accessibilityRole="button"
-              accessibilityLabel={t('player.previous')}
-              className="min-h-11 min-w-11 items-center justify-center"
-            >
-              <SkipBack color={colors.label} size={20} strokeWidth={2} fill={colors.label} />
-            </Pressable>
-
-            <Pressable
-              onPress={toggle}
-              android_ripple={{ color: colors.etch, borderless: true }}
-              accessibilityRole="button"
-              accessibilityLabel={isPlaying ? t('player.pause') : t('player.play')}
-              className="min-h-11 min-w-11 items-center justify-center"
-            >
-              {isPlaying ? (
-                <Pause color={colors.label} size={22} strokeWidth={2} fill={colors.label} />
-              ) : (
-                <Play color={colors.label} size={22} strokeWidth={2} fill={colors.label} />
-              )}
-            </Pressable>
-
-            <Pressable
-              onPress={next}
-              android_ripple={{ color: colors.etch, borderless: true }}
-              accessibilityRole="button"
-              accessibilityLabel={t('player.next')}
-              className="min-h-11 min-w-11 items-center justify-center"
-            >
-              <SkipForward color={colors.label} size={20} strokeWidth={2} fill={colors.label} />
-            </Pressable>
-          </View>
-        </Animated.View>
+          <MiniTransport
+            isPlaying={isPlaying}
+            onPrevious={previous}
+            onToggle={toggle}
+            onNext={next}
+          />
+        </View>
       </GestureDetector>
     </View>
   );
