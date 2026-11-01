@@ -2,18 +2,32 @@ import { GripVertical } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 
 import { liftFeedback } from '@/services/haptics';
 import { useThemeColors } from '@/theme/useTheme';
 
+import {
+  beginDrag,
+  dragFrom,
+  dragOffset,
+  dragTo,
+  dropInto,
+  endDrag,
+  shiftFor,
+  updateDrag,
+} from './reorderDrag';
+
 /** Must match `PlaylistEntryRow`'s `h-16`. Drag maths is in row units. */
 export const ENTRY_HEIGHT = 64;
+
+/** Long enough that a scroll is not a drag, short enough to feel like a grab. */
+const HOLD_MS = 120;
+/** A row sliding out of the way. Quick, because it is an answer to a finger. */
+const SHIFT_MS = 160;
+/** Picked up: the lift, and the drop back. */
+const LIFT_MS = 120;
+const LIFT_SCALE = 1.03;
 
 export interface ReorderableEntryProps {
   children: ReactNode;
@@ -27,7 +41,7 @@ export interface ReorderableEntryProps {
 }
 
 /**
- * One playlist row, draggable by its handle.
+ * One playlist row, draggable by its handle, with the rest making room.
  *
  * A handle rather than a long-press-anywhere drag. Long press is already the
  * action sheet everywhere else in the app, and a list where holding a row
@@ -35,14 +49,19 @@ export interface ReorderableEntryProps {
  * handle is also the only part of this that a screen reader user can find, which
  * is why it carries the label.
  *
- * The row translates under the finger and the *list* is not reordered until
- * release. Reordering live would mean writing to the database on every frame —
- * positions are half of a unique index, so each write is a three-statement
- * transaction — and the rows would shuffle under the finger that is holding one.
+ * **What the rest of the list does is the fix.** It used to do nothing: only
+ * the held row moved, the gap it left stayed open, and the row you were
+ * dragging past did not budge — so there was nowhere to drop into and no way
+ * to know where it would land until you let go and looked. Every other row now
+ * slides one slot towards that gap as the held row passes it, which is the
+ * list showing you the order you are about to commit.
  *
- * Only the dragged row moves. The gap it leaves does not close up as you drag,
- * which is less pretty than the usual implementation and much easier to be
- * correct about: there is exactly one animated value and one commit.
+ * The lift and the drop are animated rather than switched. `scale` and the
+ * shadow used to change between frames with nothing between them, which reads
+ * as a glitch rather than as picking something up.
+ *
+ * The database is still only written on release — see `reorderDrag` — so what
+ * moves during the drag is pixels, not rows.
  */
 export function ReorderableEntry({
   children,
@@ -52,42 +71,60 @@ export function ReorderableEntry({
   accessibilityLabel,
 }: ReorderableEntryProps) {
   const colors = useThemeColors();
-  const offset = useSharedValue(0);
-  const dragging = useSharedValue(false);
 
   const pan = Gesture.Pan()
-    .activateAfterLongPress(120)
+    .activateAfterLongPress(HOLD_MS)
     .onStart(() => {
-      dragging.value = true;
+      beginDrag(index);
       runOnJS(liftFeedback)();
     })
     .onUpdate((event) => {
-      offset.value = event.translationY;
+      updateDrag(index, event.translationY, ENTRY_HEIGHT, count);
     })
-    .onEnd((event) => {
-      /*
-       * Rounded, then clamped into the list. Without the clamp a drag past
-       * either end computes an index outside the array, and the query would
-       * either no-op or — worse, before `reorder` learned to return null —
-       * write a shuffled order the user never asked for.
-       */
-      const moved = Math.round(event.translationY / ENTRY_HEIGHT);
-      const target = Math.min(count - 1, Math.max(0, index + moved));
+    .onEnd(() => {
+      const target = dragTo.value;
       if (target !== index) runOnJS(onMove)(index, target);
+
+      // Travels to the slot the list is holding open, then releases the drag
+      // state — by which point the write has landed and the list has
+      // re-rendered in the new order. See `dropInto`.
+      dropInto(index, target, ENTRY_HEIGHT);
     })
     .onFinalize(() => {
-      dragging.value = false;
-      // Springs home rather than staying put: the list re-renders in the new
-      // order from the database, so this row's own offset must be zero again.
-      offset.value = withSpring(0, { damping: 24, stiffness: 260 });
+      // A cancelled gesture never reaches `onEnd`; without this the list would
+      // stay shifted around a drag that is no longer happening.
+      if (dragFrom.value === index && dragOffset.value === 0) endDrag();
     });
 
-  const style = useAnimatedStyle(() => ({
-    transform: [{ translateY: offset.value }, { scale: dragging.value ? 1.02 : 1 }],
-    // Lifted above its neighbours while held, so it reads as picked up.
-    zIndex: dragging.value ? 10 : 0,
-    opacity: dragging.value ? 0.95 : 1,
-  }));
+  const style = useAnimatedStyle(() => {
+    const from = dragFrom.value;
+    const held = from === index;
+
+    if (held) {
+      return {
+        transform: [
+          { translateY: dragOffset.value },
+          { scale: withTiming(LIFT_SCALE, { duration: LIFT_MS }) },
+        ],
+        zIndex: 10,
+        elevation: 6,
+      };
+    }
+
+    return {
+      transform: [
+        {
+          translateY: withTiming(shiftFor(index, from, dragTo.value, ENTRY_HEIGHT), {
+            duration: SHIFT_MS,
+            easing: Easing.out(Easing.quad),
+          }),
+        },
+        { scale: withTiming(1, { duration: LIFT_MS }) },
+      ],
+      zIndex: 0,
+      elevation: 0,
+    };
+  });
 
   return (
     <Animated.View style={style} className="flex-row items-center bg-surface">
