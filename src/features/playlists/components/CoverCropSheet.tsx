@@ -183,35 +183,43 @@ export function CoverCropSheet({ source, onCancel, onConfirm }: CoverCropSheetPr
           square is not going to be in the cover — showing it faintly suggests
           otherwise.
         */}
-          <View onLayout={onFrameLayout} className="flex-1 items-center justify-center px-6">
-            <View
-              style={{ width: window, height: window }}
-              className="overflow-hidden rounded-md bg-surface-elevated"
-            >
-              {source && window > 0 ? (
-                <GestureDetector gesture={gesture}>
-                  <Animated.View
-                    className="absolute items-center justify-center"
-                    style={[
-                      {
-                        width: displayedWidth,
-                        height: displayedHeight,
-                        left: (window - displayedWidth) / 2,
-                        top: (window - displayedHeight) / 2,
-                      },
-                      imageStyle,
-                    ]}
-                  >
-                    <Image
-                      source={{ uri: source.uri }}
-                      contentFit="fill"
-                      transition={0}
-                      cachePolicy="memory"
-                      style={{ width: '100%', height: '100%' }}
-                    />
-                  </Animated.View>
-                </GestureDetector>
-              ) : null}
+          <View className="flex-1 items-center justify-center px-6">
+            {/*
+              The measured box is this inner one, which has no padding of its
+              own. `layout.width` is the border box, so measuring the padded
+              parent handed the square the gutters as well and it drew edge to
+              edge — correct arithmetic against the wrong rectangle.
+            */}
+            <View onLayout={onFrameLayout} className="h-full w-full items-center justify-center">
+              <View
+                style={{ width: window, height: window }}
+                className="overflow-hidden rounded-md bg-surface-elevated"
+              >
+                {source && window > 0 ? (
+                  <GestureDetector gesture={gesture}>
+                    <Animated.View
+                      className="absolute items-center justify-center"
+                      style={[
+                        {
+                          width: displayedWidth,
+                          height: displayedHeight,
+                          left: (window - displayedWidth) / 2,
+                          top: (window - displayedHeight) / 2,
+                        },
+                        imageStyle,
+                      ]}
+                    >
+                      <Image
+                        source={{ uri: source.uri }}
+                        contentFit="fill"
+                        transition={0}
+                        cachePolicy="memory"
+                        style={{ width: '100%', height: '100%' }}
+                      />
+                    </Animated.View>
+                  </GestureDetector>
+                ) : null}
+              </View>
             </View>
           </View>
 
