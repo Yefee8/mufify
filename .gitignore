@@ -50,3 +50,9 @@ modules/*/android/.gradle/
 
 # IDE
 .idea/
+
+# The owner's own FLAC archive, dropped in here to fill the emulator with real
+# albums for store screenshots. Hundreds of megabytes of music that is not ours
+# to publish — both spellings, because macOS will answer to either.
+/FLAC/
+/flac/
