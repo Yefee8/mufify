@@ -6,6 +6,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 
 export interface ScrubberProps {
@@ -17,8 +18,18 @@ export interface ScrubberProps {
 }
 
 /** The thumb at rest and under a finger. Grows so the hand knows it has it. */
-const THUMB = 12;
-const THUMB_HELD = 20;
+const THUMB = 14;
+const THUMB_HELD = 22;
+
+/**
+ * The ring of surface colour around the thumb, per side.
+ *
+ * Without it the thumb is an indigo dot at the end of an indigo fill, which
+ * reads as where the fill stops rather than as something to take hold of — the
+ * complaint was "there is no dot", about a dot that was there. A ring in the
+ * page's own colour cuts it out of the bar on both sides, in both themes.
+ */
+const RING = 3;
 
 /**
  * The seek bar.
@@ -42,7 +53,12 @@ const THUMB_HELD = 20;
  * gives nothing to hold, and a scrub you cannot see yourself doing is one you
  * do not trust. It sits on the played edge, grows while held, and the touch
  * target is the full 44dp band under it rather than the dot itself — nobody
- * can land a fingertip on twelve points.
+ * can land a fingertip on fourteen points.
+ *
+ * The seek is committed from whichever comes first, the finger lifting or the
+ * gesture ending. A tap that another handler steals mid-flight never reaches
+ * `onEnd`, and a tap that does nothing is the bug this screen keeps being
+ * reported for; `seekOnce` makes the second caller a no-op instead.
  */
 export function Scrubber({ positionMs, durationMs, onSeek, accessibilityLabel }: ScrubberProps) {
   const [width, setWidth] = useState(0);
@@ -60,20 +76,34 @@ export function Scrubber({ positionMs, durationMs, onSeek, accessibilityLabel }:
     [durationMs, onSeek],
   );
 
+  /**
+   * The ratio waiting to be seeked, or -1 once it has been.
+   *
+   * Lives beside `dragRatio` rather than in it: the drag value is also what the
+   * fill and the thumb are drawn from, and clearing it on commit would snap
+   * both back to the playback position for the frame before the seek lands.
+   */
+  const pending = useSharedValue(-1);
+
   const pan = Gesture.Pan()
     .manualActivation(true)
     .onTouchesDown((event, state) => {
       // Live from the first contact, movement or not — see the note above.
       const touch = event.allTouches[0];
       if (touch && width > 0) dragRatio.value = clamp(touch.x / width);
+      pending.value = dragRatio.value;
       held.value = withTiming(1, { duration: 120 });
       state.activate();
     })
     .onUpdate((event) => {
       if (width > 0) dragRatio.value = clamp(event.x / width);
+      pending.value = dragRatio.value;
+    })
+    .onTouchesUp(() => {
+      seekOnce(pending, commit);
     })
     .onEnd(() => {
-      if (dragRatio.value >= 0) runOnJS(commit)(dragRatio.value);
+      seekOnce(pending, commit);
     })
     .onFinalize(() => {
       // Hand control back to the incoming position updates. Releasing this
@@ -88,9 +118,10 @@ export function Scrubber({ positionMs, durationMs, onSeek, accessibilityLabel }:
     width: `${(dragRatio.value >= 0 ? dragRatio.value : played) * 100}%`,
   }));
 
-  const thumbStyle = useAnimatedStyle(() => {
+  /** The ring: surface colour, so the thumb is cut out of the bar it sits on. */
+  const ringStyle = useAnimatedStyle(() => {
     const at = dragRatio.value >= 0 ? dragRatio.value : played;
-    const size = THUMB + (THUMB_HELD - THUMB) * held.value;
+    const size = THUMB + (THUMB_HELD - THUMB) * held.value + RING * 2;
     return {
       width: size,
       height: size,
@@ -99,6 +130,11 @@ export function Scrubber({ positionMs, durationMs, onSeek, accessibilityLabel }:
       left: `${at * 100}%`,
       marginLeft: -size / 2,
     };
+  });
+
+  const thumbStyle = useAnimatedStyle(() => {
+    const size = THUMB + (THUMB_HELD - THUMB) * held.value;
+    return { width: size, height: size, borderRadius: size / 2 };
   });
 
   return (
@@ -115,10 +151,29 @@ export function Scrubber({ positionMs, durationMs, onSeek, accessibilityLabel }:
         <View className="h-1 w-full rounded-full bg-surface-elevated">
           <Animated.View className="h-1 rounded-full bg-accent" style={fillStyle} />
         </View>
-        <Animated.View className="absolute bg-accent" style={thumbStyle} />
+        <Animated.View
+          className="absolute items-center justify-center bg-surface"
+          style={ringStyle}
+        >
+          <Animated.View className="bg-accent" style={thumbStyle} />
+        </Animated.View>
       </View>
     </GestureDetector>
   );
+}
+
+/**
+ * Seek to whatever is pending, once.
+ *
+ * Both the lift and the end of the gesture ask; the first one to arrive wins
+ * and the other finds nothing to do.
+ */
+function seekOnce(pending: SharedValue<number>, commit: (ratio: number) => void): void {
+  'worklet';
+  const ratio = pending.value;
+  if (ratio < 0) return;
+  pending.value = -1;
+  runOnJS(commit)(ratio);
 }
 
 function clamp(value: number): number {
