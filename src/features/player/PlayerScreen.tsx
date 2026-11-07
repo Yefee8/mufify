@@ -20,6 +20,7 @@ import { SpecStrip } from './components/SpecStrip';
 import { useLyrics } from './hooks/useLyrics';
 import { usePlayback, usePlaybackControls } from './hooks/usePlayback';
 import { useQueueNeighbours } from './hooks/useQueueNeighbours';
+import { useTrackDestinations } from './hooks/useTrackDestinations';
 
 /**
  * Now Playing.
@@ -68,6 +69,7 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue, onPrepareQueue }: 
   );
 
   const close = useCallback(() => onExpandedChange(false), [onExpandedChange]);
+  const { goToAlbum, goToArtist } = useTrackDestinations(close);
 
   /* Timed because "the queue takes ages to appear" needs a number, not a guess. */
   const openQueue = useCallback(() => {
@@ -151,6 +153,8 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue, onPrepareQueue }: 
           hasLyrics={lyrics !== null}
           showLyrics={showLyrics}
           onToggleLyrics={toggleLyrics}
+          onGoToAlbum={goToAlbum}
+          onGoToArtist={goToArtist}
         />
 
         {phase === 'error' ? (

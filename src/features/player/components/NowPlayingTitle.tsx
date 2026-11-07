@@ -13,33 +13,62 @@ export interface NowPlayingTitleProps {
   hasLyrics: boolean;
   showLyrics: boolean;
   onToggleLyrics: () => void;
+  onGoToAlbum: (trackId: number) => void;
+  onGoToArtist: (trackId: number) => void;
 }
 
 /**
  * The track's name and artist, and the things you can do to the track itself.
- * Split out of `PlayerScreen` at the 300-line limit.
+ *
+ * The name opens the album and the artist opens the artist — the same two
+ * places the library's shelves lead, reached from the one screen where the
+ * question "what record is this?" actually comes up. Neither is underlined or
+ * coloured: the title is the largest type in the app and dressing it as a link
+ * would make Now Playing read as a web page. The player closing and the page
+ * arriving is the feedback, and a screen reader speaks the hint.
  */
 export function NowPlayingTitle({
   track,
   hasLyrics,
   showLyrics,
   onToggleLyrics,
+  onGoToAlbum,
+  onGoToArtist,
 }: NowPlayingTitleProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
 
+  const album = track.albumName ?? t('common.unknownAlbum');
   const artist = track.artistName ?? t('common.unknownArtist');
 
   return (
     <View className="gap-2 px-6">
-      <Text numberOfLines={2} className="font-display text-3xl text-primary">
-        {track.title}
-      </Text>
+      <Pressable
+        onPress={() => onGoToAlbum(track.id)}
+        accessibilityRole="button"
+        accessibilityLabel={track.title}
+        accessibilityHint={t('player.goToAlbum', { album })}
+        className="self-start"
+      >
+        <Text numberOfLines={2} className="font-display text-3xl text-primary">
+          {track.title}
+        </Text>
+      </Pressable>
 
       <View className="flex-row items-center justify-between">
-        <Text numberOfLines={1} className="flex-1 font-body text-base text-muted">
-          {artist}
-        </Text>
+        <Pressable
+          onPress={() => onGoToArtist(track.id)}
+          accessibilityRole="button"
+          accessibilityLabel={artist}
+          accessibilityHint={t('player.goToArtist', { artist })}
+          // The row is as tall as the icon buttons beside it, so the name gets
+          // the same 44-point target rather than one line of body text.
+          className="min-h-11 flex-1 justify-center"
+        >
+          <Text numberOfLines={1} className="font-body text-base text-muted">
+            {artist}
+          </Text>
+        </Pressable>
 
         {/*
           Only when the file actually carries words. A button that opens an

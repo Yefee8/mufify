@@ -361,6 +361,8 @@
     "unknownArtist": "Unknown artist",
     "favorite": "Add to favourites",
     "unfavorite": "Remove from favourites",
+    "goToAlbum": "Opens the album, {{album}}",
+    "goToArtist": "Opens the artist, {{artist}}",
     "empty": "Nothing playing. Pick a track from the library.",
     "error": "This track would not play.",
     "repeat": {

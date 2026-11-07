@@ -361,6 +361,8 @@
     "unknownArtist": "Bilinmeyen sanatçı",
     "favorite": "Favorilere ekle",
     "unfavorite": "Favorilerden çıkar",
+    "goToAlbum": "Albümü açar: {{album}}",
+    "goToArtist": "Sanatçıyı açar: {{artist}}",
     "empty": "Çalan bir şey yok. Kitaplıktan bir parça seç.",
     "error": "Bu parça çalınamadı.",
     "repeat": {

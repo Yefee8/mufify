@@ -99,6 +99,28 @@ export async function getTrackById(id: number) {
   return row ?? null;
 }
 
+/**
+ * Which artist and album a track belongs to, as the collection routes name them.
+ *
+ * Asked at the moment Now Playing's title or artist is pressed, rather than
+ * carried on every queued track: a queue restored from a previous session was
+ * written before the ids existed, and a primary-key lookup costs less than the
+ * press does. Id 0 is the reserved unknown card, which is where a track with no
+ * artist or album tag is listed. Null means the track is no longer in the
+ * library at all — deleted while it was still the one on screen.
+ */
+export async function getTrackCollections(
+  trackId: number,
+): Promise<{ artistId: number; albumId: number } | null> {
+  const [row] = await db
+    .select({ artistId: tracks.artistId, albumId: tracks.albumId })
+    .from(tracks)
+    .where(eq(tracks.id, trackId))
+    .limit(1);
+  if (row === undefined) return null;
+  return { artistId: row.artistId ?? 0, albumId: row.albumId ?? 0 };
+}
+
 export async function countTracks(): Promise<number> {
   const [row] = await db.select({ value: count() }).from(tracks).where(eq(tracks.isMissing, 0));
   return row?.value ?? 0;
