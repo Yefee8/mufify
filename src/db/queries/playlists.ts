@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, gt, max, sql } from 'drizzle-orm';
+import { useMemo } from 'react';
 
 import { deleteCoverFile } from '@/services/playlists/cover';
 import {
@@ -118,8 +119,49 @@ export function usePlaylists(): PlaylistSummary[] {
     );
 
   const { data } = useLiveQuery(query);
-  return foldPlaylistRows(data);
+  return useMemo(() => foldPlaylistRows(data), [data]);
 }
+
+/** A playlist as the add-to-playlist sheet lists it. */
+export interface PlaylistChoice {
+  id: number;
+  name: string;
+  trackCount: number;
+}
+
+/**
+ * Every playlist's name and size, in the Playlists tab's order, live.
+ *
+ * For the add-to-playlist sheet, which used to read `usePlaylists` — a row per
+ * entry of every playlist, folded and normalised for search — to show a name
+ * and a number. This is one row per playlist, so it is cheap enough to run at
+ * the moment the sheet opens, and that is the only time it runs: `enabled`
+ * follows the sheet, which is mounted closed beside every track list in the
+ * app. The count is entries, as the tab counts them.
+ */
+export function usePlaylistChoices(enabled: boolean): PlaylistChoice[] {
+  const query = db
+    .select({
+      id: playlists.id,
+      name: playlists.name,
+      trackCount: sql<number>`count(${playlistTracks.position})`,
+    })
+    .from(playlists)
+    .leftJoin(playlistTracks, eq(playlistTracks.playlistId, playlists.id))
+    .groupBy(playlists.id)
+    .orderBy(
+      sql`${playlists.isFavorite} DESC`,
+      sql`${playlists.favoriteAt} DESC`,
+      sql`${playlists.updatedAt} DESC`,
+    );
+
+  // Both tables: adding to a playlist writes the entries, and the count is
+  // what the user is watching for.
+  const { data } = useLiveQuery(enabled ? query : null, [enabled], CHOICE_TABLES);
+  return data;
+}
+
+const CHOICE_TABLES = [playlistTracks];
 
 /**
  * Live contents of one playlist, in playlist order.

@@ -5,7 +5,7 @@ import { Modal, Pressable, ScrollView, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NameDialog } from '@/components/ui/NameDialog';
-import { addTracksToPlaylist, createPlaylist, usePlaylists } from '@/db/queries/playlists';
+import { addTracksToPlaylist, createPlaylist, usePlaylistChoices } from '@/db/queries/playlists';
 import { commitFeedback } from '@/services/haptics';
 import { useThemeColors } from '@/theme/useTheme';
 import { panelInset } from '@/components/ui/panelInset';
@@ -34,7 +34,9 @@ export function AddToPlaylistSheet({ trackIds, onClose }: AddToPlaylistSheetProp
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
-  const playlists = usePlaylists();
+  // Read only while open — this sheet is mounted, closed, beside every track
+  // list in the app, so an always-on query here ran on every screen opened.
+  const playlists = usePlaylistChoices(trackIds.length > 0);
   const [naming, setNaming] = useState(false);
 
   const addTo = useCallback(

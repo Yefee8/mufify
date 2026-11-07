@@ -196,6 +196,14 @@ export function useTracks(
   search = '',
   likedOnly = false,
   sort: TrackSort = DEFAULT_TRACK_SORT,
+  /**
+   * False while nobody is looking. The add-tracks sheet is mounted with every
+   * playlist and visible for seconds at a time; reading the whole library on
+   * each playlist open, for a sheet that was not open, was most of what
+   * opening a playlist cost. The last result is kept, so a sheet that is
+   * closing still shows its rows.
+   */
+  enabled = true,
 ): { tracks: TrackListItem[]; isLoading: boolean } {
   const term = search.trim();
   // `%` and `_` are LIKE wildcards. Unescaped, typing "%" matches everything
@@ -246,7 +254,13 @@ export function useTracks(
         .where(matches)
         .orderBy(...trackOrderBy(sort));
 
-  const { data, updatedAt } = useLiveQuery(query, [term, likedOnly, sort.key, sort.direction]);
+  const { data, updatedAt } = useLiveQuery(enabled ? query : null, [
+    term,
+    likedOnly,
+    sort.key,
+    sort.direction,
+    enabled,
+  ]);
 
   /*
    * Time to first rows, which is the number the cold-start investigation turned
@@ -393,8 +407,10 @@ export function useTrackSpec(trackId: number | null) {
     .where(eq(tracks.id, trackId ?? -1))
     .limit(1);
 
-  const { data } = useLiveQuery(query, [trackId]);
-  return data[0] ?? null;
+  // No track, no query: the info sheet is mounted closed with a null id, and
+  // a subscription to `tracks` re-ran this on every scan batch for nothing.
+  const { data } = useLiveQuery(trackId === null ? null : query, [trackId]);
+  return trackId === null ? null : (data[0] ?? null);
 }
 
 /**
@@ -429,8 +445,8 @@ export function useIsFavorite(trackId: number | null): boolean {
     .where(eq(trackStats.trackId, trackId ?? -1))
     .limit(1);
 
-  const { data } = useLiveQuery(query, [trackId]);
-  return data[0]?.isFavorite === 1;
+  const { data } = useLiveQuery(trackId === null ? null : query, [trackId]);
+  return trackId !== null && data[0]?.isFavorite === 1;
 }
 
 /**

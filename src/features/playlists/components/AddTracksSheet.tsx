@@ -14,6 +14,7 @@ import { useDebounced } from '@/features/library/hooks/useDebounced';
 import { useTracks } from '@/features/library/hooks/useLibrary';
 import type { TrackListItem } from '@/db/queries/tracks';
 import { commitFeedback } from '@/services/haptics';
+import { DEFAULT_TRACK_SORT } from '@/services/library/sortOrder';
 import { SPACING } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/useTheme';
 
@@ -55,8 +56,10 @@ export function AddTracksSheet({ visible, playlistId, existing, onClose }: AddTr
   const { height } = useWindowDimensions();
 
   const [search, setSearch] = useState('');
-  // The field stays instant; only the query waits.
-  const { tracks } = useTracks(useDebounced(search));
+  // The field stays instant; only the query waits. And only while the sheet is
+  // open: it is mounted with every playlist, and reading the whole library for
+  // a sheet nobody opened was most of what opening a playlist cost.
+  const { tracks } = useTracks(useDebounced(search), false, DEFAULT_TRACK_SORT, visible);
   const [selected, setSelected] = useState<readonly number[]>([]);
 
   const selectedSet = useMemo(() => new Set(selected), [selected]);
