@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { type LayoutChangeEvent, View } from 'react-native';
 
 import { Toaster } from '@/components/ui/Toaster';
+import { usePreloadTabs } from '@/components/ui/usePreloadTabs';
 import { setPlayerTabBarHeight } from '@/features/player/playerLayerLayout';
 import * as perf from '@/services/perf';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
@@ -24,6 +25,10 @@ import { useTheme } from '@/theme/useTheme';
  */
 function TabBarWithPlayer(props: BottomTabBarProps) {
   useLifecycleTrace('TabBar');
+  // The bar is the one component inside the tab navigator that lives as long
+  // as it does, so it is where the other tabs get built ahead of their first
+  // press — see `usePreloadTabs`.
+  usePreloadTabs(props);
   const onLayout = useCallback((event: LayoutChangeEvent) => {
     setPlayerTabBarHeight(event.nativeEvent.layout.height);
   }, []);
