@@ -10,6 +10,7 @@ import type { RepeatMode } from '@/services/audio/types';
 import { formatDuration } from '@/services/format/duration';
 import * as perf from '@/services/perf';
 
+import { AddToPlaylistSheet } from '../playlists/components/AddToPlaylistSheet';
 import { ArtworkCarousel } from './components/ArtworkCarousel';
 import { LyricsPane } from './components/LyricsPane';
 import { NowPlayingTitle } from './components/NowPlayingTitle';
@@ -70,6 +71,11 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue, onPrepareQueue }: 
 
   const close = useCallback(() => onExpandedChange(false), [onExpandedChange]);
   const { goToAlbum, goToArtist } = useTrackDestinations(close);
+
+  /** The track being added to a playlist. Empty means the sheet is closed. */
+  const [playlistTargets, setPlaylistTargets] = useState<readonly number[]>([]);
+  const addToPlaylist = useCallback((trackId: number) => setPlaylistTargets([trackId]), []);
+  const closePlaylistSheet = useCallback(() => setPlaylistTargets([]), []);
 
   /* Timed because "the queue takes ages to appear" needs a number, not a guess. */
   const openQueue = useCallback(() => {
@@ -155,6 +161,7 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue, onPrepareQueue }: 
           onToggleLyrics={toggleLyrics}
           onGoToAlbum={goToAlbum}
           onGoToArtist={goToArtist}
+          onAddToPlaylist={addToPlaylist}
         />
 
         {phase === 'error' ? (
@@ -204,6 +211,9 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue, onPrepareQueue }: 
           <SpecStrip trackId={track.id} />
         </View>
       </View>
+
+      {/* A window of its own on Android, so it opens above this overlay. */}
+      <AddToPlaylistSheet trackIds={playlistTargets} onClose={closePlaylistSheet} />
     </View>
   );
 }

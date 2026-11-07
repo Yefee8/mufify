@@ -1,4 +1,4 @@
-import { Disc3, MicVocal } from 'lucide-react-native';
+import { Disc3, ListPlus, MicVocal } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 
@@ -15,6 +15,7 @@ export interface NowPlayingTitleProps {
   onToggleLyrics: () => void;
   onGoToAlbum: (trackId: number) => void;
   onGoToArtist: (trackId: number) => void;
+  onAddToPlaylist: (trackId: number) => void;
 }
 
 /**
@@ -26,6 +27,10 @@ export interface NowPlayingTitleProps {
  * coloured: the title is the largest type in the app and dressing it as a link
  * would make Now Playing read as a web page. The player closing and the page
  * arriving is the feedback, and a screen reader speaks the hint.
+ *
+ * Add-to-playlist sits beside the heart because they are the same kind of
+ * verb: keep this track somewhere. Lyrics stay first in the row, as before,
+ * and only appear when the file has words.
  */
 export function NowPlayingTitle({
   track,
@@ -34,6 +39,7 @@ export function NowPlayingTitle({
   onToggleLyrics,
   onGoToAlbum,
   onGoToArtist,
+  onAddToPlaylist,
 }: NowPlayingTitleProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -94,6 +100,15 @@ export function NowPlayingTitle({
             )}
           </Pressable>
         ) : null}
+
+        <Pressable
+          onPress={() => onAddToPlaylist(track.id)}
+          accessibilityRole="button"
+          accessibilityLabel={t('playlists.addTo')}
+          className="min-h-11 min-w-11 items-center justify-center"
+        >
+          <ListPlus color={colors.legend} size={22} strokeWidth={2} />
+        </Pressable>
 
         <FavoriteButton trackId={track.id} />
       </View>
