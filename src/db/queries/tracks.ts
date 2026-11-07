@@ -515,23 +515,12 @@ export interface CollectionCard {
  * artwork changes between renders looks broken.
  */
 export function useArtistCards(sort: ArtistSort = DEFAULT_ARTIST_SORT): CollectionCard[] {
-  const collectionId = sql<number>`coalesce(${tracks.artistId}, 0)`;
   const query = db
-    .select({
-      id: collectionId,
-      name: artists.name,
-      subtitle: sql<string | null>`null`,
-      isUnknown: sql`${tracks.artistId} IS NULL`.mapWith(Boolean),
-      isUnknownSubtitle: sql`false`.mapWith(Boolean),
-      trackCount: count(tracks.id),
-      artworkPath: sql<string | null>`min(${tracks.artworkPath})`,
-      // Artists are not likeable; the flag is here so one card type serves both.
-      isFavorite: sql`false`.mapWith(Boolean),
-    })
+    .select(ARTIST_CARD)
     .from(tracks)
     .leftJoin(artists, eq(tracks.artistId, artists.id))
     .where(eq(tracks.isMissing, 0))
-    .groupBy(collectionId)
+    .groupBy(ARTIST_ID)
     .orderBy(
       // The unknown artist last, not first: it is the one card nobody is
       // looking for, and coalescing it to '' used to sort it to the top.
@@ -544,6 +533,21 @@ export function useArtistCards(sort: ArtistSort = DEFAULT_ARTIST_SORT): Collecti
   const { data } = useLiveQuery(query, [sort.key, sort.direction]);
   return useThrottledData(data);
 }
+
+const ARTIST_ID = sql<number>`coalesce(${tracks.artistId}, 0)`;
+
+/** One artist card's columns, grouped by `ARTIST_ID`. */
+const ARTIST_CARD = {
+  id: ARTIST_ID,
+  name: artists.name,
+  subtitle: sql<string | null>`null`,
+  isUnknown: sql`${tracks.artistId} IS NULL`.mapWith(Boolean),
+  isUnknownSubtitle: sql`false`.mapWith(Boolean),
+  trackCount: count(tracks.id),
+  artworkPath: sql<string | null>`min(${tracks.artworkPath})`,
+  // Artists are not likeable; the flag is here so one card type serves both.
+  isFavorite: sql`false`.mapWith(Boolean),
+};
 
 /**
  * The album shelf's `ORDER BY`, after the unknown album has been sent to the end.
@@ -574,37 +578,73 @@ function albumOrderBy(sort: AlbumSort): SQL[] {
 
 /** Every album that has at least one present track. */
 export function useAlbumCards(sort: AlbumSort = DEFAULT_ALBUM_SORT): CollectionCard[] {
-  const collectionId = sql<number>`coalesce(${tracks.albumId}, 0)`;
   const query = db
-    .select({
-      id: collectionId,
-      name: albums.name,
-      subtitle: artists.name,
-      isUnknown: sql`${tracks.albumId} IS NULL`.mapWith(Boolean),
-      isUnknownSubtitle: sql`${tracks.albumId} IS NOT NULL AND ${albums.artistId} IS NULL`.mapWith(
-        Boolean,
-      ),
-      trackCount: count(tracks.id),
-      artworkPath: sql<string | null>`min(${tracks.artworkPath})`,
-      /*
-       * Always false here, and filled in by `useFavoriteAlbumIds` above the
-       * query rather than joined into it. `useLiveQuery` watches only the table
-       * in `FROM`, which is `tracks` — liking an album writes to `albums` and
-       * nothing else, so a joined flag would show whatever was liked when this
-       * mounted and never notice a heart being tapped. The Playlists tab merges
-       * two live queries for exactly this reason.
-       */
-      isFavorite: sql`false`.mapWith(Boolean),
-    })
+    .select(ALBUM_CARD)
     .from(tracks)
     .leftJoin(albums, eq(tracks.albumId, albums.id))
     .leftJoin(artists, eq(artists.id, albums.artistId))
     .where(eq(tracks.isMissing, 0))
-    .groupBy(collectionId)
+    .groupBy(ALBUM_ID)
     .orderBy(nullsLast(sql`${albums.name}`), ...albumOrderBy(sort));
 
   const { data } = useLiveQuery(query, [sort.key, sort.direction]);
   return useThrottledData(data);
+}
+
+const ALBUM_ID = sql<number>`coalesce(${tracks.albumId}, 0)`;
+
+/** One album card's columns, grouped by `ALBUM_ID`. */
+const ALBUM_CARD = {
+  id: ALBUM_ID,
+  name: albums.name,
+  subtitle: artists.name,
+  isUnknown: sql`${tracks.albumId} IS NULL`.mapWith(Boolean),
+  isUnknownSubtitle: sql`${tracks.albumId} IS NOT NULL AND ${albums.artistId} IS NULL`.mapWith(
+    Boolean,
+  ),
+  trackCount: count(tracks.id),
+  artworkPath: sql<string | null>`min(${tracks.artworkPath})`,
+  /*
+   * Always false here, and filled in by `useFavoriteAlbumIds` above the query
+   * rather than joined into it — the flag lives on `albums`, and this is a
+   * query over `tracks`. The Playlists tab merges two live queries for the
+   * same reason.
+   */
+  isFavorite: sql`false`.mapWith(Boolean),
+};
+
+/**
+ * The card for one artist or album: the header of its screen.
+ *
+ * The same columns as the shelves, grouped the same way, but only over that
+ * collection's tracks — an index lookup. The screen used to find its card in
+ * both whole shelves, which meant every album opened grouped the entire
+ * library twice, artists and albums, before the header could draw: the two
+ * most expensive queries in the app, on the path of every tap into a record.
+ */
+export function useCollectionCard(
+  kind: 'artist' | 'album',
+  id: number,
+): { card: CollectionCard | null; isLoading: boolean } {
+  const present = and(eq(tracks.isMissing, 0), collectionPredicate(kind, id));
+  const query =
+    kind === 'artist'
+      ? db
+          .select(ARTIST_CARD)
+          .from(tracks)
+          .leftJoin(artists, eq(tracks.artistId, artists.id))
+          .where(present)
+          .groupBy(ARTIST_ID)
+      : db
+          .select(ALBUM_CARD)
+          .from(tracks)
+          .leftJoin(albums, eq(tracks.albumId, albums.id))
+          .leftJoin(artists, eq(artists.id, albums.artistId))
+          .where(present)
+          .groupBy(ALBUM_ID);
+
+  const { data, updatedAt } = useLiveQuery<CollectionCard>(query, [kind, id]);
+  return { card: data[0] ?? null, isLoading: updatedAt === undefined };
 }
 
 /**

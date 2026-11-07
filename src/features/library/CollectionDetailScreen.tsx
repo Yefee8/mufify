@@ -10,8 +10,7 @@ import { ShortWindowSplit } from '@/components/ui/ShortWindowSplit';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import {
   setAlbumFavorite,
-  useAlbumCards,
-  useArtistCards,
+  useCollectionCard,
   useCollectionTracks,
   useFavoriteAlbumIds,
 } from '@/db/queries/tracks';
@@ -51,13 +50,13 @@ export function CollectionDetailScreen({ kind, id }: CollectionDetailScreenProps
   const tracks = useCollectionTracks(kind, id);
 
   /*
-   * The card comes from the same query the grid used, so the header shows
-   * exactly what the user tapped. Cheap: both lists are already live and in
-   * memory for the library screen behind this one.
+   * The card is built from the same columns the grid uses, so the header shows
+   * exactly what the user tapped — but for this collection alone. It used to
+   * be found in both whole shelves, which is not "already in memory": every
+   * mounted live query runs its own SQL, and those two grouped the entire
+   * library on every tap into a record. See `useCollectionCard`.
    */
-  const artists = useArtistCards();
-  const albums = useAlbumCards();
-  const card = (kind === 'artist' ? artists : albums).find((entry) => entry.id === id);
+  const { card } = useCollectionCard(kind, id);
 
   /*
    * Liking, on the screen rather than only behind a long press on the grid.
@@ -147,7 +146,7 @@ export function CollectionDetailScreen({ kind, id }: CollectionDetailScreenProps
                 artworkPath={card.artworkPath}
               />
             ) : (
-              // The card list is live and lands a frame or two after the tracks do.
+              // The card is live and lands a frame after the screen first draws.
               <View className="flex-row items-end gap-4 px-6 pb-4">
                 <Skeleton className="aspect-square w-1/3 rounded-xs" />
                 <View className="flex-1 gap-2 pb-1">
