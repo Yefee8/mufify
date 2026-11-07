@@ -1,4 +1,4 @@
-const { withAppBuildGradle } = require('expo/config-plugins');
+const { withAppBuildGradle, withGradleProperties } = require('expo/config-plugins');
 
 const DEFAULT_FILE = 'getDefaultProguardFile("proguard-android.txt")';
 const OPTIMIZING_FILE = 'getDefaultProguardFile("proguard-android-optimize.txt")';
@@ -28,7 +28,32 @@ const OPTIMIZING_FILE = 'getDefaultProguardFile("proguard-android-optimize.txt")
  * Idempotent, and loud when it fails: a silent no-op here is a release that
  * looks optimised and is not, which is exactly the state this exists to end.
  */
+/**
+ * Shrink resources inside R8 rather than after it.
+ *
+ * Play's second R8 note — "optimised removal of unused resources not enabled"
+ * — is this flag. The ordinary shrinker runs after R8 and keeps every resource
+ * referenced from any code R8 kept *or could not prove dead*; the optimised one
+ * runs inside R8 and drops resources reachable only from code R8 removed. It is
+ * the default from AGP 9, which Play's note suggests upgrading to, and AGP 9 is
+ * not on offer: Expo SDK 57 pins 8.12. The option exists in 8.12 — checked in
+ * the AGP jar, not assumed — so this turns on the thing the upgrade would have.
+ */
+const OPTIMIZED_RESOURCE_SHRINKING = 'android.r8.optimizedResourceShrinking';
+
+function withOptimizedResourceShrinking(config) {
+  return withGradleProperties(config, (modConfig) => {
+    const properties = modConfig.modResults.filter(
+      (item) => !(item.type === 'property' && item.key === OPTIMIZED_RESOURCE_SHRINKING),
+    );
+    properties.push({ type: 'property', key: OPTIMIZED_RESOURCE_SHRINKING, value: 'true' });
+    modConfig.modResults = properties;
+    return modConfig;
+  });
+}
+
 module.exports = function withR8Optimization(config) {
+  config = withOptimizedResourceShrinking(config);
   return withAppBuildGradle(config, (modConfig) => {
     const contents = modConfig.modResults.contents;
 
