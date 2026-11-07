@@ -1,33 +1,20 @@
-import {
-  ChevronDown,
-  Disc3,
-  ListMusic,
-  MicVocal,
-  Music,
-  Pause,
-  Play,
-  Repeat,
-  Repeat1,
-  Shuffle,
-  SkipBack,
-  SkipForward,
-} from 'lucide-react-native';
+import { Music } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { Text, useWindowDimensions, View } from 'react-native';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AudioEngine } from '@/services/audio/AudioEngine';
 import { cycleRepeat } from '@/services/audio/queue';
-import { getShuffleAlgorithm } from '@/services/settings';
 import type { RepeatMode } from '@/services/audio/types';
 import { formatDuration } from '@/services/format/duration';
 import * as perf from '@/services/perf';
-import { useThemeColors } from '@/theme/useTheme';
 
 import { ArtworkCarousel } from './components/ArtworkCarousel';
-import { FavoriteButton } from './components/FavoriteButton';
 import { LyricsPane } from './components/LyricsPane';
+import { NowPlayingTitle } from './components/NowPlayingTitle';
+import { PlayerHeader } from './components/PlayerHeader';
+import { PlayerTransport } from './components/PlayerTransport';
 import { Scrubber } from './components/Scrubber';
 import { SpecStrip } from './components/SpecStrip';
 import { useLyrics } from './hooks/useLyrics';
@@ -53,7 +40,6 @@ const SHORT_HEIGHT = 520;
 
 export function PlayerScreen({ onExpandedChange, onOpenQueue, onPrepareQueue }: PlayerScreenProps) {
   const { t, i18n } = useTranslation();
-  const colors = useThemeColors();
   const { height } = useWindowDimensions();
 
   const { phase, track, positionMs, durationMs, error } = usePlayback();
@@ -104,7 +90,7 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue, onPrepareQueue }: 
   if (track === null) {
     return (
       <View className="flex-1 bg-surface">
-        <Header
+        <PlayerHeader
           onClose={close}
           onOpenQueue={openQueue}
           onPrepareQueue={onPrepareQueue}
@@ -125,14 +111,9 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue, onPrepareQueue }: 
    */
   const short = height < SHORT_HEIGHT;
 
-  const isPlaying = phase === 'playing';
-  const isLoading = phase === 'loading';
-  const algorithm = getShuffleAlgorithm();
-  const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
-
   return (
     <View className="flex-1 bg-surface">
-      <Header
+      <PlayerHeader
         onClose={close}
         onOpenQueue={openQueue}
         onPrepareQueue={onPrepareQueue}
@@ -165,41 +146,12 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue, onPrepareQueue }: 
           />
         )}
 
-        <View className="gap-2 px-6">
-          <Text numberOfLines={2} className="font-display text-3xl text-primary">
-            {track.title}
-          </Text>
-          <View className="flex-row items-center justify-between">
-            <Text numberOfLines={1} className="flex-1 font-body text-base text-muted">
-              {track.artistName ?? t('common.unknownArtist')}
-            </Text>
-            {/*
-              Only when the file actually carries words. A button that opens an
-              empty screen for most of a library is worse than no button — and
-              this is the whole affordance, because the artwork underneath owns
-              two pan gestures and a tap target on top of them is how a scrub
-              turns into a dismiss.
-            */}
-            {lyrics !== null ? (
-              <Pressable
-                onPress={toggleLyrics}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  showLyrics ? t('player.lyrics.showArtwork') : t('player.lyrics.show')
-                }
-                accessibilityState={{ selected: showLyrics }}
-                className="min-h-11 min-w-11 items-center justify-center"
-              >
-                {showLyrics ? (
-                  <Disc3 color={colors.signal} size={22} strokeWidth={2} />
-                ) : (
-                  <MicVocal color={colors.legend} size={22} strokeWidth={2} />
-                )}
-              </Pressable>
-            ) : null}
-            <FavoriteButton trackId={track.id} />
-          </View>
-        </View>
+        <NowPlayingTitle
+          track={track}
+          hasLyrics={lyrics !== null}
+          showLyrics={showLyrics}
+          onToggleLyrics={toggleLyrics}
+        />
 
         {phase === 'error' ? (
           <Text className="px-6 font-body text-sm text-muted">
@@ -225,71 +177,16 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue, onPrepareQueue }: 
           </View>
         )}
 
-        <View className="flex-row items-center justify-between px-6">
-          <Pressable
-            onPress={onRepeatPress}
-            accessibilityRole="button"
-            accessibilityLabel={t(`player.repeat.${repeat}`)}
-            accessibilityState={{ selected: repeat !== 'off' }}
-            className="min-h-11 min-w-11 items-center justify-center"
-          >
-            <RepeatIcon
-              color={repeat === 'off' ? colors.legend : colors.signal}
-              size={22}
-              strokeWidth={2}
-            />
-          </Pressable>
-
-          <Pressable
-            onPress={previous}
-            accessibilityRole="button"
-            accessibilityLabel={t('player.previous')}
-            className="min-h-11 min-w-11 items-center justify-center"
-          >
-            <SkipBack color={colors.label} size={28} strokeWidth={2} fill={colors.label} />
-          </Pressable>
-
-          {/* The only circular control in the app, per the design direction. */}
-          <Pressable
-            onPress={toggle}
-            disabled={isLoading}
-            accessibilityRole="button"
-            accessibilityLabel={isPlaying ? t('player.pause') : t('player.play')}
-            accessibilityState={{ disabled: isLoading, selected: isPlaying }}
-            className="h-16 w-16 items-center justify-center rounded-full bg-accent"
-          >
-            {isPlaying ? (
-              <Pause color={colors.onSignal} size={28} strokeWidth={2} fill={colors.onSignal} />
-            ) : (
-              <Play color={colors.onSignal} size={28} strokeWidth={2} fill={colors.onSignal} />
-            )}
-          </Pressable>
-
-          <Pressable
-            onPress={next}
-            accessibilityRole="button"
-            accessibilityLabel={t('player.next')}
-            className="min-h-11 min-w-11 items-center justify-center"
-          >
-            <SkipForward color={colors.label} size={28} strokeWidth={2} fill={colors.label} />
-          </Pressable>
-
-          <Pressable
-            onPress={onShufflePress}
-            accessibilityRole="button"
-            /* Names the algorithm, not just "shuffle" — the brief asks for
-               several and the indicator has to say which one is running. */
-            accessibilityLabel={
-              shuffled
-                ? t('player.shuffle.on', { algorithm: t(`settings.shuffle.${algorithm}`) })
-                : t('player.shuffle.off')
-            }
-            accessibilityState={{ selected: shuffled }}
-            className="min-h-11 min-w-11 items-center justify-center"
-          >
-            <Shuffle color={shuffled ? colors.signal : colors.legend} size={22} strokeWidth={2} />
-          </Pressable>
-        </View>
+        <PlayerTransport
+          phase={phase}
+          repeat={repeat}
+          shuffled={shuffled}
+          onRepeat={onRepeatPress}
+          onPrevious={previous}
+          onToggle={toggle}
+          onNext={next}
+          onShuffle={onShufflePress}
+        />
 
         {/*
           Below the transport, not under the title.
@@ -303,48 +200,6 @@ export function PlayerScreen({ onExpandedChange, onOpenQueue, onPrepareQueue }: 
           <SpecStrip trackId={track.id} />
         </View>
       </View>
-    </View>
-  );
-}
-
-interface HeaderProps {
-  onClose: () => void;
-  onOpenQueue: () => void;
-  onPrepareQueue: () => void;
-  label: string;
-}
-
-function Header({ onClose, onOpenQueue, onPrepareQueue, label }: HeaderProps) {
-  const colors = useThemeColors();
-  const { t } = useTranslation();
-
-  return (
-    <View className="flex-row items-center justify-between px-6 pt-6">
-      <Pressable
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel={t('player.close')}
-        className="min-h-11 min-w-11 items-center justify-start"
-      >
-        <ChevronDown color={colors.label} size={26} strokeWidth={2} />
-      </Pressable>
-      <Text className="font-body-medium text-sm text-muted">{label}</Text>
-      <Pressable
-        onPress={onOpenQueue}
-        /*
-          Mount the queue when the finger lands rather than when it lifts. A
-          few hundred rows of FlashList is real work, and doing it on the frame
-          the spring starts means the sheet arrives before its contents do —
-          which is what "the queue takes ages" actually looked like. The same
-          trick the mini player uses to open Now Playing.
-        */
-        onPressIn={onPrepareQueue}
-        accessibilityRole="button"
-        accessibilityLabel={t('queue.title')}
-        className="min-h-11 min-w-11 items-center justify-center"
-      >
-        <ListMusic color={colors.label} size={22} strokeWidth={2} />
-      </Pressable>
     </View>
   );
 }
