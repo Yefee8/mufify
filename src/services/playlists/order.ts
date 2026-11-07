@@ -100,9 +100,30 @@ export function moveItem<T>(items: readonly T[], from: number, to: number): T[] 
   return next;
 }
 
-/** `moveItem` over a playlist's positions. */
-export function reorder(positions: readonly number[], from: number, to: number): number[] | null {
-  return moveItem(positions, from, to);
+/**
+ * The ids with `moved` taken out and put back straight after `after` — or at
+ * the front when `after` is null.
+ *
+ * How a drop is written to the database, in preference to two positions. A
+ * position is only true of the database as it stood when the screen last
+ * heard from it, and two drags in quick succession can each be computed
+ * against a table the other has already rewritten; "after this row" is true
+ * whatever happened in between. It also needs no translation between the
+ * visible list and the table, which disagree whenever a file is missing.
+ *
+ * Null when either id is not in the list, so a drop against a playlist that
+ * changed underneath writes nothing rather than something wrong.
+ */
+export function placeAfter<T>(ids: readonly T[], moved: T, after: T | null): T[] | null {
+  const from = ids.indexOf(moved);
+  if (from === -1 || after === moved) return null;
+
+  const rest = [...ids.slice(0, from), ...ids.slice(from + 1)];
+  if (after === null) return [moved, ...rest];
+
+  const at = rest.indexOf(after);
+  if (at === -1) return null;
+  return [...rest.slice(0, at + 1), moved, ...rest.slice(at + 1)];
 }
 
 /**

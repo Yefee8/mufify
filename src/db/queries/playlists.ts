@@ -5,7 +5,7 @@ import { deleteCoverFile } from '@/services/playlists/cover';
 import {
   foldPlaylistRows,
   LIKED_SONGS_ID,
-  reorder,
+  placeAfter,
   type PlaylistSummary,
 } from '@/services/playlists/order';
 
@@ -301,67 +301,53 @@ export async function addTracksToPlaylist(playlistId: number, trackIds: number[]
 }
 
 /**
- * Move the entry at `fromPosition` to `toPosition`, keeping the rest contiguous.
+ * Move one entry to sit straight after another, keeping the rest contiguous.
  *
- * Done as a full rewrite of the affected span rather than a clever three-step
- * swap, and the reason is the unique index on `(playlist_id, position)`. Any
- * intermediate state where two rows share a position fails the constraint, so
- * every row between the old and new slot is first parked at a negative position
- * — outside the range real rows ever occupy — and then written back. Three
- * statements, no temporary table, and no window where the index can be violated.
+ * Addressed by row, not by position: `entryId` is the moved row's `rowid` and
+ * `afterEntryId` the row it should follow, or null for the top. A position is
+ * only true of the table as it stood when the screen last heard from it, and
+ * two drops in quick succession could each be computed against a table the
+ * other had already rewritten — the second then moved a different track. "After
+ * this row" stays true whatever happened in between, and needs no translation
+ * between the visible list and the table, which hides missing files.
  *
- * Wrapped in a transaction: a reorder that half-applied would leave a playlist
- * whose positions have a gap, and the *next* reorder would then fail rather than
- * this one, which is the worst possible place to discover it.
+ * Done as a full rewrite of the playlist's positions rather than a clever
+ * swap, because of the unique index on `(playlist_id, position)`: any
+ * intermediate state where two rows share a position fails the constraint. So
+ * every row is first parked at a negative position — outside the range real
+ * rows ever occupy — and then written back by rowid, all in one transaction.
+ * A reorder that half-applied would leave a gap, and the *next* reorder would
+ * be the one to fail, which is the worst possible place to discover it.
  */
 export async function movePlaylistEntry(
   playlistId: number,
-  fromPosition: number,
-  toPosition: number,
+  entryId: number,
+  afterEntryId: number | null,
 ): Promise<void> {
-  if (fromPosition === toPosition) return;
-
   await db.transaction(async (tx) => {
     const rows = await tx
-      .select({ trackId: playlistTracks.trackId, position: playlistTracks.position })
+      .select({ rowId: sql<number>`rowid` })
       .from(playlistTracks)
       .where(eq(playlistTracks.playlistId, playlistId))
       .orderBy(asc(playlistTracks.position));
 
-    /*
-     * Positions rather than the row numbers the screen dragged.
-     *
-     * They are the same number in a playlist whose files are all present —
-     * positions are dense, so position *is* index — and they are not the same
-     * number in a playlist with a missing file, because the screen does not
-     * show missing tracks and this query does not skip them. Dragging the third
-     * visible row then moved the third row of the full list, which is a
-     * different track. Looking the positions up here keeps the correction in
-     * one place; a caller that passes something not in the list gets the
-     * existing null-guarded no-op.
-     */
-    const positions = rows.map((row) => row.position);
-    const order = reorder(positions, positions.indexOf(fromPosition), positions.indexOf(toPosition));
+    const order = placeAfter(
+      rows.map((row) => row.rowId),
+      entryId,
+      afterEntryId,
+    );
     if (order === null) return;
 
-    // Park everything out of the way first. Negative positions cannot collide
-    // with the ones being written, and no reader sees them — the whole thing is
-    // one transaction.
     await tx
       .update(playlistTracks)
       .set({ position: sql`-1 - ${playlistTracks.position}` })
       .where(eq(playlistTracks.playlistId, playlistId));
 
-    for (const [index, original] of order.entries()) {
+    for (const [index, rowId] of order.entries()) {
       await tx
         .update(playlistTracks)
         .set({ position: index })
-        .where(
-          and(
-            eq(playlistTracks.playlistId, playlistId),
-            eq(playlistTracks.position, -1 - original),
-          ),
-        );
+        .where(and(eq(playlistTracks.playlistId, playlistId), sql`rowid = ${rowId}`));
     }
 
     await tx.update(playlists).set({ updatedAt: Date.now() }).where(eq(playlists.id, playlistId));
@@ -372,19 +358,31 @@ export async function movePlaylistEntry(
 /**
  * Remove one entry and close the gap.
  *
- * Closing the gap is not tidiness: positions are half of the unique key, so a
- * hole left behind turns the next reorder into a constraint violation.
+ * By row, like a move, and for the same reason: the screen's idea of an
+ * entry's position can be a drop behind the table's. Closing the gap is not
+ * tidiness — positions are half of the unique key, so a hole left behind turns
+ * the next reorder into a constraint violation.
  */
-export async function removeFromPlaylist(playlistId: number, position: number): Promise<void> {
-  await db
-    .delete(playlistTracks)
-    .where(and(eq(playlistTracks.playlistId, playlistId), eq(playlistTracks.position, position)));
+export async function removeFromPlaylist(playlistId: number, entryId: number): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ position: playlistTracks.position })
+      .from(playlistTracks)
+      .where(and(eq(playlistTracks.playlistId, playlistId), sql`rowid = ${entryId}`));
+    if (row === undefined) return;
 
-  await db
-    .update(playlistTracks)
-    .set({ position: sql`${playlistTracks.position} - 1` })
-    .where(and(eq(playlistTracks.playlistId, playlistId), gt(playlistTracks.position, position)));
+    await tx
+      .delete(playlistTracks)
+      .where(and(eq(playlistTracks.playlistId, playlistId), sql`rowid = ${entryId}`));
 
-  await db.update(playlists).set({ updatedAt: Date.now() }).where(eq(playlists.id, playlistId));
+    await tx
+      .update(playlistTracks)
+      .set({ position: sql`${playlistTracks.position} - 1` })
+      .where(
+        and(eq(playlistTracks.playlistId, playlistId), gt(playlistTracks.position, row.position)),
+      );
+
+    await tx.update(playlists).set({ updatedAt: Date.now() }).where(eq(playlists.id, playlistId));
+  });
   notifyUserDataChanged();
 }

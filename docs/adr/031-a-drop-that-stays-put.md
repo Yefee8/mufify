@@ -28,29 +28,43 @@ lifted" was four separate faults:
 
 ## Decision
 
-- Entries are keyed by the `playlist_tracks` row's own `rowid`, which a
-  reorder — an `UPDATE` of positions — never changes. Liked songs use the
-  track id.
-- The playlist and library lists turn FlashList's content anchoring off.
-- A drop glides the held row the last fraction of a row into the gap, *then*
-  commits the move; the transforms are reset only after React has committed
-  the new order, from a layout effect, sent straight to the UI thread.
-- `endDrag` is declared above every worklet that calls it, with a comment
-  saying why that is load-bearing, and every worklet module was scanned for
-  the same trap.
+A first pass fixed the four faults in place — stable `rowid` keys, anchoring
+off, the transforms reset only after React committed the new order, `endDrag`
+declared above its callers — and left one frame. During a drag the rows stood
+in their new places by Reanimated transforms; the drop swapped those for a
+React layout, and a UI-thread value and a JS-thread layout do not land in the
+same frame. Three ways of closing that frame were tried and measured, and none
+did: resetting in an insertion effect, resetting from the UI thread, and
+rendering the commit with the animated style detached — which was worse, since
+a detached Reanimated style leaves its last transform on the native view.
+
+So the drag was rebuilt so that nothing needs swapping at the end:
+
+- **The list is reordered for real while the finger moves.** Each time the
+  held row crosses into another slot the order is committed to React, with a
+  layout animation sliding the rows that make room. The rows never carry
+  transforms; their layout is always the order on screen.
+- **The held row is drawn as a floating copy above the list**, moved by the
+  finger's absolute position on the UI thread. The row itself stays in the
+  list, hidden, travelling with the live order.
+- **The drop is a glide and a swap.** The copy glides into the slot the hidden
+  row already occupies; once React has committed the final order, the copy is
+  hidden and the row shown — two shared values written in one worklet, one
+  frame, no layout involved.
+- **The database is written once, by row identity**: "this row after that
+  one", via `placeAfter` over rowids. Two positions were only true of the table
+  as the screen last saw it, and two drops in quick succession could each be
+  computed against a table the other had already rewritten. Removing and
+  playing a row are addressed the same way.
 
 ## Consequences
 
-What is left is one frame. React commits the new layout and Reanimated's
-reset lands on the following frame, so for a single frame the moved rows are
-drawn one slot further than they belong. Three things were tried to close it
-and measured: resetting in an insertion effect (no change), resetting from the
-UI thread (no change), and rendering the commit with the animated style
-detached — which was worse, because a detached Reanimated style leaves its
-last transform on the native view and the rows stayed displaced for several
-frames. Neither library offers a way to land a React layout and a Reanimated
-transform in the same frame.
+Measured on an Android 15 emulator with screen recordings read frame by frame:
+drags of three to five rows in both directions show no frame out of place, and
+the last frames of every drop converge to stillness. After two back-to-back
+drops, the order on screen and the order read fresh from the database are
+pixel-identical.
 
-Closing it for good means a drag that never needs the two to agree: the list
-reordered live while the finger moves, the held row drawn above the list. That
-is a different design rather than a fix to this one.
+The drag no longer auto-scrolls the list, and never did; a row can be moved as
+far as the screen shows in one drag. Under a search the rows are not draggable,
+because a filtered list is not the whole list.

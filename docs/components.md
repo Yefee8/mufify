@@ -97,8 +97,10 @@ it is repeated here because that is the thing a reader needs before touching it.
 | `PlaylistsScreen` / `PlaylistRow` | The list, and one playlist in it. |
 | `PlaylistDetailScreen` / `PlaylistDetailHeader` | One playlist, laid out the way a streaming app does because that arrangement is already in everyone's hands. |
 | `PlaylistMosaic` | A playlist's cover: the first four album covers in a 2×2 grid. Each count is a deliberate case, not a degradation — one cover fills the square rather than repeating four times. |
-| `ReorderableEntry` | Drag by a handle, not by long-press: long-press is the action sheet everywhere else, and a list where holding sometimes does either is a list nobody trusts. The rest of the list opens a gap as the held row passes, so you can see where it will land. |
-| `useReorderableEntries` | The order to render while the write is in flight: the drop shows immediately and the query replaces it when it arrives. Without it the row snapped back to where it was picked up and jumped forward a moment later. |
+| `PlaylistEntryList` | The rows and the drag's floating copy. Split from the screen at the 300-line limit; the screen owns the playlist, this owns the rows. |
+| `ReorderableEntry` | Drag by a handle, not by long-press: long-press is the action sheet everywhere else, and a list where holding sometimes does either is a list nobody trusts. The row never carries a transform — while held it is hidden and `DragOverlay` draws it. |
+| `DragOverlay` / `DragHandle` | The copy of a held row that follows the finger, mounted over the list for as long as the screen is, and the grip drawn identically on the row and the copy. |
+| `useReorderableEntries` | The list reordered live as a held row crosses slots, with a layout animation sliding the rest; the drop written once, as "this row after that one" — see `docs/adr/031`. |
 | `AddToPlaylistSheet` | Pick a playlist for some tracks, or make one. |
 | `NamePlaylistDialog` | A `Modal`, not `Alert.prompt`, which is iOS-only and silently does nothing on Android. |
 

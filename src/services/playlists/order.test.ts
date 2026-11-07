@@ -1,6 +1,6 @@
 import { matchesHaystack } from '@/services/text/search';
 
-import { foldPlaylistRows, moveItem, reorder, type PlaylistRow } from './order';
+import { foldPlaylistRows, moveItem, placeAfter, type PlaylistRow } from './order';
 
 /**
  * The two pure parts of the playlist queries.
@@ -50,20 +50,65 @@ describe('moveItem', () => {
   });
 });
 
-describe('reorder', () => {
+describe('placeAfter', () => {
+  const ids = [10, 20, 30, 40, 50];
+
+  it('moves a row down to sit after another', () => {
+    expect(placeAfter(ids, 20, 40)).toEqual([10, 30, 40, 20, 50]);
+  });
+
+  it('moves a row up to sit after another', () => {
+    expect(placeAfter(ids, 50, 10)).toEqual([10, 50, 20, 30, 40]);
+  });
+
+  it('puts a row first when there is nothing to sit after', () => {
+    expect(placeAfter(ids, 40, null)).toEqual([40, 10, 20, 30, 50]);
+  });
+
+  it('keeps every id exactly once', () => {
+    for (const moved of ids) {
+      for (const after of [null, ...ids]) {
+        const result = placeAfter(ids, moved, after);
+        if (result === null) continue;
+        expect([...result].sort((a, b) => a - b)).toEqual(ids);
+      }
+    }
+  });
+
+  it('refuses ids that are not in the list, and a row placed after itself', () => {
+    expect(placeAfter(ids, 99, 10)).toBeNull();
+    expect(placeAfter(ids, 10, 99)).toBeNull();
+    expect(placeAfter(ids, 30, 30)).toBeNull();
+  });
+
+  it('agrees with moveItem for every drag the screen can make', () => {
+    // The screen computes `after` as the row in front of the drop slot in the
+    // reordered list, so the two must describe the same move.
+    for (let from = 0; from < ids.length; from += 1) {
+      for (let to = 0; to < ids.length; to += 1) {
+        const moved = moveItem(ids, from, to);
+        if (moved === null) continue;
+        const after = to === 0 ? null : (moved[to - 1] ?? null);
+        expect(placeAfter(ids, ids[from] ?? -1, after) ?? ids).toEqual(moved);
+      }
+    }
+  });
+});
+
+describe('moveItem over positions', () => {
   const positions = [0, 1, 2, 3, 4];
 
   it('moves an entry down', () => {
-    expect(reorder(positions, 1, 3)).toEqual([0, 2, 3, 1, 4]);
+    expect(moveItem(positions, 1, 3)).toEqual([0, 2, 3, 1, 4]);
   });
 
   it('moves an entry up', () => {
-    expect(reorder(positions, 3, 1)).toEqual([0, 3, 1, 2, 4]);
+    expect(moveItem(positions, 3, 1)).toEqual([0, 3, 1, 2, 4]);
   });
 
   it('moves to the very start and the very end', () => {
-    expect(reorder(positions, 4, 0)).toEqual([4, 0, 1, 2, 3]);
-    expect(reorder(positions, 0, 4)).toEqual([1, 2, 3, 4, 0]);
+    expect(moveItem(positions, 4, 0)).toEqual([4, 0, 1, 2, 3]);
+    expect(moveItem(positions, 0, 4)).toEqual([1, 2, 3, 4, 0]);
   });
 
   it('keeps every entry exactly once, wherever it moves', () => {
@@ -71,7 +116,7 @@ describe('reorder', () => {
     // every drag-and-drop list ships at least once.
     for (let from = 0; from < positions.length; from += 1) {
       for (let to = 0; to < positions.length; to += 1) {
-        const result = reorder(positions, from, to);
+        const result = moveItem(positions, from, to);
         expect(result).not.toBeNull();
         expect([...(result ?? [])].sort()).toEqual(positions);
       }
@@ -81,13 +126,13 @@ describe('reorder', () => {
   it('refuses an index outside the list rather than writing something wrong', () => {
     // A drag against a playlist that changed underneath must be a no-op, not a
     // write that shuffles rows the user never touched.
-    expect(reorder(positions, -1, 2)).toBeNull();
-    expect(reorder(positions, 2, 5)).toBeNull();
-    expect(reorder([], 0, 0)).toBeNull();
+    expect(moveItem(positions, -1, 2)).toBeNull();
+    expect(moveItem(positions, 2, 5)).toBeNull();
+    expect(moveItem([], 0, 0)).toBeNull();
   });
 
   it('is identity when nothing moves', () => {
-    expect(reorder(positions, 2, 2)).toEqual(positions);
+    expect(moveItem(positions, 2, 2)).toEqual(positions);
   });
 });
 

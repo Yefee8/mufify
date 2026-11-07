@@ -1,173 +1,140 @@
 import { Easing, makeMutable, runOnJS, withTiming } from 'react-native-reanimated';
 
 /**
- * The one drag in progress, shared by every row that has to move out of its way.
+ * The one drag in progress: which row is held, and where its floating copy is.
  *
  * Module level, like `playerExpansion` and for the same two reasons: there is
  * one playlist on screen at a time, and shared values written from a worklet
  * that a hook closed over are what the React Compiler's immutability rule
- * objects to — it is right about ordinary values and models nothing about
- * Reanimated. Worklet functions here, component-free, sidestep it.
+ * objects to. Worklet functions here, component-free, sidestep it.
  *
- * Beside the hooks rather than under `components/`: the row writes it while the
- * finger is down, and `useReorderableEntries` writes it once the new order is
- * on screen. Both sides own a piece of the drop.
+ * **How a drag works, and why this way.** The held row is drawn twice: once in
+ * the list, where it is hidden, and once in a floating copy above the list
+ * that follows the finger. Every time the finger crosses into a new slot the
+ * list is reordered for real — React, a layout animation sliding the rows that
+ * make room — so the list underneath is always in the order on screen. When the
+ * finger lifts, the copy glides into the slot the hidden row already occupies,
+ * and then the copy is hidden and the row shown in a single UI-thread step.
  *
- * **What moves during a drag is pixels, not rows.** The rows between where the
- * held one came from and where it would land slide one slot towards the gap,
- * which is the list showing the order about to be committed. The data is only
- * reordered once the finger lifts — and the pixels are only put back once the
- * reordered data is on screen. The order of those two is the whole of the drop.
+ * Nothing at the end of a drag has to be put back. The design before this one
+ * stood the rows in their new places with transforms and only reordered the
+ * data on release, so the drop meant swapping transforms (UI thread) for a
+ * layout (JS thread) — and no sequencing of two threads lands them in the same
+ * frame. That left one frame of rows a slot out of place on every drop, which
+ * is what "teleporting after the drop" was. Here the layout is right all along
+ * and the swap at the end is two values on one thread. See ADR 031.
  */
 
-/** Index being dragged, or -1 when nothing is. */
-export const dragFrom = makeMutable(-1);
-/** Index it would land on if released now. */
-export const dragTo = makeMutable(-1);
-/** The held row's own travel, in pixels. */
-export const dragOffset = makeMutable(0);
-/** 1 while a finger is on the handle. */
-export const dragHeld = makeMutable(0);
-/**
- * 1 once a drop has been committed, until the next drag begins.
- *
- * The rows read it to decide whether returning to zero is an animation or a
- * fact. After a committed drop the list has re-rendered in the new order, so
- * every row's slot is already its final one and easing it back to zero would
- * slide a row that has nowhere to go. After a cancelled drag the order has not
- * changed and the easing is the point.
- */
-export const dragSettled = makeMutable(0);
+/** The held row's entry id, or -1 when nothing is held. */
+export const dragKey = makeMutable(-1);
+/** 1 once the floating copy is drawn, which is when the row in the list hides. */
+export const copyShown = makeMutable(0);
+/** The floating copy's top, in the list's own coordinates (0 is the list's top edge). */
+export const copyTop = makeMutable(0);
+/** 0 at rest, 1 lifted: the copy's scale and shadow. */
+export const lift = makeMutable(0);
+/** The slot the held row occupies in the order on screen. */
+export const liveIndex = makeMutable(-1);
+/** The list's scroll offset, kept current by the screen. */
+export const listScrollY = makeMutable(0);
 
-/**
- * Nothing is being dragged any more.
- *
- * `settled` says whether the list has taken the move over — see `dragSettled`.
- *
- * **Defined before every worklet that calls it, and that is load-bearing.** The
- * worklets plugin captures what a worklet refers to when the worklet is
- * *defined*, not when it runs. A worklet above this declaration captured
- * `endDrag` as undefined and threw the first time it reached the call — which
- * is how the first version of `finishDrop` took the app down on every drop.
- */
-export function endDrag(settled: boolean): void {
-  'worklet';
-  dragSettled.value = settled ? 1 : 0;
-  dragHeld.value = 0;
-  dragFrom.value = -1;
-  dragTo.value = -1;
-  dragOffset.value = 0;
+/** Where the copy started, and where the finger was then, so it can follow by difference. */
+const startTop = makeMutable(0);
+const startAbsoluteY = makeMutable(0);
+/** 1 while the finger is down, 2 while the copy is landing, 0 otherwise. */
+const phase = makeMutable(0);
+
+const LIFT_MS = 120;
+/** The copy gliding the last fraction of a row into its slot. */
+const LAND_MS = 140;
+
+/** Kept current from the list's scroll events, so a pick-up knows where the row is. */
+export function setListScroll(offset: number): void {
+  listScrollY.value = offset;
 }
 
-export function beginDrag(index: number): void {
+/**
+ * The copy is on screen: hide the row it copies.
+ *
+ * Called once React has drawn the copy, so the row never disappears before
+ * the thing replacing it is there.
+ */
+export function showCopy(): void {
   'worklet';
-  dragSettled.value = 0;
-  dragHeld.value = 1;
-  dragFrom.value = index;
-  dragTo.value = index;
-  dragOffset.value = 0;
+  if (dragKey.value !== -1) copyShown.value = 1;
 }
 
-/** Follow the finger, and work out which slot that lands in. */
-export function updateDrag(
-  index: number,
-  translationY: number,
+/**
+ * The drop is in the list: show the row, hide the copy — one step, one thread.
+ *
+ * Called once React has committed the final order, so the row reappears in a
+ * slot that is already its own.
+ */
+export function release(): void {
+  'worklet';
+  dragKey.value = -1;
+  copyShown.value = 0;
+  liveIndex.value = -1;
+  phase.value = 0;
+}
+
+/** The finger has held the handle long enough: lift a copy of the row off the list. */
+export function pickUp(entryId: number, index: number, absoluteY: number, rowHeight: number): void {
+  'worklet';
+  const top = index * rowHeight - listScrollY.value;
+  dragKey.value = entryId;
+  liveIndex.value = index;
+  startTop.value = top;
+  copyTop.value = top;
+  startAbsoluteY.value = absoluteY;
+  phase.value = 1;
+  lift.value = withTiming(1, { duration: LIFT_MS });
+}
+
+/**
+ * Follow the finger; when it crosses into another slot, say so.
+ *
+ * By the absolute position rather than the gesture's own translation: the row
+ * the gesture started on moves through the list as the order changes, and a
+ * translation measured against a view that has moved would jump by a row each
+ * time it did.
+ */
+export function follow(
+  absoluteY: number,
   rowHeight: number,
   count: number,
+  onSlotChange: (from: number, to: number) => void,
 ): void {
   'worklet';
-  dragOffset.value = translationY;
-  const moved = Math.round(translationY / rowHeight);
-  dragTo.value = Math.min(count - 1, Math.max(0, index + moved));
+  if (phase.value !== 1) return;
+  const top = startTop.value + (absoluteY - startAbsoluteY.value);
+  copyTop.value = top;
+
+  const slot = Math.min(count - 1, Math.max(0, Math.round((top + listScrollY.value) / rowHeight)));
+  if (slot === liveIndex.value) return;
+
+  const from = liveIndex.value;
+  liveIndex.value = slot;
+  runOnJS(onSlotChange)(from, slot);
 }
 
-/** The held row gliding into the gap the list has been holding open. */
-const LAND_MS = 140;
-/** A drag let go without having gone anywhere, travelling back. */
-const RETURN_MS = 170;
-
 /**
- * Let go over a new slot: glide into it, *then* hand the move over.
+ * Let go: glide the copy into the slot the row is already in, then hand over.
  *
- * The finger rarely lifts exactly on a slot, so the row first travels the last
- * fraction of a row into the gap the others have opened — that is the "smooth"
- * in a smooth drop. Only when it has arrived is the move committed, and the
- * drag state stays exactly as it is until `finishDrop` says the new order has
- * been drawn.
- *
- * The version before this one reset the transforms the moment the finger
- * lifted and reordered the data afterwards. Those happen on different threads:
- * the reset on the UI thread at once, the reorder whenever the JS thread got
- * round to rendering it. In between the list showed the *old* order — the row
- * jumped back to where it was picked up, then forward to where it was put. On
- * a fast emulator that was a frame; on a mid-range phone with a busy JS thread
- * it was a visible teleport.
- *
- * The move is committed even if the glide is interrupted: the finger has
- * already said where the row goes, and losing that because another touch
- * landed would be worse than a drop that skips its last few pixels.
+ * `onLanded` commits the move and, once the final order has been drawn, calls
+ * `release`. Until then the copy stays where it landed, covering the slot — so
+ * however long the JS thread takes, nothing on screen is ever out of place.
  */
-export function dropDrag(
-  index: number,
-  target: number,
-  rowHeight: number,
-  onLanded: (from: number, to: number) => void,
-): void {
+export function putDown(rowHeight: number, onLanded: () => void): void {
   'worklet';
-  dragHeld.value = 0;
-  dragOffset.value = withTiming(
-    (target - index) * rowHeight,
+  if (phase.value !== 1) return;
+  phase.value = 2;
+  lift.value = withTiming(0, { duration: LAND_MS });
+  copyTop.value = withTiming(
+    liveIndex.value * rowHeight - listScrollY.value,
     { duration: LAND_MS, easing: Easing.out(Easing.cubic) },
     () => {
-      runOnJS(onLanded)(index, target);
+      runOnJS(onLanded)();
     },
   );
-}
-
-/**
- * Let go without a move: ease the row home, then release the drag.
- *
- * For a drag that chose its own slot, or one the system cancelled. Nothing is
- * committed, so nothing else will put the pixels back — the easing does.
- */
-export function cancelDrag(): void {
-  'worklet';
-  dragHeld.value = 0;
-  dragOffset.value = withTiming(
-    0,
-    { duration: RETURN_MS, easing: Easing.out(Easing.cubic) },
-    (finished) => {
-      if (finished) endDrag(false);
-    },
-  );
-}
-
-/**
- * The reordered list is on screen; put the pixels back.
- *
- * Called by `useReorderableEntries` from a layout effect — after React has
- * committed the new order, in the same tick, so the rows' new positions and
- * their transforms returning to zero reach the screen together rather than a
- * thread-hop apart. A no-op when a new drag has already begun: its state is
- * not this drop's to clear.
- */
-export function finishDrop(): void {
-  'worklet';
-  if (dragHeld.value === 1 || dragFrom.value === -1) return;
-  endDrag(true);
-}
-
-/**
- * How far a row that is *not* being dragged has to move to make room.
- *
- * Everything between where the held row came from and where it is going slides
- * one slot towards the gap it left. Rows outside that span do not move at all,
- * which is what makes the gap read as a gap.
- */
-export function shiftFor(index: number, from: number, to: number, rowHeight: number): number {
-  'worklet';
-  if (from === -1 || index === from) return 0;
-  if (from < index && index <= to) return -rowHeight;
-  if (from > index && index >= to) return rowHeight;
-  return 0;
 }

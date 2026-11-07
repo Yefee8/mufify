@@ -9,7 +9,8 @@ export interface PlaylistPlayback {
   playAll: () => void;
   shuffleAll: () => Promise<void>;
   /** Start at the entry holding this position, with the rest queued behind. */
-  playAt: (position: number) => void;
+  /** Start at one row, by its `entryId`. */
+  playAt: (entryId: number) => void;
 }
 
 /**
@@ -52,8 +53,8 @@ export function usePlaylistPlayback(
   }, [entries, source]);
 
   const playAt = useCallback(
-    (position: number) => {
-      const index = entries.findIndex((entry) => entry.position === position);
+    (entryId: number) => {
+      const index = entries.findIndex((entry) => entry.entryId === entryId);
       if (index !== -1) void AudioEngine.setQueue(entries.map(toPlayable), index, source);
     },
     [entries, source],

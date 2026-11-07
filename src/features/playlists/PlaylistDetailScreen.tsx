@@ -1,9 +1,9 @@
-import { FlashList, type ListRenderItem } from '@shopify/flash-list';
+import type { FlashListRef } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { ListMusic, SearchX } from 'lucide-react-native';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
+import { LayoutAnimation, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -33,8 +33,7 @@ import { usePlaylistCover } from './hooks/usePlaylistCover';
 import { useReorderableEntries } from './hooks/useReorderableEntries';
 import { usePlaylistPlayback } from './hooks/usePlaylistPlayback';
 import { PlaylistDetailHeader } from './components/PlaylistDetailHeader';
-import { PlaylistEntryRow } from './components/PlaylistEntryRow';
-import { ENTRY_HEIGHT, ReorderableEntry } from './components/ReorderableEntry';
+import { PlaylistEntryList } from './components/PlaylistEntryList';
 
 export interface PlaylistDetailScreenProps {
   playlistId: number;
@@ -42,7 +41,7 @@ export interface PlaylistDetailScreenProps {
 
 /** One playlist: its tracks, in order, with the ways to play and edit them. */
 export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
   const isLiked = playlistId === LIKED_SONGS_ID;
   const bottomInset = useMiniPlayerInset();
@@ -50,11 +49,25 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
 
   const playlistEntries = usePlaylistEntries(playlistId);
   const likedEntries = useFavoriteEntries();
+  const listRef = useRef<FlashListRef<PlaylistEntry>>(null);
+
+  /*
+   * Each step of a drag reorders the list for real; this makes that step a
+   * slide rather than a jump. `prepareForLayoutAnimationRender` stops FlashList
+   * recycling cells for the render, which would otherwise animate a cell from
+   * the row it used to show to the row it shows now.
+   */
+  const beforeReorder = useCallback(() => {
+    listRef.current?.prepareForLayoutAnimationRender();
+    LayoutAnimation.configureNext(SLIDE);
+  }, []);
+
   // Reordering is the only thing this adds, and liked songs are ordered by when
-  // they were liked, so the hook's `move` goes unused there rather than wrong.
-  const { entries, move } = useReorderableEntries(
+  // they were liked, so the drag callbacks go unused there rather than wrong.
+  const { entries, dragged, onPickUp, onSlotChange, onLanded } = useReorderableEntries(
     playlistId,
     isLiked ? likedEntries : playlistEntries,
+    beforeReorder,
   );
 
   /*
@@ -100,7 +113,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
   const { playAll, shuffleAll, playAt } = usePlaylistPlayback(entries, playlistId, isLiked);
 
   const remove = useCallback(
-    (position: number) => void removeFromPlaylist(playlistId, position),
+    (entryId: number) => void removeFromPlaylist(playlistId, entryId),
     [playlistId],
   );
 
@@ -122,38 +135,6 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
     router.back();
     void deletePlaylist(playlistId);
   }, [router, playlistId]);
-
-  const renderItem = useCallback<ListRenderItem<PlaylistEntry>>(
-    ({ item, index }) =>
-      // Reordering moves by *position in the whole list*, and a filtered list
-      // has no such positions to offer — so while a search is active rows are
-      // plain. Removing still works; it is keyed by the entry's own position.
-      isLiked || searching ? (
-        <PlaylistEntryRow
-          entry={item}
-          locale={i18n.language}
-          onPress={playAt}
-          onRemove={isLiked ? undefined : remove}
-          isCurrent={item.trackId === currentTrack?.id}
-        />
-      ) : (
-        <ReorderableEntry
-          index={index}
-          count={entries.length}
-          onMove={move}
-          accessibilityLabel={t('playlists.reorder', { title: item.title })}
-        >
-          <PlaylistEntryRow
-            entry={item}
-            locale={i18n.language}
-            onPress={playAt}
-            onRemove={remove}
-            isCurrent={item.trackId === currentTrack?.id}
-          />
-        </ReorderableEntry>
-      ),
-    [entries.length, isLiked, searching, move, playAt, remove, i18n.language, t, currentTrack?.id],
-  );
 
   const name = isLiked ? t('playlists.likedSongs') : (playlist?.name ?? '');
   const covers = isLiked
@@ -216,19 +197,20 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
           ) : shown.length === 0 ? (
             <EmptyState icon={SearchX} messages={[t('library.noResults', { term: search })]} />
           ) : (
-            <FlashList
-              data={shown}
-              renderItem={renderItem}
-              keyExtractor={keyExtractor}
-              overrideItemLayout={setEntryHeight}
-              contentContainerStyle={{ paddingBottom: bottomInset }}
-              /*
-                No anchoring. FlashList 2 holds the first visible row in place
-                when the data changes; after a reorder that row may be the one
-                just moved, and holding it scrolled the whole list by the
-                distance it travelled — a jump the moment the drop committed.
-              */
-              maintainVisibleContentPosition={NO_ANCHOR}
+            <PlaylistEntryList
+              listRef={listRef}
+              rows={shown}
+              total={entries.length}
+              fixed={isLiked || searching}
+              removable={!isLiked}
+              currentTrackId={currentTrack?.id ?? null}
+              bottomInset={bottomInset}
+              playAt={playAt}
+              remove={remove}
+              dragged={dragged}
+              onPickUp={onPickUp}
+              onSlotChange={onSlotChange}
+              onLanded={onLanded}
             />
           )}
         </View>
@@ -274,14 +256,5 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
   );
 }
 
-const NO_ANCHOR = { disabled: true } as const;
-
-function keyExtractor(entry: PlaylistEntry): string {
-  // The row's own identity, which survives a reorder — see `entryId`.
-  return String(entry.entryId);
-}
-
-/** Uniform rows, so FlashList can skip measurement entirely. */
-function setEntryHeight(layout: { span?: number; size?: number }): void {
-  layout.size = ENTRY_HEIGHT;
-}
+/** One step of a drag: the rows making room slide rather than jump. */
+const SLIDE = { duration: 160, update: { type: LayoutAnimation.Types.easeOut } };

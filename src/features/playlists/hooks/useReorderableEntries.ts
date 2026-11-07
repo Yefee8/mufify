@@ -4,100 +4,115 @@ import { runOnUI } from 'react-native-reanimated';
 import { movePlaylistEntry, type PlaylistEntry } from '@/db/queries/playlists';
 import { moveItem } from '@/services/playlists/order';
 
-import { finishDrop } from '../reorderDrag';
+import { release } from '../reorderDrag';
 
 export interface ReorderableEntries {
-  /** The order to render: the query's, or the drop the user just made. */
+  /** The order to render: the query's, or the one a drag is making. */
   entries: PlaylistEntry[];
-
-  /** Commit a drag, by index into `entries`. */
-  move: (from: number, to: number) => void;
+  /** The row being dragged, for the floating copy, and which drag this is. */
+  dragged: { entry: PlaylistEntry; session: number } | null;
+  onPickUp: (entryId: number, index: number) => void;
+  onSlotChange: (from: number, to: number) => void;
+  onLanded: () => void;
 }
 
 /**
- * A playlist's entries, with a dropped row already in its new place.
+ * A playlist's entries, reordered live while a row is dragged.
  *
- * The drag moves pixels and the database decides the order, so between letting
- * go and the write landing there is a gap of a frame or several. Without this
- * the list spends that gap rendering the *old* order: the row snaps back to
- * where it was picked up, and then jumps forward when the query re-runs. It is
- * the worst-looking part of a drag, and it gets worse on a long playlist, where
- * the write takes longer.
+ * Each time the held row crosses into another slot the list is reordered for
+ * real, so the rows underneath are always in the order on screen and the drop
+ * has nothing to reconcile — see `reorderDrag` for why that matters. The
+ * database is written once, when the row lands, as "this row after that one";
+ * the query's next result then replaces the live copy.
  *
- * So the new order is shown the moment the finger lifts and the query result
- * replaces it as soon as it arrives. `useLiveQuery` re-emits only when the
- * table changes, which is what makes arrival a usable signal: a new array means
- * new truth, and the copy is keyed on the old one.
+ * Whatever the query says wins once the drag is over, even when it disagrees
+ * with the drop: if the write was rejected, or the playlist changed
+ * underneath, or a rescan marked a file missing, the live copy is hiding the
+ * truth. While a drag is in progress the live copy wins instead — a result
+ * arriving mid-drag would otherwise snap the list back under the finger.
  *
- * Whatever the query says wins, even when it disagrees with the drop. If the
- * write was rejected, or the playlist changed underneath, or a rescan marked a
- * file missing, the optimistic copy is hiding the truth — so it lasts exactly
- * until the next result and not a frame longer.
+ * `beforeReorder` runs before each live step; the screen uses it to have the
+ * next layout animated rather than jumped.
  */
 export function useReorderableEntries(
   playlistId: number,
   entries: PlaylistEntry[],
+  beforeReorder: () => void,
 ): ReorderableEntries {
-  /*
-   * Keyed by the query result it was derived from, so it expires by itself.
-   *
-   * No effect clearing it, and no comparing orders: when `useLiveQuery` emits,
-   * `entries` is a new array, the key no longer matches and the copy is simply
-   * not used again. An effect calling `setState` would be a second render pass
-   * for something already decidable here — and the compiler's lint says so.
-   */
   const [pending, setPending] = useState<{ of: PlaylistEntry[]; order: PlaylistEntry[] } | null>(
     null,
   );
-  const shown = pending !== null && pending.of === entries ? pending.order : entries;
+  const [dragged, setDragged] = useState<{ entry: PlaylistEntry; session: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [landings, setLandings] = useState(0);
+
+  const shown = pending !== null && (dragging || pending.of === entries) ? pending.order : entries;
+
+  /**
+   * The order as of the latest slot change, synchronously.
+   *
+   * Slot changes arrive from the UI thread faster than React renders them, so
+   * each one is applied to this rather than to the last rendered order — two
+   * crossings in one frame must compose, not overwrite each other.
+   */
+  const live = useRef<{ order: PlaylistEntry[]; entryId: number; from: number } | null>(null);
+  const landing = useRef(false);
+
+  const onPickUp = useCallback(
+    (entryId: number, index: number) => {
+      const entry = shown[index];
+      if (entry === undefined || entry.entryId !== entryId) return;
+      live.current = { order: shown, entryId, from: index };
+      setDragging(true);
+      setDragged((previous) => ({ entry, session: (previous?.session ?? 0) + 1 }));
+    },
+    [shown],
+  );
+
+  const onSlotChange = useCallback(
+    (from: number, to: number) => {
+      const current = live.current;
+      if (current === null) return;
+      const next = moveItem(current.order, from, to);
+      if (next === null) return;
+      live.current = { ...current, order: next };
+      beforeReorder();
+      setPending({ of: entries, order: next });
+    },
+    [beforeReorder, entries],
+  );
+
+  const onLanded = useCallback(() => {
+    const current = live.current;
+    live.current = null;
+    landing.current = true;
+    setDragging(false);
+    setLandings((count) => count + 1);
+    if (current === null) return;
+
+    // Keyed to the latest result, so a result that arrived mid-drag does not
+    // expire the live copy the moment the finger lifts and show the list
+    // without the move for as long as the write takes.
+    setPending({ of: entries, order: current.order });
+
+    const index = current.order.findIndex((entry) => entry.entryId === current.entryId);
+    if (index === -1 || index === current.from) return;
+    const after = index === 0 ? null : (current.order[index - 1]?.entryId ?? null);
+    void movePlaylistEntry(playlistId, current.entryId, after);
+  }, [entries, playlistId]);
 
   /*
-   * The drop is finished when the reordered list has been *committed*, not
-   * when it was asked for.
+   * Hand the row back once the landing has been committed.
    *
-   * During a drag the rows stand in their new places by Reanimated transforms,
-   * computed on the UI thread; the new order arrives as a React layout from the
-   * JS thread. Resetting the transforms before that layout lands showed the old
-   * order for as long as the JS thread took to render — the row jumped back to
-   * where it was picked up, then forward to where it was put, which on a
-   * mid-range phone was a visible teleport. So the reset waits for the commit:
-   * a layout effect on the shown order runs right after it, and the reset is
-   * sent straight to the UI thread rather than written from JS, which would
-   * cost it another hop on the way.
-   *
-   * Making the two land in literally the same frame is not something either
-   * library offers — rendering the commit without the animated style was tried
-   * and measured, and a detached Reanimated style keeps its last transform on
-   * the native view. See `docs/adr/031-a-drop-that-stays-put.md`.
+   * By then the final order is on screen with the held row hidden in its slot
+   * and the copy covering it; showing one and hiding the other is two values on
+   * the UI thread, so it happens in one frame whatever the JS thread is doing.
    */
-  const landing = useRef(false);
   useLayoutEffect(() => {
     if (!landing.current) return;
     landing.current = false;
-    runOnUI(finishDrop)();
-  }, [shown]);
+    runOnUI(release)();
+  }, [landings]);
 
-  const move = useCallback(
-    (from: number, to: number) => {
-      const next = moveItem(shown, from, to);
-      const fromPosition = shown[from]?.position;
-      const toPosition = shown[to]?.position;
-      if (next === null || fromPosition === undefined || toPosition === undefined) {
-        // The list changed under the drag and the indices no longer mean
-        // anything. Nothing is committed, so nothing else will release the
-        // drag — leaving it would strand the rows in their shifted slots.
-        finishDrop();
-        return;
-      }
-
-      landing.current = true;
-      setPending({ of: entries, order: next });
-      // Positions, not row numbers: the list hides missing tracks and the table
-      // does not. See `movePlaylistEntry`.
-      void movePlaylistEntry(playlistId, fromPosition, toPosition);
-    },
-    [entries, playlistId, shown],
-  );
-
-  return { entries: shown, move };
+  return { entries: shown, dragged, onPickUp, onSlotChange, onLanded };
 }

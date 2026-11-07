@@ -11,8 +11,10 @@ import { useThemeColors } from '@/theme/useTheme';
 export interface PlaylistEntryRowProps {
   entry: PlaylistEntry;
   locale: string;
-  onPress: (position: number) => void;
-  onRemove?: (position: number) => void;
+  /** Called with the row's `entryId`. */
+  onPress: (entryId: number) => void;
+  /** Called with the row's `entryId`. */
+  onRemove?: (entryId: number) => void;
   /** Playing right now. Marked the same way the library marks it. */
   isCurrent?: boolean;
 }
@@ -20,8 +22,9 @@ export interface PlaylistEntryRowProps {
 /**
  * A track inside a playlist.
  *
- * Keyed and acted on by `position`, not track id: the same track may appear
- * twice, and removing "the track" would take both.
+ * Acted on by `entryId`, the row's own identity — not track id, because the
+ * same track may appear twice and removing "the track" would take both, and not
+ * position, because a position on screen can be a drop behind the table's.
  */
 export const PlaylistEntryRow = memo(function PlaylistEntryRow({
   entry,
@@ -33,8 +36,8 @@ export const PlaylistEntryRow = memo(function PlaylistEntryRow({
   const { t } = useTranslation();
   const colors = useThemeColors();
 
-  const handlePress = useCallback(() => onPress(entry.position), [onPress, entry.position]);
-  const handleRemove = useCallback(() => onRemove?.(entry.position), [onRemove, entry.position]);
+  const handlePress = useCallback(() => onPress(entry.entryId), [onPress, entry.entryId]);
+  const handleRemove = useCallback(() => onRemove?.(entry.entryId), [onRemove, entry.entryId]);
 
   const artworkUri = entry.artworkPath ? `file://${entry.artworkPath}` : null;
   const subtitle = [
@@ -55,7 +58,7 @@ export const PlaylistEntryRow = memo(function PlaylistEntryRow({
         {artworkUri ? (
           <Image
             source={{ uri: artworkUri }}
-            recyclingKey={`${entry.trackId}-${entry.position}`}
+            recyclingKey={String(entry.entryId)}
             cachePolicy="memory-disk"
             contentFit="cover"
             className="h-10 w-10 rounded-xs"
