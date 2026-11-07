@@ -27,6 +27,22 @@ export { LIKED_SONGS_ID };
  */
 
 export interface PlaylistEntry {
+  /**
+   * Which row of the playlist this is, stable for as long as the row exists.
+   *
+   * The list keys on this. It used to key on track id and position, which is
+   * unique — the same track may be in a playlist twice — but not *stable*: a
+   * reorder rewrites the position of every row between the two slots, so the
+   * moment the write landed, those rows came back from the query as rows the
+   * list had never seen. FlashList threw away their cells and built new ones,
+   * covers reloaded, and the list visibly jumped a beat after the drop.
+   *
+   * SQLite's `rowid`, because `playlist_tracks` has no key of its own and a
+   * reorder is an `UPDATE` of positions: the rowid of a row does not change
+   * when it moves. Liked songs, which are not stored as a playlist, use the
+   * track id — a track can be liked only once.
+   */
+  entryId: number;
   trackId: number;
   position: number;
   fileUri: string;
@@ -109,6 +125,7 @@ export function usePlaylists(): PlaylistSummary[] {
 export function usePlaylistEntries(playlistId: number): PlaylistEntry[] {
   const query = db
     .select({
+      entryId: sql<number>`${playlistTracks}.rowid`,
       position: playlistTracks.position,
       ...entrySelection,
       /*
@@ -151,6 +168,7 @@ export function usePlaylistEntries(playlistId: number): PlaylistEntry[] {
 export function useFavoriteEntries(): PlaylistEntry[] {
   const query = db
     .select({
+      entryId: tracks.id,
       position: sql<number>`row_number() over (order by ${trackStats.favoriteAt} desc, ${tracks.id} desc) - 1`,
       ...entrySelection,
     })

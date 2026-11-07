@@ -11,13 +11,14 @@ import {
   beginDrag,
   cancelDrag,
   dragFrom,
+  dragHeld,
   dragOffset,
   dragSettled,
   dragTo,
-  endDrag,
+  dropDrag,
   shiftFor,
   updateDrag,
-} from './reorderDrag';
+} from '../reorderDrag';
 
 /** Must match `PlaylistEntryRow`'s `h-16`. Drag maths is in row units. */
 export const ENTRY_HEIGHT = 64;
@@ -38,6 +39,7 @@ export interface ReorderableEntryProps {
   count: number;
   /** Committed on release, with the final index. */
   onMove: (from: number, to: number) => void;
+
   accessibilityLabel: string;
 }
 
@@ -93,24 +95,14 @@ export function ReorderableEntry({
         return;
       }
 
-      /*
-       * Hand the move over and drop the drag in the same breath.
-       *
-       * `onMove` puts the row in its new slot immediately — the list does not
-       * wait for the database, see `useReorderableEntries` — so the transforms
-       * that were standing in for the new order have to stop in the same
-       * moment, or the row would be offset by a row on top of a layout that
-       * already moved it. `endDrag(true)` makes that reset a fact rather than
-       * an animation, which is the difference between this and the version that
-       * bounced twice on every drop.
-       */
-      runOnJS(onMove)(index, target);
-      endDrag(true);
+      // Glide into the gap, then commit; the pixels stay put until the new
+      // order has been drawn. See `dropDrag` and `finishDrop`.
+      dropDrag(index, target, ENTRY_HEIGHT, onMove);
     })
     .onFinalize(() => {
       // A cancelled gesture never reaches `onEnd`; without this the list would
       // stay shifted around a drag that is no longer happening.
-      if (dragFrom.value === index) cancelDrag();
+      if (dragFrom.value === index && dragHeld.value === 1) cancelDrag();
     });
 
   const style = useAnimatedStyle(() => {

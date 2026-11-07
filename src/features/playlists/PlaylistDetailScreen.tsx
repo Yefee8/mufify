@@ -222,6 +222,13 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
               keyExtractor={keyExtractor}
               overrideItemLayout={setEntryHeight}
               contentContainerStyle={{ paddingBottom: bottomInset }}
+              /*
+                No anchoring. FlashList 2 holds the first visible row in place
+                when the data changes; after a reorder that row may be the one
+                just moved, and holding it scrolled the whole list by the
+                distance it travelled — a jump the moment the drop committed.
+              */
+              maintainVisibleContentPosition={NO_ANCHOR}
             />
           )}
         </View>
@@ -267,9 +274,11 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
   );
 }
 
+const NO_ANCHOR = { disabled: true } as const;
+
 function keyExtractor(entry: PlaylistEntry): string {
-  // Position, not track id: the same track may legitimately appear twice.
-  return `${entry.trackId}-${entry.position}`;
+  // The row's own identity, which survives a reorder — see `entryId`.
+  return String(entry.entryId);
 }
 
 /** Uniform rows, so FlashList can skip measurement entirely. */
