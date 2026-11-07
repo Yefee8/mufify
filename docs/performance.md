@@ -482,3 +482,63 @@ The shrinker falls back to safe mode because `resources.txt` reports
 `ResourceAsset.kt`, resolving the fonts that live in `res/raw/`.
 `tools:shrinkMode="strict"` would let it delete those fonts, so the waste was
 removed at the source instead.
+
+---
+
+## Navigation, 2026-11-07 (1.7.1)
+
+The report: page transitions between half a second and two seconds on the Mi 9T,
+drawers and tab switches "a pinch slow". Decisions in `docs/adr/034` and
+`docs/adr/035`; this is how they were measured.
+
+### Method
+
+Release builds on the Pixel_7 AVD, 3,484 real FLAC files with covers and
+varied tags (generated with `ffmpeg` and `metaflac`; all identical names had
+collapsed under duplicate hiding), a 180-track playlist. Each run starts from a
+fresh launch. The measure is **CPU time of the JS thread** (`mqt_v_js`) and the
+main thread, read from `/proc/<pid>/task/<tid>/stat` before an `adb shell input
+tap` and 2.5 s after it — the work an action costs, independent of when the
+tap was injected. A second tool samples the JS thread every 20 ms after the tap
+to show *when* that work happens. Show-touches dots cannot be used to time taps
+on this image: injected events never pass through the touchscreen mapper, so no
+dot is drawn.
+
+### Results, median of five (tabs: one press each), final 1.7.1 build
+
+| Action | JS 1.7.0 | JS 1.7.1 | Main 1.7.0 | Main 1.7.1 |
+|---|---:|---:|---:|---:|
+| Open a playlist | 950 ms | 140 ms | 1610 ms | 110 ms |
+| Back from a playlist | 730 ms | 30 ms | 250 ms | 60 ms |
+| Open an artist (39 tracks) | 310 ms | 200 ms | 1600 ms | 120 ms |
+| Back from an artist | 70 ms | 40 ms | 220 ms | 60 ms |
+| Open an album (9 tracks) | 150 ms | 100 ms | 290 ms | 70 ms |
+| Switch the library to tracks | 330 ms | 210 ms | 190 ms | 140 ms |
+| Open Now Playing (second time on) | 40 ms | 10 ms | 250 ms | 70 ms |
+| First press of Settings | 80 ms | 20 ms | 70 ms | 60 ms |
+| First press of Statistics | 30 ms | 10 ms | 60 ms | 50 ms |
+
+The Mi 9T measured about five times slower than this emulator on the library
+query (see "The library query"), so the playlist open was in the region of
+four to five seconds of JS before this change, which is the two-second
+transition people saw once the animation is overlapped.
+
+JS before the thread first went quiet after the tap, from the 20 ms sampler:
+playlist open 220 → 135 ms; switching to the tracks view 150 → 40 ms (the first
+frame now builds only the rows on screen). For an album or an artist the first
+burst was already short in 1.7.0 (30–60 ms): the rows of a pushed screen are
+drawn after Android has placed it, roughly the length of the transition, in
+both versions.
+
+### The scan, and the storm behind it
+
+| | 1.7.0 | 1.7.1 |
+|---|---:|---:|
+| 3,484-file scan, same emulator | 544 s | 155 s |
+
+On 1.7.0 the JS thread ran at 100% for the whole scan and the library list
+froze on its old contents: SQLite reports every changed row as its own event,
+and every live query re-ran per row. The JS heap passed 900 MB and the process
+went to swap; afterwards everything stayed slow until a restart. The per-burst
+live query (`docs/adr/034`) is the fix, and it is also why a listen recorded
+mid-navigation no longer stalls the page being opened.

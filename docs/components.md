@@ -39,7 +39,9 @@ it is repeated here because that is the thing a reader needs before touching it.
 | `OptionList` | One choice per row with a sentence explaining it. The right control when the names need explaining — which is why shuffle uses it and theme does not. |
 | `SettingGroup` / `SettingRow` / `SettingSwitch` | A titled block, a labelled row with a description line, and an on/off row. Every setting gets a description; a list of bare names makes the user guess. |
 | `ActionSheet` | A sheet of actions for one thing. Closes before running the action, so the sheet never lingers while a track loads. |
-| `Sheet` / `useSheet` | The one full-height surface that arrives from the bottom, and the open/close state machine behind it. Both root player sheets go through it, so a third one inherits the tuned spring, the fade and the velocity handoff instead of re-deriving them — `docs/adr/016`. |
+| `Sheet` / `useSheet` | The one full-height surface that arrives from the bottom, and the open/close state machine behind it. Both root player sheets go through it, so a third one inherits the tuned spring, the fade and the velocity handoff instead of re-deriving them — `docs/adr/016`. `keepMounted` keeps the contents built, frozen, between opens; Now Playing uses it — `docs/adr/035`. |
+| `Freeze` | Keeps a subtree mounted but hidden and render-free until thawed, through Suspense — the technique `react-native-screens` uses for inactive screens, in a dozen lines rather than a dependency. |
+| `usePreloadTabs` | Builds the tabs nobody has opened yet, one at a time, once the launch has gone idle, so a tab's first press only has to show it. Called from the tab bar, the one component inside the tab navigator that lives as long as it does. |
 | `ConfirmDialog` | Asks before something slow or irreversible. The confirm button names the action — never "OK". |
 | `SwipeableRow` | Reveals one action when dragged left. **Transient by design**: it never stays open, because this lives in a recycling list and a row holding open state gets recycled with it. |
 | `Toaster` | Where transient confirmations appear. Reads a module-level store, so a toast re-renders this and nothing else. Sits above the mini player in the tab bar stack. |
@@ -58,13 +60,13 @@ it is repeated here because that is the thing a reader needs before touching it.
 | `LibraryTracks` | Owns *tracks*: the sheets and playing. Split from the screen at the 300-line limit; the boundary is by subject, and it is reused verbatim by `CollectionDetailScreen`. |
 | `CollectionDetailScreen` | One artist or one album. Reuses `LibraryTracks` so a track has the same verbs everywhere. |
 | `LibraryHeader` | Count, folder picker, Scan. The count is always `tracks.length` — never a second query. |
-| `TrackList` | The FlashList. `drawDistance` is 1200 rather than the 250 default; at 64px rows the default is under four rows of buffer and a fling outruns it, which is what left blank rows behind the finger. |
+| `TrackList` | The FlashList. `drawDistance` is 1200 rather than the 250 default; at 64px rows the default is under four rows of buffer and a fling outruns it, which is what left blank rows behind the finger. The first frame builds only the rows on screen and the buffer grows 350 ms later, so a list that has just mounted is not paying for eighteen rows nobody can see yet. |
 | `LibraryRow` | One row plus its swipe gesture. Memoized on primitives only, so a render elsewhere cannot reach it. |
 | `TrackRow` | Artwork, title, artist, duration. Compared by value, because a live query hands back fresh objects on every re-run. |
 | `CollectionCard` / `CollectionGrid` | An artist or album as a square card, and the two-column grid of them. |
 | `CollectionHeader` | Cover, name and size for a detail screen. |
 | `SearchField` | Debounced input. The field stays instant; only the query waits. |
-| `LibraryToolbar` | Search, the liked filter (tracks only) and the sort button, in one row under the view switch. |
+| `LibraryToolbar` | Search, the heart and the sort button, in one row under the view switch, in every view. The heart is per view: liked tracks, liked albums, or artists you have liked something by — `docs/adr/033`. |
 | `SortControl` | The sort button and its sheet. Choosing a key and reversing are both one tap and both close the sheet; the button turns accent while a non-default order is in force. Generic over the view's keys — see `docs/adr/030`. |
 | `ScanBanner` | Progress above the list, never instead of it — the user can scroll throughout. Hides the counter until a total is known rather than showing "0 / 0". |
 | `TrackActionSheet` | Long-press actions. Its doc says which two items from the brief are deliberately absent, and why. |
@@ -78,7 +80,10 @@ it is repeated here because that is the thing a reader needs before touching it.
 | Component | What it is for |
 |---|---|
 | `PlayerLayer` | The root stacking order, and the only place that decides it: children, then the transport strip at `z-20`, then Now Playing at `z-30`, then the queue at `z-40`. Owns the one expansion value and publishes the strip's measured height for every scrollable screen to pad by. |
-| `NowPlayingOverlay` / `PlayerScreen` | The overlay and its content. The mini player and full screen share one Reanimated expansion value; no route transition sits between them. |
+| `NowPlayingOverlay` / `PlayerScreen` | The overlay and its content. The mini player and full screen share one Reanimated expansion value; no route transition sits between them. Built on the first open and kept, frozen, while closed. |
+| `PlayerHeader` / `PlayerTransport` | Now Playing's top row (close, queue) and its transport row (repeat, previous, play, next, shuffle). Split out of `PlayerScreen` at the 300-line limit. |
+| `NowPlayingTitle` | The title, which opens the album, and the artist, which opens the artist — then lyrics, add to playlist and the heart, in that order. Not dressed as links: the player closing and the page arriving is the feedback. |
+| `useTrackDestinations` | Looks up the playing track's album and artist at the moment of the press, closes the player and opens the page. |
 | `QueueOverlay` | The queue as a root-level sheet above Now Playing. It was a route and could not be seen from under the overlay — `docs/adr/014`. Mounted on press-in, so its rows exist before the sheet arrives. |
 | `ArtworkCarousel` | Three slots — previous, current, next — all mounted, so a neighbour slides in already decoded. Commits on distance **or** velocity. Rubber-bands at the ends of the queue. Takes the height flex leaves it and sizes the cover from both axes, because a width-derived square overflowed the column. |
 | `MiniPlayer` | The persistent transport strip. Subscribes to phase and track only, never position; horizontal swipe changes tracks and vertical swipe opens Now Playing. |
@@ -101,7 +106,7 @@ it is repeated here because that is the thing a reader needs before touching it.
 | `ReorderableEntry` | Drag by a handle, not by long-press: long-press is the action sheet everywhere else, and a list where holding sometimes does either is a list nobody trusts. The row never carries a transform — while held it is hidden and `DragOverlay` draws it. |
 | `DragOverlay` / `DragHandle` | The copy of a held row that follows the finger, mounted over the list for as long as the screen is, and the grip drawn identically on the row and the copy. |
 | `useReorderableEntries` | The list reordered live as a held row crosses slots, with a layout animation sliding the rest; the drop written once, as "this row after that one" — see `docs/adr/031`. |
-| `AddToPlaylistSheet` | Pick a playlist for some tracks, or make one. |
+| `AddToPlaylistSheet` | Pick a playlist for some tracks, or make one. Reads the playlists only while open — it is mounted closed beside every track list, and in Now Playing. |
 | `NamePlaylistDialog` | A `Modal`, not `Alert.prompt`, which is iOS-only and silently does nothing on Android. |
 
 ---

@@ -53,8 +53,14 @@ library. State lives in three places, chosen by lifetime:
 **SQLite — everything persistent.** Tracks, playlists, play events, rollups.
 Opened once in [client.ts](../src/db/client.ts) with WAL, `synchronous=NORMAL`,
 foreign keys on, and `enableChangeListener: true`. That last flag is what makes
-Drizzle's `useLiveQuery` react to writes, so lists refresh themselves and no
-screen needs manual invalidation. WAL is why the library stays scrollable while
+the live queries react to writes, so lists refresh themselves and no screen
+needs manual invalidation. The hook is our own `useLiveQuery` in
+[liveQuery.ts](../src/db/queries/liveQuery.ts), not Drizzle's: SQLite reports
+every changed row as its own event, and Drizzle's re-ran every subscribed query
+once per row — 500 times for one scan batch — synchronously on the JS thread.
+Ours gathers a burst of row events and re-runs each affected query once (see
+[changeBatcher.ts](../src/db/changeBatcher.ts) and ADR 034), and it can watch
+joined tables as well as the one in `FROM`. WAL is why the library stays scrollable while
 a scan writes — and why pulling the database off a device without the `-wal`
 file shows an empty `play_events`.
 

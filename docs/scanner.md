@@ -273,7 +273,8 @@ A blank band used to appear above the first row during "Reading tags…", and
 the cause was worth writing down because two plausible theories were both
 wrong. It was not FlashList's `maintainVisibleContentPosition`, and it was not
 the churn of the live query re-firing per batch — disabling one and throttling
-the other changed nothing.
+the other changed nothing. (The churn was worse than "per batch": SQLite reports
+each changed row, and every live query re-ran per row until `docs/adr/034`.)
 
 **A virtualized list needs a bounded parent.** The `FlashList` was a bare child
 of `Screen`'s flex column, so it kept the height it measured on first layout;
