@@ -1,6 +1,6 @@
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import type { ReactElement } from 'react';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { TrackListItem } from '@/db/queries/tracks';
@@ -30,6 +30,23 @@ const ROW_HEIGHT = 64;
  * quietly become a 10,000-view render.
  */
 const DRAW_DISTANCE = 1_200;
+
+/**
+ * The buffer for the first frame: none. Only the rows on screen are built.
+ *
+ * The full buffer is eighteen rows past the bottom edge that nobody can see
+ * yet, and on the frame a list mounts — an album opening, the tracks view
+ * coming back — building them was most of the work standing between the tap
+ * and the screen. Measured on the emulator, an artist with forty tracks went
+ * from about two dozen rows on the first frame to the eight that fit.
+ */
+const FIRST_DRAW_DISTANCE = 0;
+
+/**
+ * When the buffer grows to its full size: after the push transition has run.
+ * A fling needs the buffer; a list that has just appeared has not been flung.
+ */
+const WIDEN_AFTER_MS = 350;
 
 const NO_ANCHOR = { disabled: true } as const;
 
@@ -80,6 +97,12 @@ export function TrackList({
 
   const swipeLabel = t('track.addToQueue');
 
+  const [drawDistance, setDrawDistance] = useState(FIRST_DRAW_DISTANCE);
+  useEffect(() => {
+    const timer = setTimeout(() => setDrawDistance(DRAW_DISTANCE), WIDEN_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   const renderItem = useCallback<ListRenderItem<TrackListItem>>(
     ({ item }) => {
       return (
@@ -104,7 +127,7 @@ export function TrackList({
       data={tracks}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
-      drawDistance={DRAW_DISTANCE}
+      drawDistance={drawDistance}
       overrideItemLayout={setRowHeight}
       // So the last rows clear the transport strip instead of sitting under it.
       contentContainerStyle={{ paddingBottom: bottomInset }}
