@@ -18,12 +18,13 @@ import {
   setPlaylistFavorite,
   useFavoriteEntries,
   usePlaylistEntries,
-  usePlaylists,
+  usePlaylistHeading,
   type PlaylistEntry,
 } from '@/db/queries/playlists';
 import { useCurrentTrack } from '@/features/player/hooks/usePlayback';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { useMessages } from '@/i18n';
+import { mosaicOf } from '@/services/playlists/order';
 import { matchesSearch } from '@/services/text/search';
 
 import { AddTracksSheet } from './components/AddTracksSheet';
@@ -47,8 +48,10 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
   const bottomInset = useMiniPlayerInset();
   const detailMessages = useMessages(isLiked ? 'playlists.likedEmpty' : 'playlists.detailEmpty');
 
-  const playlistEntries = usePlaylistEntries(playlistId);
-  const likedEntries = useFavoriteEntries();
+  // One of the two, never both: each is a live query, and the one not shown
+  // would re-run on writes this screen does not care about.
+  const playlistEntries = usePlaylistEntries(playlistId, !isLiked);
+  const likedEntries = useFavoriteEntries(isLiked);
   const listRef = useRef<FlashListRef<PlaylistEntry>>(null);
 
   /*
@@ -90,7 +93,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
         : entries,
     [entries, search, searching],
   );
-  const playlist = usePlaylists().find((entry) => entry.id === playlistId);
+  const playlist = usePlaylistHeading(playlistId, !isLiked);
 
   const [renaming, setRenaming] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -137,9 +140,15 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
   }, [router, playlistId]);
 
   const name = isLiked ? t('playlists.likedSongs') : (playlist?.name ?? '');
+  // From the query's order rather than a drag's, so the header does not
+  // reshuffle its squares under a row that is still being carried.
+  const mosaic = useMemo(
+    () => mosaicOf(playlistEntries.map((entry) => entry.artworkPath)),
+    [playlistEntries],
+  );
   const covers = isLiked
     ? entries.flatMap((entry) => (entry.artworkPath ? [entry.artworkPath] : [])).slice(0, 4)
-    : (playlist?.mosaic ?? []);
+    : mosaic;
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-surface">

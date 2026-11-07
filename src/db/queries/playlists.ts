@@ -121,8 +121,13 @@ export function usePlaylists(): PlaylistSummary[] {
   return foldPlaylistRows(data);
 }
 
-/** Live contents of one playlist, in playlist order. */
-export function usePlaylistEntries(playlistId: number): PlaylistEntry[] {
+/**
+ * Live contents of one playlist, in playlist order.
+ *
+ * `enabled` is false on the liked-songs screen, which is not a stored playlist
+ * and reads `useFavoriteEntries` instead — see `useLiveQuery`.
+ */
+export function usePlaylistEntries(playlistId: number, enabled = true): PlaylistEntry[] {
   const query = db
     .select({
       entryId: sql<number>`${playlistTracks}.rowid`,
@@ -143,8 +148,43 @@ export function usePlaylistEntries(playlistId: number): PlaylistEntry[] {
     .where(and(eq(playlistTracks.playlistId, playlistId), eq(tracks.isMissing, 0)))
     .orderBy(asc(playlistTracks.position));
 
-  const { data } = useLiveQuery(query, [playlistId]);
-  return data;
+  const { data } = useLiveQuery(enabled ? query : null, [playlistId, enabled]);
+  return enabled ? data : NO_ENTRIES;
+}
+
+const NO_ENTRIES: PlaylistEntry[] = [];
+
+/** What one playlist's screen shows above its rows. */
+export interface PlaylistHeading {
+  name: string;
+  isFavorite: boolean;
+  /** The user's own cover, if they chose one. */
+  coverPath: string | null;
+}
+
+/**
+ * One playlist's name, heart and chosen cover, live.
+ *
+ * Its own query, from `playlists`, because the screen used to take these from
+ * `usePlaylists` — every playlist, a row per entry, four joins, folded and
+ * normalised for search — and pick one out. That was the tab's whole query
+ * run again on every playlist opened, to read three columns. The mosaic,
+ * which the tab's query was also supplying, is the first covers of the rows
+ * this screen already has.
+ */
+export function usePlaylistHeading(playlistId: number, enabled = true): PlaylistHeading | null {
+  const query = db
+    .select({
+      name: playlists.name,
+      isFavorite: sql`${playlists.isFavorite}`.mapWith(Boolean),
+      coverPath: playlists.artworkPath,
+    })
+    .from(playlists)
+    .where(eq(playlists.id, playlistId))
+    .limit(1);
+
+  const { data } = useLiveQuery(enabled ? query : null, [playlistId, enabled]);
+  return enabled ? (data[0] ?? null) : null;
 }
 
 /**
@@ -165,7 +205,7 @@ export function usePlaylistEntries(playlistId: number): PlaylistEntry[] {
  * Favourites are `track_stats` rows, so watching that table is also the honest
  * description of what this list is.
  */
-export function useFavoriteEntries(): PlaylistEntry[] {
+export function useFavoriteEntries(enabled = true): PlaylistEntry[] {
   const query = db
     .select({
       entryId: tracks.id,
@@ -179,8 +219,10 @@ export function useFavoriteEntries(): PlaylistEntry[] {
     .where(and(eq(trackStats.isFavorite, 1), eq(tracks.isMissing, 0)))
     .orderBy(desc(trackStats.favoriteAt), desc(tracks.id));
 
-  const { data } = useLiveQuery(query);
-  return data;
+  // Off on an ordinary playlist's screen, which used to run this anyway — and
+  // re-run it on every listen recorded, since listens write `track_stats`.
+  const { data } = useLiveQuery(enabled ? query : null, [enabled]);
+  return enabled ? data : NO_ENTRIES;
 }
 
 export async function createPlaylist(name: string): Promise<number | null> {

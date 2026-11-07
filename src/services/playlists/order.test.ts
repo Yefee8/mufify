@@ -1,6 +1,6 @@
 import { matchesHaystack } from '@/services/text/search';
 
-import { foldPlaylistRows, moveItem, placeAfter, type PlaylistRow } from './order';
+import { foldPlaylistRows, mosaicOf, moveItem, placeAfter, type PlaylistRow } from './order';
 
 /**
  * The two pure parts of the playlist queries.
@@ -281,5 +281,32 @@ describe('foldPlaylistRows, the search haystack', () => {
     const [summary] = foldPlaylistRows([row({ id: 1, name: 'Empty' })]);
 
     expect(summary?.search.trim()).toBe('empty');
+  });
+});
+
+describe('mosaicOf', () => {
+  it('takes the first four covers in order, each once, skipping rows without one', () => {
+    expect(mosaicOf(['a', null, 'a', 'b', 'c', null, 'b', 'd', 'e'])).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('agrees with the grid tile foldPlaylistRows builds from the same rows', () => {
+    const covers = ['x', 'x', null, 'y', 'z', 'y', 'w', 'v'];
+    const rows: PlaylistRow[] = covers.map((artworkPath, position) => ({
+      id: 1,
+      name: 'Mix',
+      position,
+      artworkPath,
+      coverPath: null,
+      isFavorite: false,
+      trackTitle: null,
+      artistName: null,
+      albumName: null,
+    }));
+
+    expect(mosaicOf(covers)).toEqual(foldPlaylistRows(rows)[0]?.mosaic);
+  });
+
+  it('is empty for a playlist with no covers', () => {
+    expect(mosaicOf([null, null])).toEqual([]);
   });
 });

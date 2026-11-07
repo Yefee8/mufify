@@ -18,6 +18,22 @@ import { searchHaystack } from '@/services/text/search';
 export const MOSAIC_SIZE = 4;
 
 /**
+ * A playlist's mosaic: its first covers, in playlist order, each once.
+ *
+ * The same rule `foldPlaylistRows` applies to the tab's grid, for a screen that
+ * already has the rows in order — so the header and the grid tile agree on
+ * which four squares a playlist is.
+ */
+export function mosaicOf(artworkPaths: readonly (string | null)[]): string[] {
+  const mosaic: string[] = [];
+  for (const path of artworkPaths) {
+    if (mosaic.length === MOSAIC_SIZE) break;
+    if (path !== null && !mosaic.includes(path)) mosaic.push(path);
+  }
+  return mosaic;
+}
+
+/**
  * Virtual route id for liked songs; it never exists in `playlists`.
  *
  * Here rather than beside the queries for the reason above: importing
