@@ -281,6 +281,7 @@
       "enable": "Equaliser",
       "enableHint": "Off by default, so a track sounds the way it was mastered until you ask otherwise.",
       "preset": "Preset",
+      "presetsLabel": "Presets",
       "band": "{{hz}} hertz band",
       "noSession": "Play something first — the bands come from the audio device, and there is nothing to read until sound is going through it.",
       "missing": "This build has no equaliser. It needs a native module that was added later; reinstall the app to get it.",

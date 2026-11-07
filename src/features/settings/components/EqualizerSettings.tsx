@@ -16,15 +16,12 @@ import {
 } from '@/services/equalizer/equalizerController';
 import type { EqualizerPresetId } from '@/services/equalizer/presets';
 import type { SavedPreset } from '@/services/equalizer/savedPresets';
-import {
-  forgetPreset,
-  setActive,
-  useSavedPresets,
-} from '@/services/equalizer/savedPresetStore';
+import { forgetPreset, setActive, useSavedPresets } from '@/services/equalizer/savedPresetStore';
 import { encodePresetCode } from '@/services/equalizer/presetCode';
 import { showToast } from '@/services/toast';
 import {
   getEqualizerEnabled,
+  getEqualizerLevels,
   getEqualizerPreset,
   setEqualizerEnabled,
   setEqualizerPreset,
@@ -33,7 +30,7 @@ import { SPACING } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/useTheme';
 
 import { BandSlider } from './BandSlider';
-import { PresetPicker } from './PresetPicker';
+import { PresetGrid } from './PresetGrid';
 import { SavedPresets } from './SavedPresets';
 
 /**
@@ -42,9 +39,9 @@ import { SavedPresets } from './SavedPresets';
  * Laid out so that **picking a preset and seeing what it did are one glance**.
  * The first version stacked eight described options above five horizontal
  * sliders, which put the bands off the bottom of the screen: you chose a curve
- * and then scrolled to find out what it was. Presets are a row of chips now,
- * the selected one explains itself in a single line underneath, and the faders
- * sit directly below in the space that buys.
+ * and then scrolled to find out what it was. Presets are a grid of small tiles
+ * now, each drawing its own curve, the selected one filled and explained in a
+ * single line underneath, with the faders directly below.
  *
  * Three states, and the empty one matters: until something has played there is
  * no audio session to attach an effect to, so there are no bands to show and
@@ -86,6 +83,21 @@ export function EqualizerSettings() {
           : levelsFor(preset, capabilities),
     [bandCount, capabilities, dragged, preset],
   );
+
+  /*
+   * The Custom tile's picture: the levels dragged by hand, live while they are
+   * being dragged and the stored ones otherwise. Not `levels` when one of the
+   * user's saved presets is loaded — that is also "custom" to the controller,
+   * and drawing it on the Custom tile would show one curve on two tiles.
+   */
+  const customCurve = useMemo(() => {
+    if (capabilities === null) return [];
+    const handDrawn = preset === 'custom' && activeId === null ? levels : getEqualizerLevels();
+    return capabilities.bands.map((band, index) => ({
+      hz: band.centerHz,
+      db: (handDrawn[index] ?? 0) / 100,
+    }));
+  }, [activeId, capabilities, levels, preset]);
 
   const setEnabled = useCallback((next: boolean) => {
     setEnabledState(next);
@@ -207,15 +219,15 @@ export function EqualizerSettings() {
       </View>
 
       {/*
-        One row that says what is selected, opening a sheet with everything in
-        it. The two horizontal chip rows this replaced hid their own contents —
-        the selected chip was regularly off-screen — and made the user's own
-        presets look like more built-ins.
+        Every preset on one shelf, built-in and the user's own, the selected
+        one filled. A row naming the selection over a sheet with two sections
+        hid the selection behind a tap and the user's presets behind another.
       */}
-      <PresetPicker
+      <PresetGrid
         preset={preset}
         saved={savedPresets}
         activeId={activeId}
+        customCurve={customCurve}
         onSelectBuiltIn={onPresetChange}
         onSelectSaved={onSelectSaved}
         onShare={onShare}

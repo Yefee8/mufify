@@ -22,11 +22,9 @@ export interface SavedPresetsProps {
 /**
  * Two ways to get a preset into the list: make one, or paste one.
  *
- * The list itself moved into `PresetPicker`, which is where choosing happens —
- * this used to own a second horizontal chip row of its own, and two rows of
- * identical-looking chips made the user's presets indistinguishable from the
- * built-ins. These are the actions that *add* to that list, so they stay here,
- * under the faders: saving is something you do after getting a sound right.
+ * The list itself is `PresetGrid`, where the user's presets sit beside the
+ * built-ins. These are the actions that *add* to it, so they stay here, under
+ * the faders: saving is something you do after getting a sound right.
  *
  * **Sharing is a line of text you copy, not a share sheet.** This app has no
  * network layer and does not hand files to other apps — the track sheet turns

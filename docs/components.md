@@ -121,4 +121,7 @@ it is repeated here because that is the thing a reader needs before touching it.
 |---|---|
 | `SettingsScreen` | Every setting, each with a line saying what it does. |
 | `ScanFolderList` | Folders the user added by hand, on top of what MediaStore indexes. |
+| `EqualizerSettings` | The switch, the presets, the faders and the save/paste actions, in that order — choosing a preset and seeing what it did is one glance. |
+| `PresetGrid` / `PresetTile` / `PresetCurve` | Every preset on one shelf: built-ins, Custom and the user's own, three to a row, each tile drawing the curve the bands will take. The selected tile is filled in the accent; the user's are marked with a person, not kept in a section of their own. Long press one of yours to share or delete it. |
+| `SavedPresets` | Save the current curve, or paste a preset code from the clipboard. |
 | `DevTools` | The stress-library seeder and query timer. `__DEV__` only, and its strings are deliberately not translated — none of it ships. |

@@ -281,6 +281,7 @@
       "enable": "Ekolayzer",
       "enableHint": "Varsayılan olarak kapalı; sen istemedikçe parça masterlandığı gibi çalar.",
       "preset": "Preset",
+      "presetsLabel": "Presetler",
       "band": "{{hz}} hertz bandı",
       "noSession": "Önce bir şey çal — bantlar ses aygıtından geliyor, ses geçmeden okunacak bir şey yok.",
       "missing": "Bu sürümde ekolayzer yok. Sonradan eklenen bir native modül gerekiyor; almak için uygulamayı yeniden kur.",
