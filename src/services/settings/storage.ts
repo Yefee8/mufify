@@ -14,7 +14,10 @@ export const SETTINGS_KEYS = {
   language: 'settings.language',
   weekStart: 'settings.weekStart',
   shuffleAlgorithm: 'settings.shuffleAlgorithm',
-  librarySort: 'settings.librarySort',
+  /** How each library view is ordered, as `key:direction`. See services/library/sortOrder. */
+  trackSort: 'settings.trackSort',
+  albumSort: 'settings.albumSort',
+  artistSort: 'settings.artistSort',
   haptics: 'settings.haptics',
   resumeOnLaunch: 'settings.resumeOnLaunch',
   ignoreShortFiles: 'settings.ignoreShortFiles',

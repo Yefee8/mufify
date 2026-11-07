@@ -11,6 +11,8 @@ import { SPACING } from '@/theme/tokens';
 
 import { CollectionCard } from './CollectionCard';
 
+const NO_ANCHOR = { disabled: true } as const;
+
 export interface CollectionGridProps {
   kind: 'artist' | 'album';
   cards: readonly Card[];
@@ -80,6 +82,8 @@ export function CollectionGrid({
         order. The values are still design-system tokens.
       */
         contentContainerStyle={{ paddingHorizontal: SPACING[4], paddingBottom: bottomInset }}
+        // Read from the top, like the track list — see the note in TrackList.
+        maintainVisibleContentPosition={NO_ANCHOR}
         ListEmptyComponent={empty}
       />
     </View>

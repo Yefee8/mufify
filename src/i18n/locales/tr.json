@@ -58,6 +58,38 @@
       "artists": "Sanatçılar",
       "albums": "Albümler"
     },
+    "sort": {
+      "button": "Sırala",
+      "title": "Sırala",
+      "current": "{{key}} ile sıralı, {{direction}}",
+      "reverse": "Ters çevir",
+      "reverseHint": "Aynı sırayı tersinden gösterir",
+      "direction": {
+        "az": "A → Z",
+        "za": "Z → A",
+        "newest": "Yeniden eskiye",
+        "oldest": "Eskiden yeniye"
+      },
+      "keys": {
+        "tracks": {
+          "title": "Parça adı",
+          "artist": "Sanatçı",
+          "album": "Albüm",
+          "year": "Çıkış yılı",
+          "dateAdded": "Eklenme tarihi"
+        },
+        "albums": {
+          "name": "Albüm adı",
+          "artist": "Sanatçı",
+          "year": "Çıkış yılı",
+          "dateAdded": "Son eklenen"
+        },
+        "artists": {
+          "name": "Sanatçı adı",
+          "dateAdded": "Son eklenen parça"
+        }
+      }
+    },
     "likedFilter": "Yalnızca beğenilen parçalar",
     "noLiked": "Henüz beğenilen parça yok. Bir parçadaki kalbe dokun, burada dursun.",
     "selection": {

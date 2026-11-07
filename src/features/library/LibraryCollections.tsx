@@ -29,6 +29,8 @@ export interface LibraryCollectionsProps {
   /** Skeleton instead of a grid while true. */
   isLoading: boolean;
   onOpen: (id: number) => void;
+  /** Restarts the grid at the top when the order changes — see `LibraryTracks`. */
+  orderKey?: string;
 }
 
 /**
@@ -46,6 +48,7 @@ export function LibraryCollections({
   search,
   isLoading,
   onOpen,
+  orderKey,
 }: LibraryCollectionsProps) {
   const { t } = useTranslation();
   const { addToQueue, playNext } = useTrackActions();
@@ -133,6 +136,7 @@ export function LibraryCollections({
           <SkeletonCards />
         ) : (
           <CollectionGrid
+            key={orderKey}
             kind={kind}
             cards={listed}
             icon={kind === 'artist' ? User : Disc3}

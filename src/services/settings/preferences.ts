@@ -5,6 +5,19 @@ import {
 } from '@/services/equalizer/presets';
 import { parseSavedPresets, type SavedPreset } from '@/services/equalizer/savedPresets';
 import { DUPLICATE_MATCHES, type DuplicateMatch } from '@/services/library/dedupeTracks';
+import {
+  ALBUM_SORT_KEYS,
+  ARTIST_SORT_KEYS,
+  decodeSort,
+  DEFAULT_ALBUM_SORT,
+  DEFAULT_ARTIST_SORT,
+  DEFAULT_TRACK_SORT,
+  encodeSort,
+  TRACK_SORT_KEYS,
+  type AlbumSort,
+  type ArtistSort,
+  type TrackSort,
+} from '@/services/library/sortOrder';
 import { ANIMATION_SPEEDS, type AnimationSpeed } from '@/services/motion';
 import { DEFAULT_SHUFFLE, SHUFFLE_ALGORITHMS, type ShuffleAlgorithm } from '@/services/shuffle';
 import { WEEK_STARTS, type WeekStart } from '@/services/stats/periodKeys';
@@ -74,6 +87,49 @@ export function getShuffleAlgorithm(): ShuffleAlgorithm {
 
 export function setShuffleAlgorithm(algorithm: ShuffleAlgorithm): void {
   settingsStorage.set(SETTINGS_KEYS.shuffleAlgorithm, algorithm);
+}
+
+/**
+ * How the library's three views are ordered.
+ *
+ * Remembered per view, because the views answer different questions: tracks by
+ * date added, albums by year and artists by name is a reasonable way to keep a
+ * library, and one shared order would make every view wrong for two of them.
+ */
+export function getTrackSort(): TrackSort {
+  return decodeSort(
+    settingsStorage.getString(SETTINGS_KEYS.trackSort),
+    TRACK_SORT_KEYS,
+    DEFAULT_TRACK_SORT,
+  );
+}
+
+export function setTrackSort(order: TrackSort): void {
+  settingsStorage.set(SETTINGS_KEYS.trackSort, encodeSort(order));
+}
+
+export function getAlbumSort(): AlbumSort {
+  return decodeSort(
+    settingsStorage.getString(SETTINGS_KEYS.albumSort),
+    ALBUM_SORT_KEYS,
+    DEFAULT_ALBUM_SORT,
+  );
+}
+
+export function setAlbumSort(order: AlbumSort): void {
+  settingsStorage.set(SETTINGS_KEYS.albumSort, encodeSort(order));
+}
+
+export function getArtistSort(): ArtistSort {
+  return decodeSort(
+    settingsStorage.getString(SETTINGS_KEYS.artistSort),
+    ARTIST_SORT_KEYS,
+    DEFAULT_ARTIST_SORT,
+  );
+}
+
+export function setArtistSort(order: ArtistSort): void {
+  settingsStorage.set(SETTINGS_KEYS.artistSort, encodeSort(order));
 }
 
 /**

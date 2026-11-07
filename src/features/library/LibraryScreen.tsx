@@ -7,24 +7,25 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { Screen } from '@/components/ui/Screen';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { ShortWindowSplit } from '@/components/ui/ShortWindowSplit';
-import { SearchField } from '@/components/ui/SearchField';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
-import { LikedFilter } from '@/components/ui/LikedFilter';
 import { PlayShuffleBar } from '@/components/ui/PlayShuffleBar';
 import { WarningBanner } from '@/components/ui/WarningBanner';
 import { useAlbumCards, useArtistCards } from '@/db/queries/tracks';
 import { AudioEngine } from '@/services/audio/AudioEngine';
+import { encodeSort } from '@/services/library/sortOrder';
 import { getShuffleAlgorithm } from '@/services/settings';
 import { useLifecycleTrace } from '@/services/perf/useLifecycleTrace';
 
 import { toPlayable } from '../player/toPlayable';
 import { LibraryHeader } from './components/LibraryHeader';
+import { LibraryToolbar } from './components/LibraryToolbar';
 import { FolderImportModal } from './components/FolderImportModal';
 import { ScanBanner } from './components/ScanBanner';
 import { LibraryCollections } from './LibraryCollections';
 import { LibraryTracks } from './LibraryTracks';
 import { useCollectionRouting } from './hooks/useCollectionRouting';
 import { useDebounced } from './hooks/useDebounced';
+import { useLibrarySort } from './hooks/useLibrarySort';
 import { useAudioPermission } from './hooks/useAudioPermission';
 import { useTracks } from './hooks/useLibrary';
 import { useScan } from './hooks/useScan';
@@ -62,14 +63,15 @@ export function LibraryScreen() {
   const bottomInset = useMiniPlayerInset();
   const [search, setSearch] = useState('');
   const [likedOnly, setLikedOnly] = useState(false);
+  const sort = useLibrarySort();
   // The field stays instant; only the query waits.
-  const { tracks, isLoading } = useTracks(useDebounced(search), likedOnly);
+  const { tracks, isLoading } = useTracks(useDebounced(search), likedOnly, sort.tracks);
   const { progress, isScanning, scanLibrary, pickFolder, importFolder, isFolderImporting, cancel } =
     useScan();
   const permission = useAudioPermission();
 
-  const artists = useArtistCards();
-  const albums = useAlbumCards();
+  const artists = useArtistCards(sort.artists);
+  const albums = useAlbumCards(sort.albums);
   const { openArtist, openAlbum } = useCollectionRouting();
   const collectionCards = view === 'artists' ? artists : albums;
   const displayedTrackCount =
@@ -164,27 +166,14 @@ export function LibraryScreen() {
               />
             </View>
 
-            {/*
-            One search box for every view. It used to appear on the tracks view
-            only, on the grounds that a grid of a few cards did not need one — which
-            stopped being true the first time a library held two hundred albums.
-            The same field, the same text: switching view keeps what was typed,
-            because the question "where is X" does not change with the shape of the
-            answer.
-
-            The liked filter stays with the tracks view. The shelves have a heart of
-            their own where it applies.
-          */}
-            <View className="mb-4 flex-row items-center gap-3 px-6">
-              <SearchField value={search} onChange={setSearch} inRow />
-              {view === 'tracks' ? (
-                <LikedFilter
-                  active={likedOnly}
-                  onChange={setLikedOnly}
-                  accessibilityLabel={t('library.likedFilter')}
-                />
-              ) : null}
-            </View>
+            <LibraryToolbar
+              view={view}
+              search={search}
+              onSearchChange={setSearch}
+              likedOnly={likedOnly}
+              onLikedOnlyChange={setLikedOnly}
+              sort={sort}
+            />
 
             {/* Starting the whole library from the top, rather than only by tapping a
               row — which starts at that row. Hidden while there is nothing to play. */}
@@ -247,6 +236,7 @@ export function LibraryScreen() {
             likedOnly={likedOnly}
             suppressEmpty={hasFailed}
             onAddFolder={chooseFolder}
+            orderKey={encodeSort(sort.tracks)}
           />
         ) : (
           <LibraryCollections
@@ -255,6 +245,7 @@ export function LibraryScreen() {
             search={search}
             isLoading={waiting}
             onOpen={view === 'artists' ? openArtist : openAlbum}
+            orderKey={encodeSort(view === 'artists' ? sort.artists : sort.albums)}
           />
         )}
       </ShortWindowSplit>

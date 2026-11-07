@@ -67,6 +67,9 @@ describe('locale files', () => {
       // "Preset yapıştır". Translating this one label to "Ön ayar" for the sake
       // of a green test would leave the section disagreeing with itself.
       'settings.equalizer.preset',
+      // Letters and an arrow, which read the same in both languages.
+      'library.sort.direction.az',
+      'library.sort.direction.za',
     ]);
 
     const identical = enPaths.filter(

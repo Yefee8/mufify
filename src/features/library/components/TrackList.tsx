@@ -31,6 +31,8 @@ const ROW_HEIGHT = 64;
  */
 const DRAW_DISTANCE = 1_200;
 
+const NO_ANCHOR = { disabled: true } as const;
+
 export interface TrackListProps {
   tracks: TrackListItem[];
   locale: string;
@@ -106,6 +108,14 @@ export function TrackList({
       overrideItemLayout={setRowHeight}
       // So the last rows clear the transport strip instead of sitting under it.
       contentContainerStyle={{ paddingBottom: bottomInset }}
+      /*
+        No anchoring. FlashList 2 holds the first visible row in place whenever
+        the data changes, which is a chat log's behaviour: here it meant that
+        changing the sort kept the old top row on screen and opened the newly
+        ordered list somewhere in its middle. A library list is read from the
+        top, and a new order is a new list — see `orderKey` in LibraryTracks.
+      */
+      maintainVisibleContentPosition={NO_ANCHOR}
       /*
         No pull to refresh.
 

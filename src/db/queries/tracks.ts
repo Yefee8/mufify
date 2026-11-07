@@ -1,9 +1,18 @@
-import { and, asc, count, desc, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull, like, or, sql, type SQL } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useEffect, useMemo } from 'react';
 
 import { dedupeTracks } from '@/services/library/dedupeTracks';
 import { useDuplicateSetting } from '@/services/library/duplicateSetting';
+import {
+  DEFAULT_ALBUM_SORT,
+  DEFAULT_ARTIST_SORT,
+  DEFAULT_TRACK_SORT,
+  type AlbumSort,
+  type ArtistSort,
+  type SortDirection,
+  type TrackSort,
+} from '@/services/library/sortOrder';
 import * as perf from '@/services/perf';
 
 import { notifyUserDataChanged } from '../changes';
@@ -106,9 +115,87 @@ export async function countTracks(): Promise<number> {
  * `useLiveQuery` lives here rather than in a feature hook so Drizzle stays
  * behind the src/db boundary, which ESLint enforces.
  */
+/** `asc` or `desc`, by the order's direction. */
+function directed(direction: SortDirection, expression: SQL): SQL {
+  return direction === 'asc' ? asc(expression) : desc(expression);
+}
+
+/**
+ * Missing values last, whichever way the rest of the list runs.
+ *
+ * SQLite sorts NULL first ascending and last descending, which would put the
+ * unknown artist at the top of A → Z and every untagged year at the top of
+ * oldest-first. `x IS NULL` ascending is 0 before 1 in both directions, so it
+ * leads the ORDER BY and the real values sort among themselves behind it.
+ */
+function nullsLast(expression: SQL): SQL {
+  return asc(sql`${expression} IS NULL`);
+}
+
+const TITLE = sql`${tracks.title} COLLATE NOCASE`;
+const ALBUM_NAME = sql`${albums.name} COLLATE NOCASE`;
+const ARTIST_NAME = sql`${artists.sortName} COLLATE NOCASE`;
+
+/** Disc, then track number, untagged last: the order an album is meant to be heard in. */
+const RUNNING_ORDER: SQL[] = [
+  nullsLast(sql`${tracks.discNo}`),
+  asc(tracks.discNo),
+  nullsLast(sql`${tracks.trackNo}`),
+  asc(tracks.trackNo),
+];
+
+/**
+ * `ORDER BY` for a list of tracks.
+ *
+ * In SQL rather than over the fetched array: a 10,000-track library sorted in
+ * JavaScript with a locale collator costs tens of milliseconds on every change
+ * of the list, on the JS thread, and the database does it as part of a query it
+ * is running anyway.
+ *
+ * Each key carries tiebreakers. Sorting by artist and stopping there would
+ * leave each artist's tracks in whatever order the table happened to hold them;
+ * by artist the list reads album by album in running order, by year the same
+ * within each year, and every key ends on the title so equal rows never shuffle
+ * between renders.
+ */
+function trackOrderBy(sort: TrackSort): SQL[] {
+  const { key, direction } = sort;
+  switch (key) {
+    case 'title':
+      return [directed(direction, TITLE)];
+    case 'artist':
+      return [
+        nullsLast(sql`${artists.name}`),
+        directed(direction, ARTIST_NAME),
+        nullsLast(sql`${albums.name}`),
+        asc(ALBUM_NAME),
+        ...RUNNING_ORDER,
+        asc(TITLE),
+      ];
+    case 'album':
+      return [
+        nullsLast(sql`${albums.name}`),
+        directed(direction, ALBUM_NAME),
+        ...RUNNING_ORDER,
+        asc(TITLE),
+      ];
+    case 'year':
+      return [
+        nullsLast(sql`${tracks.year}`),
+        directed(direction, sql`${tracks.year}`),
+        asc(ALBUM_NAME),
+        ...RUNNING_ORDER,
+        asc(TITLE),
+      ];
+    case 'dateAdded':
+      return [directed(direction, sql`${tracks.dateAdded}`), asc(TITLE)];
+  }
+}
+
 export function useTracks(
   search = '',
   likedOnly = false,
+  sort: TrackSort = DEFAULT_TRACK_SORT,
 ): { tracks: TrackListItem[]; isLoading: boolean } {
   const term = search.trim();
   // `%` and `_` are LIKE wildcards. Unescaped, typing "%" matches everything
@@ -149,7 +236,7 @@ export function useTracks(
         .leftJoin(artists, eq(tracks.artistId, artists.id))
         .leftJoin(albums, eq(tracks.albumId, albums.id))
         .where(and(eq(trackStats.isFavorite, 1), matches))
-        .orderBy(asc(sql`${tracks.title} COLLATE NOCASE`))
+        .orderBy(...trackOrderBy(sort))
     : db
         .select(listSelection)
         .from(tracks)
@@ -157,9 +244,9 @@ export function useTracks(
         .leftJoin(albums, eq(tracks.albumId, albums.id))
         .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
         .where(matches)
-        .orderBy(asc(sql`${tracks.title} COLLATE NOCASE`));
+        .orderBy(...trackOrderBy(sort));
 
-  const { data, updatedAt } = useLiveQuery(query, [term, likedOnly]);
+  const { data, updatedAt } = useLiveQuery(query, [term, likedOnly, sort.key, sort.direction]);
 
   /*
    * Time to first rows, which is the number the cold-start investigation turned
@@ -277,7 +364,10 @@ export async function setAlbumFavorite(id: number, isFavorite: boolean): Promise
  */
 export async function retireTracks(ids: readonly number[]): Promise<void> {
   if (ids.length === 0) return;
-  await db.update(tracks).set({ isMissing: 1 }).where(inArray(tracks.id, [...ids]));
+  await db
+    .update(tracks)
+    .set({ isMissing: 1 })
+    .where(inArray(tracks.id, [...ids]));
 }
 
 /**
@@ -424,7 +514,7 @@ export interface CollectionCard {
  * one of the artist's covers. Stable matters more than which: a card whose
  * artwork changes between renders looks broken.
  */
-export function useArtistCards(): CollectionCard[] {
+export function useArtistCards(sort: ArtistSort = DEFAULT_ARTIST_SORT): CollectionCard[] {
   const collectionId = sql<number>`coalesce(${tracks.artistId}, 0)`;
   const query = db
     .select({
@@ -442,14 +532,48 @@ export function useArtistCards(): CollectionCard[] {
     .leftJoin(artists, eq(tracks.artistId, artists.id))
     .where(eq(tracks.isMissing, 0))
     .groupBy(collectionId)
-    .orderBy(asc(sql`coalesce(${artists.sortName}, '') COLLATE NOCASE`));
+    .orderBy(
+      // The unknown artist last, not first: it is the one card nobody is
+      // looking for, and coalescing it to '' used to sort it to the top.
+      nullsLast(sql`${artists.name}`),
+      ...(sort.key === 'dateAdded'
+        ? [directed(sort.direction, sql`max(${tracks.dateAdded})`), asc(ARTIST_NAME)]
+        : [directed(sort.direction, ARTIST_NAME)]),
+    );
 
-  const { data } = useLiveQuery(query);
+  const { data } = useLiveQuery(query, [sort.key, sort.direction]);
   return useThrottledData(data);
 }
 
+/**
+ * The album shelf's `ORDER BY`, after the unknown album has been sent to the end.
+ *
+ * The year is the album's own tag where it has one and its newest track's
+ * otherwise — plenty of rips tag the tracks and not the album. By artist, each
+ * artist's albums run oldest first, which is how a discography is read.
+ */
+function albumOrderBy(sort: AlbumSort): SQL[] {
+  const year = sql`coalesce(${albums.year}, max(${tracks.year}))`;
+  switch (sort.key) {
+    case 'name':
+      return [directed(sort.direction, ALBUM_NAME)];
+    case 'artist':
+      return [
+        nullsLast(sql`${artists.name}`),
+        directed(sort.direction, ARTIST_NAME),
+        nullsLast(year),
+        asc(year),
+        asc(ALBUM_NAME),
+      ];
+    case 'year':
+      return [nullsLast(year), directed(sort.direction, year), asc(ALBUM_NAME)];
+    case 'dateAdded':
+      return [directed(sort.direction, sql`max(${tracks.dateAdded})`), asc(ALBUM_NAME)];
+  }
+}
+
 /** Every album that has at least one present track. */
-export function useAlbumCards(): CollectionCard[] {
+export function useAlbumCards(sort: AlbumSort = DEFAULT_ALBUM_SORT): CollectionCard[] {
   const collectionId = sql<number>`coalesce(${tracks.albumId}, 0)`;
   const query = db
     .select({
@@ -477,9 +601,9 @@ export function useAlbumCards(): CollectionCard[] {
     .leftJoin(artists, eq(artists.id, albums.artistId))
     .where(eq(tracks.isMissing, 0))
     .groupBy(collectionId)
-    .orderBy(asc(sql`coalesce(${albums.name}, '') COLLATE NOCASE`));
+    .orderBy(nullsLast(sql`${albums.name}`), ...albumOrderBy(sort));
 
-  const { data } = useLiveQuery(query);
+  const { data } = useLiveQuery(query, [sort.key, sort.direction]);
   return useThrottledData(data);
 }
 

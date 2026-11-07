@@ -58,6 +58,38 @@
       "artists": "Artists",
       "albums": "Albums"
     },
+    "sort": {
+      "button": "Sort",
+      "title": "Sort by",
+      "current": "Sorted by {{key}}, {{direction}}",
+      "reverse": "Reverse",
+      "reverseHint": "Runs the same order the other way",
+      "direction": {
+        "az": "A → Z",
+        "za": "Z → A",
+        "newest": "Newest first",
+        "oldest": "Oldest first"
+      },
+      "keys": {
+        "tracks": {
+          "title": "Title",
+          "artist": "Artist",
+          "album": "Album",
+          "year": "Release year",
+          "dateAdded": "Date added"
+        },
+        "albums": {
+          "name": "Name",
+          "artist": "Artist",
+          "year": "Release year",
+          "dateAdded": "Recently added"
+        },
+        "artists": {
+          "name": "Name",
+          "dateAdded": "Latest track added"
+        }
+      }
+    },
     "likedFilter": "Liked tracks only",
     "noLiked": "Nothing liked yet. Tap the heart on a track to keep it here.",
     "selection": {

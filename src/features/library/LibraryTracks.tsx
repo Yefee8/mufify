@@ -41,6 +41,15 @@ export interface LibraryTracksProps {
    * on the phone is a maintenance action rather than the ordinary way in.
    */
   onAddFolder: () => void;
+  /**
+   * Changes when the order does, and restarts the list at the top.
+   *
+   * FlashList keeps the first visible row where it was when its data changes —
+   * right for a heart being tapped, wrong for a new sort, where it held the old
+   * top row in place and showed the middle of the newly sorted list. A new key
+   * is a new list, which opens at the beginning of the order just chosen.
+   */
+  orderKey?: string;
 }
 
 /**
@@ -59,6 +68,7 @@ export function LibraryTracks({
   likedOnly,
   suppressEmpty,
   onAddFolder,
+  orderKey,
 }: LibraryTracksProps) {
   const { t, i18n } = useTranslation();
   const messages = useMessages('library.empty');
@@ -217,6 +227,7 @@ export function LibraryTracks({
           <TrackListSkeleton />
         ) : (
           <TrackList
+            key={orderKey}
             tracks={tracks}
             locale={i18n.language}
             onPress={onPress}

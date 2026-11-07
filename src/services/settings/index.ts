@@ -7,6 +7,8 @@ export {
 } from './language';
 export {
   getActiveSavedPresetId,
+  getAlbumSort,
+  getArtistSort,
   getAnimationSpeed,
   getAudioPermissionAsked,
   getEqualizerEnabled,
@@ -25,8 +27,11 @@ export {
   getStatsBackupFolder,
   getStatsEnabled,
   getThemePreference,
+  getTrackSort,
   getWeekStart,
   setActiveSavedPresetId,
+  setAlbumSort,
+  setArtistSort,
   setAnimationSpeed,
   setAudioPermissionAsked,
   setEqualizerEnabled,
@@ -45,6 +50,7 @@ export {
   setStatsBackupFolder,
   setStatsEnabled,
   setThemePreference,
+  setTrackSort,
   setWeekStart,
   THEME_PREFERENCES,
   type ThemePreference,

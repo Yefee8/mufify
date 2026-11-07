@@ -64,6 +64,8 @@ it is repeated here because that is the thing a reader needs before touching it.
 | `CollectionCard` / `CollectionGrid` | An artist or album as a square card, and the two-column grid of them. |
 | `CollectionHeader` | Cover, name and size for a detail screen. |
 | `SearchField` | Debounced input. The field stays instant; only the query waits. |
+| `LibraryToolbar` | Search, the liked filter (tracks only) and the sort button, in one row under the view switch. |
+| `SortControl` | The sort button and its sheet. Choosing a key and reversing are both one tap and both close the sheet; the button turns accent while a non-default order is in force. Generic over the view's keys — see `docs/adr/030`. |
 | `ScanBanner` | Progress above the list, never instead of it — the user can scroll throughout. Hides the counter until a total is known rather than showing "0 / 0". |
 | `TrackActionSheet` | Long-press actions. Its doc says which two items from the brief are deliberately absent, and why. |
 | `TrackInfoSheet` | Every technical field. Absent values render as an em dash rather than disappearing. |
