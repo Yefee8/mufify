@@ -103,6 +103,8 @@
     "unlikeAlbum": "Beğeniyi kaldır",
     "likedAlbumFilter": "Yalnızca beğenilen albümler",
     "noLikedAlbums": "Henüz beğenilen albüm yok. Bir albüme uzun bas ve kalbe dokun.",
+    "likedArtistFilter": "Beğendiğin bir şeyi olan sanatçılar",
+    "noLikedArtists": "Henüz beğenilen sanatçı yok. Bir parçasını ya da albümünü beğen, burada görünsün.",
     "statsRestored_one": "Tekrar hoş geldin — bu klasörden {{count}} dinleme geri getirildi.",
     "statsRestored_other": "Tekrar hoş geldin — bu klasörden {{count}} dinleme geri getirildi.",
     "playlistsRestored_one": "Yanında {{count}} liste de geri geldi.",

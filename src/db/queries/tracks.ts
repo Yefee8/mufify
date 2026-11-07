@@ -365,6 +365,45 @@ export function useFavoriteAlbumIds(): { id: number; favoriteAt: number | null }
 }
 
 /**
+ * The artists the user has liked something by — a track, or an album.
+ *
+ * Artists have no heart of their own, and adding one would be a third thing
+ * to like that means almost exactly what the other two already say. "Artists I
+ * have liked something by" is what a liked filter on the artist shelf can mean
+ * without asking the user to like the same music a third time. See
+ * `docs/adr/033-liked-artists.md`.
+ *
+ * Ids as the artist shelf groups them: the track's own artist, 0 for none. A
+ * union of two small sets rather than one pass over every track: liked rows
+ * are few, and both halves are index lookups from there. Watches all three
+ * tables, since a heart on either side or a file going missing changes it.
+ *
+ * Runs only while `enabled` — the filter is off most of the time.
+ */
+export function useLikedArtistIds(enabled: boolean): ReadonlySet<number> {
+  const artistId = sql<number>`coalesce(${tracks.artistId}, 0)`;
+  const viaTracks = db
+    .select({ id: artistId })
+    .from(trackStats)
+    .innerJoin(tracks, eq(tracks.id, trackStats.trackId))
+    .where(and(eq(trackStats.isFavorite, 1), eq(tracks.isMissing, 0)));
+  const viaAlbums = db
+    .select({ id: artistId })
+    .from(albums)
+    .innerJoin(tracks, eq(tracks.albumId, albums.id))
+    .where(and(eq(albums.isFavorite, 1), eq(tracks.isMissing, 0)));
+
+  const { data } = useLiveQuery(
+    enabled ? viaTracks.union(viaAlbums) : null,
+    [enabled],
+    LIKED_ARTIST_TABLES,
+  );
+  return useMemo(() => new Set(data.map((row) => row.id)), [data]);
+}
+
+const LIKED_ARTIST_TABLES = [albums, tracks];
+
+/**
  * Like or unlike an album.
  *
  * `favoriteAt` is cleared on the way out rather than left behind, so an album

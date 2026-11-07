@@ -103,6 +103,8 @@
     "unlikeAlbum": "Unlike this album",
     "likedAlbumFilter": "Liked albums only",
     "noLikedAlbums": "No liked albums yet. Long press one and tap the heart.",
+    "likedArtistFilter": "Artists with something liked",
+    "noLikedArtists": "No liked artists yet. Like one of their tracks or albums and they show up here.",
     "statsRestored_one": "Welcome back — {{count}} listen restored from this folder.",
     "statsRestored_other": "Welcome back — {{count}} listens restored from this folder.",
     "playlistsRestored_one": "One playlist came back with it.",

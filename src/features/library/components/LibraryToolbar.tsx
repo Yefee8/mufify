@@ -19,6 +19,7 @@ export interface LibraryToolbarProps {
   view: 'tracks' | 'artists' | 'albums';
   search: string;
   onSearchChange: (search: string) => void;
+  /** The heart, for the view on screen. */
   likedOnly: boolean;
   onLikedOnlyChange: (likedOnly: boolean) => void;
   sort: LibrarySort;
@@ -33,9 +34,12 @@ export interface LibraryToolbarProps {
  * same text: switching view keeps what was typed, because the question "where
  * is X" does not change with the shape of the answer.
  *
- * The liked filter stays with the tracks view; the shelves have a heart of
- * their own where it applies. The order is per view, so the sort button always
- * opens the options for the shelf it sits above.
+ * The heart and the order sit side by side in every view, so the two ways of
+ * narrowing and arranging a shelf are always in the same place — the album
+ * heart used to have a row of its own and the artist shelf had none. Both are
+ * per view: the heart filters the shelf it sits above (artists by what was
+ * liked of theirs — see `useLikedArtistIds`), and the sort button opens the
+ * options for that shelf.
  */
 export function LibraryToolbar({
   view,
@@ -51,13 +55,11 @@ export function LibraryToolbar({
     <View className="mb-4 flex-row items-center gap-3 px-6">
       <SearchField value={search} onChange={onSearchChange} inRow />
 
-      {view === 'tracks' ? (
-        <LikedFilter
-          active={likedOnly}
-          onChange={onLikedOnlyChange}
-          accessibilityLabel={t('library.likedFilter')}
-        />
-      ) : null}
+      <LikedFilter
+        active={likedOnly}
+        onChange={onLikedOnlyChange}
+        accessibilityLabel={t(LIKED_LABEL[view])}
+      />
 
       {view === 'tracks' ? (
         <SortControl
@@ -87,3 +89,9 @@ export function LibraryToolbar({
     </View>
   );
 }
+
+const LIKED_LABEL = {
+  tracks: 'library.likedFilter',
+  artists: 'library.likedArtistFilter',
+  albums: 'library.likedAlbumFilter',
+} as const;

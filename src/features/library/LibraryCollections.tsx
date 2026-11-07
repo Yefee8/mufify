@@ -5,12 +5,12 @@ import { View } from 'react-native';
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { LikedFilter } from '@/components/ui/LikedFilter';
 import { SkeletonCards } from '@/components/ui/Skeleton';
 import {
   listCollectionTracks,
   setAlbumFavorite,
   useFavoriteAlbumIds,
+  useLikedArtistIds,
   type CollectionCard,
 } from '@/db/queries/tracks';
 import { onlyFavorites, withAlbumFavorites } from '@/services/library/albumFavorites';
@@ -26,6 +26,8 @@ export interface LibraryCollectionsProps {
   cards: readonly CollectionCard[];
   /** What is typed in the library's search box. Narrows the shelf. */
   search: string;
+  /** The heart in the toolbar: liked albums, or artists with something liked. */
+  likedOnly: boolean;
   /** Skeleton instead of a grid while true. */
   isLoading: boolean;
   onOpen: (id: number) => void;
@@ -46,6 +48,7 @@ export function LibraryCollections({
   kind,
   cards,
   search,
+  likedOnly,
   isLoading,
   onOpen,
   orderKey,
@@ -53,7 +56,6 @@ export function LibraryCollections({
   const { t } = useTranslation();
   const { addToQueue, playNext } = useTrackActions();
   const deletion = useDeleteTracks();
-  const [likedOnly, setLikedOnly] = useState(false);
 
   /*
    * Liked albums come from their own live query and are folded in here.
@@ -62,15 +64,18 @@ export function LibraryCollections({
    * flag joined into it would never notice a heart being tapped.
    */
   const favorites = useFavoriteAlbumIds();
+  const likedArtists = useLikedArtistIds(kind === 'artist' && likedOnly);
   const listed = useMemo(() => {
     // In memory rather than in the query: a shelf is a few hundred cards at
     // most, already loaded, and the match has to be as forgiving of accents
     // and case as `matchesSearch` is — which SQL's `LIKE` is not.
     const found = cards.filter((card) => matchesSearch(search, card.name, card.subtitle));
-    if (kind === 'artist') return found;
+    if (kind === 'artist') {
+      return likedOnly ? found.filter((card) => likedArtists.has(card.id)) : found;
+    }
     const marked = withAlbumFavorites(found, favorites);
     return likedOnly ? onlyFavorites(marked) : marked;
-  }, [cards, favorites, kind, likedOnly, search]);
+  }, [cards, favorites, kind, likedArtists, likedOnly, search]);
 
   /*
    * Held as the card rather than as an id. The sheet shows a name and a count,
@@ -115,18 +120,6 @@ export function LibraryCollections({
 
   return (
     <>
-      {/* Albums only. Artists have no flag of their own, so a heart there would
-          filter to nothing every time. */}
-      {kind === 'album' ? (
-        <View className="mb-4 flex-row justify-end px-6">
-          <LikedFilter
-            active={likedOnly}
-            onChange={setLikedOnly}
-            accessibilityLabel={t('library.likedAlbumFilter')}
-          />
-        </View>
-      ) : null}
-
       {/*
         Every view owns whatever height is left, explicitly. Without a bounded
         flex parent a virtualized list keeps the height it first measured.
@@ -149,7 +142,12 @@ export function LibraryCollections({
               search.trim() ? (
                 <EmptyState icon={SearchX} messages={[t('library.noResults', { term: search })]} />
               ) : likedOnly ? (
-                <EmptyState icon={HeartOff} messages={[t('library.noLikedAlbums')]} />
+                <EmptyState
+                  icon={HeartOff}
+                  messages={[
+                    t(kind === 'artist' ? 'library.noLikedArtists' : 'library.noLikedAlbums'),
+                  ]}
+                />
               ) : null
             }
           />

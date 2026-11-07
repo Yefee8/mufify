@@ -34,6 +34,12 @@ import { useScan } from './hooks/useScan';
 const VIEWS = ['tracks', 'artists', 'albums'] as const;
 type LibraryView = (typeof VIEWS)[number];
 
+const NOTHING_LIKED: Record<LibraryView, boolean> = {
+  tracks: false,
+  artists: false,
+  albums: false,
+};
+
 /** Opens this app's page in system settings, where the permission switch is. */
 function openAppSettings(): void {
   void Linking.openSettings();
@@ -62,7 +68,14 @@ export function LibraryScreen() {
   // the window is short enough to put the aside beside them.
   const bottomInset = useMiniPlayerInset();
   const [search, setSearch] = useState('');
-  const [likedOnly, setLikedOnly] = useState(false);
+  // One heart per view, like the order: liking-only albums says nothing about
+  // whether the track list should be narrowed too.
+  const [liked, setLiked] = useState<Record<LibraryView, boolean>>(NOTHING_LIKED);
+  const setLikedOnly = useCallback(
+    (on: boolean) => setLiked((previous) => ({ ...previous, [view]: on })),
+    [view],
+  );
+  const likedOnly = liked.tracks;
   const sort = useLibrarySort();
   // The field stays instant; only the query waits.
   const { tracks, isLoading } = useTracks(useDebounced(search), likedOnly, sort.tracks);
@@ -170,7 +183,7 @@ export function LibraryScreen() {
               view={view}
               search={search}
               onSearchChange={setSearch}
-              likedOnly={likedOnly}
+              likedOnly={liked[view]}
               onLikedOnlyChange={setLikedOnly}
               sort={sort}
             />
@@ -243,6 +256,7 @@ export function LibraryScreen() {
             kind={view === 'artists' ? 'artist' : 'album'}
             cards={collectionCards}
             search={search}
+            likedOnly={view === 'artists' ? liked.artists : liked.albums}
             isLoading={waiting}
             onOpen={view === 'artists' ? openArtist : openAlbum}
             orderKey={encodeSort(view === 'artists' ? sort.artists : sort.albums)}
