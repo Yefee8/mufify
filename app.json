@@ -2,7 +2,7 @@
   "expo": {
     "name": "Mufify",
     "slug": "mufify",
-    "version": "1.6.1",
+    "version": "1.7.0",
     "orientation": "default",
     "scheme": "mufify",
     "userInterfaceStyle": "automatic",
@@ -12,7 +12,7 @@
     "icon": "./assets/images/icon.png",
     "android": {
       "package": "dev.mufify.app",
-      "versionCode": 20,
+      "versionCode": 21,
       "adaptiveIcon": {
         "backgroundColor": "#151922",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
