@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useWindowDimensions } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -8,6 +8,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { SHEET_FADE_COMPLETE_AT } from '@/services/motion';
+
+import { Freeze } from './Freeze';
 
 export interface SheetProps {
   /**
@@ -22,6 +24,16 @@ export interface SheetProps {
   progress: SharedValue<number>;
   /** Mounted. Kept separate so expensive contents stay out of the closed path. */
   visible: boolean;
+  /**
+   * Once opened, stay mounted — frozen while closed — instead of unmounting.
+   *
+   * For a sheet that is opened over and over and is expensive to build: Now
+   * Playing, whose cover carousel, scrubber and gestures were being created
+   * from nothing on every press of the mini player, on the frame the spring
+   * was meant to start. Frozen, the closed sheet costs nothing per render, and
+   * opening it again is one render of what changed. See `Freeze`.
+   */
+  keepMounted?: boolean;
   /** Settled open. Gates touches, so a closing sheet stops taking them at once. */
   expanded: boolean;
   /** Stacking order and surface colour, e.g. `absolute inset-0 z-30 bg-surface`. */
@@ -63,9 +75,14 @@ export function Sheet({
   expanded,
   className,
   fade = true,
+  keepMounted = false,
   children,
 }: SheetProps) {
   const { height } = useWindowDimensions();
+  // Set during render, the documented way to remember something about earlier
+  // renders without an effect running a frame late.
+  const [opened, setOpened] = useState(visible);
+  if (visible && !opened) setOpened(true);
 
   const style = useAnimatedStyle(() => ({
     // Opaque well before the travel ends. Tracking the whole gesture leaves the
@@ -84,7 +101,11 @@ export function Sheet({
 
   return (
     <Animated.View pointerEvents={expanded ? 'auto' : 'none'} style={style} className={className}>
-      {visible ? children : null}
+      {keepMounted && opened ? (
+        <Freeze freeze={!visible}>{children}</Freeze>
+      ) : visible ? (
+        children
+      ) : null}
     </Animated.View>
   );
 }

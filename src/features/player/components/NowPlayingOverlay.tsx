@@ -6,7 +6,11 @@ import { PlayerScreen } from '../PlayerScreen';
 import { playerExpansion } from '../playerExpansion';
 
 export interface NowPlayingOverlayProps {
-  /** Keeps the expensive player contents out of the collapsed render path. */
+  /**
+   * Opening, open or closing. Closed, the contents are frozen rather than
+   * unmounted — they cost nothing per render and are already built for the next
+   * open. See `Sheet`'s `keepMounted`.
+   */
   visible: boolean;
   /** Enables controls only after the opening gesture has settled. */
   expanded: boolean;
@@ -47,6 +51,7 @@ export function NowPlayingOverlay({
       progress={playerExpansion}
       visible={visible}
       expanded={expanded}
+      keepMounted
       className="absolute inset-0 z-30 bg-surface"
     >
       {/*
