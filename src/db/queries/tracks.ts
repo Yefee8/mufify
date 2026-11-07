@@ -1,5 +1,4 @@
 import { and, asc, count, desc, eq, inArray, isNull, like, or, sql, type SQL } from 'drizzle-orm';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useEffect, useMemo } from 'react';
 
 import { dedupeTracks } from '@/services/library/dedupeTracks';
@@ -19,6 +18,7 @@ import { notifyUserDataChanged } from '../changes';
 import { db } from '../client';
 import { useThrottledData } from '../useThrottledData';
 import { albums, artists, trackStats, tracks, type NewTrack } from '../schema';
+import { useLiveQuery } from './liveQuery';
 
 /** A track with its artist and album names resolved, ready for a list row. */
 export interface TrackListItem {

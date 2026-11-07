@@ -1,5 +1,4 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useMemo } from 'react';
 
 import { mergeSimilarAlbums, mergeSimilarArtists } from '@/services/stats/mergeArtists';
@@ -7,6 +6,7 @@ import type { PeriodType } from '@/services/stats/rollups';
 
 import { db } from '../client';
 import { albums, artists, playlists, statsRollups, tracks } from '../schema';
+import { useLiveQuery } from './liveQuery';
 
 /**
  * Everything the statistics screens read.

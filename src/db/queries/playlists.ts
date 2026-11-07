@@ -1,5 +1,4 @@
 import { and, asc, desc, eq, gt, max, sql } from 'drizzle-orm';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 
 import { deleteCoverFile } from '@/services/playlists/cover';
 import {
@@ -12,6 +11,7 @@ import {
 import { notifyUserDataChanged } from '../changes';
 import { db } from '../client';
 import { albums, artists, playlistTracks, playlists, trackStats, tracks } from '../schema';
+import { useLiveQuery } from './liveQuery';
 
 /* Re-exported so screens keep importing playlist types from the query module. */
 export type { PlaylistSummary };

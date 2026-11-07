@@ -1,5 +1,4 @@
 import { and, asc, count, eq, inArray, isNull, sql } from 'drizzle-orm';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 
 import * as perf from '@/services/perf';
 import { needsRescan } from '@/services/scanner/trackMapping';
@@ -7,6 +6,7 @@ import { needsRescan } from '@/services/scanner/trackMapping';
 import { db } from '../client';
 
 import { albums, artists, scanFolders, tracks } from '../schema';
+import { useLiveQuery } from './liveQuery';
 
 /**
  * Writes the scanner performs. Kept here rather than in the scanner service
