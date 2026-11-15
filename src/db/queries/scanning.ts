@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm';
 
 import * as perf from '@/services/perf';
 import { needsRescan } from '@/services/scanner/trackMapping';
@@ -345,7 +345,13 @@ async function existingFingerprints(
 
 export interface EnrichedRow {
   fileUri: string;
-  fields: {
+  /**
+   * Null for a file the reader could not open. The row is still stamped
+   * `lastScannedAt` — being unreadable is this scan's answer for it, and a row
+   * that never leaves the queue is a scan that never ends. A later rescan
+   * clears the stamp if the file changes, so a transient failure heals.
+   */
+  fields: null | {
     title?: string;
     artistName: string | null;
     albumName: string | null;
@@ -383,12 +389,12 @@ export async function saveEnriched(rows: EnrichedRow[]): Promise<void> {
   const now = Date.now();
   const artistIds = await resolveArtists(
     rows
-      .flatMap(({ fields }) => [fields.artistName, fields.albumArtist])
+      .flatMap(({ fields }) => (fields === null ? [] : [fields.artistName, fields.albumArtist]))
       .filter((name): name is string => name !== null),
   );
   const albumIds = await resolveAlbums(
     rows.flatMap(({ fields }) => {
-      if (fields.albumName === null) return [];
+      if (fields === null || fields.albumName === null) return [];
       const artistId = albumArtistIdOf(fields, artistIds);
       return [{ name: fields.albumName, artistId }];
     }),
@@ -396,6 +402,10 @@ export async function saveEnriched(rows: EnrichedRow[]): Promise<void> {
 
   await db.transaction(async (tx) => {
     for (const { fileUri, fields } of rows) {
+      if (fields === null) {
+        await tx.update(tracks).set({ lastScannedAt: now }).where(eq(tracks.fileUri, fileUri));
+        continue;
+      }
       const artistId =
         fields.artistName === null ? null : (artistIds.get(fields.artistName) ?? null);
       await tx
@@ -434,11 +444,23 @@ export async function saveEnriched(rows: EnrichedRow[]): Promise<void> {
  * no separate table, and a scan that dies mid-way resumes exactly where it
  * stopped.
  */
-export async function listUnenrichedUris(limit: number): Promise<string[]> {
+export async function listUnenrichedUris(
+  limit: number,
+  excluding: readonly string[] = [],
+): Promise<string[]> {
   const rows = await db
     .select({ fileUri: tracks.fileUri })
     .from(tracks)
-    .where(and(isNull(tracks.lastScannedAt), eq(tracks.isMissing, 0)))
+    .where(
+      and(
+        isNull(tracks.lastScannedAt),
+        eq(tracks.isMissing, 0),
+        // The batch the readers are holding right now — still unenriched, and
+        // not to be handed out twice. A batch is small, far under SQLite's
+        // bound-parameter cap.
+        ...(excluding.length > 0 ? [notInArray(tracks.fileUri, [...excluding])] : []),
+      ),
+    )
     .limit(limit);
 
   return rows.map((row) => row.fileUri);

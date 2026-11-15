@@ -93,9 +93,22 @@ function harness(library: MediaStoreTrack[], pending: string[] = []): Harness {
       saved.push(...rows);
     },
     saveEnriched: async (rows) => {
-      enriched.push(...rows);
+      // The real queue is `lastScannedAt IS NULL`, drained by the write — the
+      // whole batch leaves it, including rows the reader skipped (null fields).
+      for (const row of rows) {
+        const at = queue.indexOf(row.fileUri);
+        if (at !== -1) queue.splice(at, 1);
+        if (row.fields !== null) enriched.push({ fileUri: row.fileUri, fields: row.fields });
+      }
     },
-    listUnenrichedUris: async (limit) => queue.splice(0, limit),
+    listUnenrichedUris: async (limit, excluding = []) => {
+      const found: string[] = [];
+      for (const uri of queue) {
+        if (found.length === limit) break;
+        if (!excluding.includes(uri)) found.push(uri);
+      }
+      return found;
+    },
     countUnenriched: async () => queue.length,
     yieldToUi: async () => {
       state.yields += 1;

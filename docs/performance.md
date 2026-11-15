@@ -542,3 +542,25 @@ and every live query re-ran per row. The JS heap passed 900 MB and the process
 went to swap; afterwards everything stayed slow until a restart. The per-burst
 live query (`docs/adr/034`) is the fix, and it is also why a listen recorded
 mid-navigation no longer stalls the page being opened.
+
+---
+
+## The scan, 2026-11-16 (2.0.0)
+
+Profiled per phase on the Pixel_7 AVD (release build, 3,441 FLAC files), by
+wrapping each port in a temporary accumulator. Where the ~320 s went, and what
+it became after ADR 038:
+
+| | before | after |
+|---|---:|---:|
+| native tag reading (all cores) | 123 s | 123 s |
+| waiting in `requestIdleCallback` yields | 171 s | — |
+| scan wall clock | ~320 s | **132 s** |
+| JS-thread CPU over the scan | ~310 s | 94 s |
+| one duplicate-hiding pass | 1.7 s | ~0.65 s |
+
+The readers were already one-per-core; the scan was slow because they sat
+idle behind every JS stall. With the next batch prefetched the wall clock sits
+on the native floor: 132 ≈ 123 s of reading plus the enumerate phase. The
+remaining JS cost during a scan is the live library list re-running and
+re-deduping per burst of writes; it no longer extends the scan.

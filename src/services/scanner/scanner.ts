@@ -68,9 +68,14 @@ export interface ScannerPorts {
 
   /** Batched insert-or-update, keyed on file URI. */
   saveEnumerated(rows: ScannedTrack[]): Promise<void>;
-  saveEnriched(rows: { fileUri: string; fields: EnrichedFields }[]): Promise<void>;
+  saveEnriched(rows: { fileUri: string; fields: EnrichedFields | null }[]): Promise<void>;
   /** URIs that stage two has not reached yet. */
-  listUnenrichedUris(limit: number): Promise<string[]>;
+  /**
+   * Rows stage two has not reached, `excluding` the batch currently in the
+   * readers' hands — it is still unenriched while it is being read, and the
+   * prefetched batch must not be the same files again.
+   */
+  listUnenrichedUris(limit: number, excluding?: readonly string[]): Promise<string[]>;
 
   /**
    * How many rows stage two still has to open.
@@ -171,6 +176,18 @@ export async function enumerateLibrary(
 /**
  * Stage two. Opens files in small batches, writing each batch before starting
  * the next so a cancelled or crashed scan keeps everything it already did.
+ *
+ * **The native readers are never left waiting for JavaScript.** Reading tags
+ * happens off the JS thread, across one worker per CPU core — so while a batch
+ * is being read, this thread is free, and while this thread writes a batch or
+ * hands the frame back, the readers should already be on the next one. The
+ * loop therefore starts reading batch N+1 the moment batch N's tags arrive,
+ * before N is written. Without that overlap the readers sat idle for every
+ * database write, every yield and every re-render the writes caused — on the
+ * emulator that idle time was longer than the reading itself.
+ *
+ * The prefetched batch is listed before the current one is saved, when both
+ * are still unenriched, so the current URIs are explicitly excluded from it.
  */
 export async function enrichLibrary(
   ports: ScannerPorts,
@@ -179,6 +196,9 @@ export async function enrichLibrary(
   controller: ScanController = NEVER_CANCELLED,
 ): Promise<ScanProgress> {
   let progress: ScanProgress = { phase: 'enriching', total: 0, processed: 0 };
+
+  const read = (uris: string[]) =>
+    ports.readTags(uris, { artworkDirectory: options.artworkDirectory });
 
   try {
     /*
@@ -191,23 +211,22 @@ export async function enrichLibrary(
     onProgress(progress);
 
     let processed = 0;
+    let uris = await ports.listUnenrichedUris(options.enrichBatchSize);
+    let reading = uris.length > 0 ? read(uris) : null;
 
-    for (;;) {
+    while (reading !== null) {
       if (controller.isCancelled()) return finish(progress, 'cancelled', onProgress);
 
-      const uris = await ports.listUnenrichedUris(options.enrichBatchSize);
-      if (uris.length === 0) break;
+      const tags = await reading;
 
-      const tags = await ports.readTags(uris, {
-        artworkDirectory: options.artworkDirectory,
-      });
+      // The readers move on to the next batch before this one is written.
+      const nextUris = await ports.listUnenrichedUris(options.enrichBatchSize, uris);
+      reading = nextUris.length > 0 ? read(nextUris) : null;
 
-      const rows = tags.flatMap((tag) => {
-        const fields = fromTags(tag);
-        // A file that would not open is skipped, not retried forever — it
-        // still counts as processed so the progress bar can finish.
-        return fields ? [{ fileUri: tag.uri, fields }] : [];
-      });
+      // A file that would not open is written with null fields: the write is
+      // what takes a row out of the queue, and a row that stayed would be
+      // listed, read and failed again on every lap — a scan that never ends.
+      const rows = tags.map((tag) => ({ fileUri: tag.uri, fields: fromTags(tag) }));
 
       await ports.saveEnriched(rows);
 
@@ -218,6 +237,7 @@ export async function enrichLibrary(
       progress = { ...progress, processed, total: Math.max(progress.total, processed) };
       onProgress(progress);
 
+      uris = nextUris;
       await ports.yieldToUi();
     }
 

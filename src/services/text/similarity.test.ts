@@ -157,3 +157,28 @@ describe('editDistance', () => {
     expect(editDistance('kitten', 'sitting', 5)).toBe(3);
   });
 });
+
+describe('normalizeName, the ASCII fast path', () => {
+  // ASCII names skip the Unicode machinery; the answer must not change.
+  it('agrees with the general path for plain ASCII', () => {
+    const general = (name: string) =>
+      name
+        .normalize('NFD')
+        .replace(/\p{M}+/gu, '')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .trim()
+        .replace(/\s+/gu, ' ');
+    const names = ['Signal Hill', '  A.F.I. -- Live!! ', 'MIX_2024 (v2)', '', '***', 'a'];
+    for (const name of names) expect(normalizeName(name)).toBe(general(name));
+  });
+
+  it('returns the same answer from the cache as from the computation', () => {
+    // Ask twice: the second answer comes from the cache and must be identical.
+    for (let i = 0; i < 2; i += 1) {
+      expect(normalizeName('İstanbul')).toBe('istanbul');
+      expect(normalizeName('LINKIN PARK')).toBe('linkin park');
+      expect(normalizeName('Noël — Déjà Vu')).toBe('noel deja vu');
+    }
+  });
+});

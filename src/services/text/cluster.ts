@@ -1,4 +1,4 @@
-import { isSimilar, normalizeName } from './similarity';
+import { isSimilarNormalized, normalizeName } from './similarity';
 
 /**
  * Grouping things whose names are the same name written differently.
@@ -109,11 +109,15 @@ export function clusterBySimilarName<T>(
   );
 
   for (let i = 0; i < order.length; i += 1) {
-    const limit = Math.min(order.length, window === Number.POSITIVE_INFINITY ? order.length : i + window + 1);
+    const limit = Math.min(
+      order.length,
+      window === Number.POSITIVE_INFINITY ? order.length : i + window + 1,
+    );
     for (let j = i + 1; j < limit; j += 1) {
       const a = distinct[order[i] as number] as string;
       const b = distinct[order[j] as number] as string;
-      if (!isSimilar(a, b, options.threshold)) continue;
+      // Already normalised: these are the keys built above.
+      if (!isSimilarNormalized(a, b, options.threshold)) continue;
 
       const rootA = find(order[i] as number);
       const rootB = find(order[j] as number);

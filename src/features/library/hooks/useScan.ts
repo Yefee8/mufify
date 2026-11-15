@@ -12,10 +12,7 @@ import {
   saveEnumerated,
 } from '@/db/queries/scanning';
 import { restoreStatsAfterImport } from '@/services/backup/statsBackup';
-import {
-  refreshAudioPermission,
-  requestAudioPermission,
-} from '@/services/scanner/audioPermission';
+import { refreshAudioPermission, requestAudioPermission } from '@/services/scanner/audioPermission';
 import { isPickerDismissal } from '@/services/scanner/pickerError';
 import { treeUriToPath } from '@/services/scanner/treeUri';
 import { getIgnoreShortFiles } from '@/services/settings';
@@ -38,7 +35,6 @@ const SHORT_FILE_MS = 30_000;
  * has ever been allowed to read the library.
  */
 type PermissionOutcome = 'already-granted' | 'granted-now' | 'denied';
-
 
 /** Where extracted artwork lives. Cache, not documents — it is rebuildable. */
 function artworkDirectory(): string {
@@ -93,38 +89,48 @@ export function useScan(): UseScanResult {
       listUnenrichedUris,
       countUnenriched,
       retireUnseen,
-      // Hand the frame back between batches so scrolling never stutters.
-      // `requestIdleCallback` rather than InteractionManager, which RN 0.86
-      // deprecates and warns about at runtime.
+      /*
+       * Hand the event loop back between batches so touches and renders run.
+       *
+       * A macrotask, not `requestIdleCallback`: an idle callback waits for a
+       * genuinely free frame, and during a scan the JS thread rarely reports
+       * one — measured on the emulator each "idle" wait ran to over a second,
+       * and across a full scan the waits added to more wall-clock than the
+       * file reading itself. `src/db/queries/scanning.ts` documents the same
+       * finding for the write-side yields.
+       */
       yieldToUi: () =>
         new Promise<void>((resolve) => {
-          requestIdleCallback(() => resolve(), { timeout: 250 });
+          setTimeout(resolve, 0);
         }),
     }),
     [],
   );
 
-  const run = useCallback(async (pathPrefix: string | null = null) => {
-    cancelled.current = false;
-    const controller = { isCancelled: () => cancelled.current };
+  const run = useCallback(
+    async (pathPrefix: string | null = null) => {
+      cancelled.current = false;
+      const controller = { isCancelled: () => cancelled.current };
 
-    /*
-     * Read at scan time, not captured at mount: the switch is in Settings and
-     * the scan is started from the Library, so the value can legitimately change
-     * between this hook mounting and the user pressing Scan.
-     */
-    const options = {
-      ...DEFAULT_SCAN_OPTIONS,
-      minDurationMs: getIgnoreShortFiles() ? SHORT_FILE_MS : DEFAULT_SCAN_OPTIONS.minDurationMs,
-      artworkDirectory: artworkDirectory(),
-      pathPrefix,
-    };
+      /*
+       * Read at scan time, not captured at mount: the switch is in Settings and
+       * the scan is started from the Library, so the value can legitimately change
+       * between this hook mounting and the user pressing Scan.
+       */
+      const options = {
+        ...DEFAULT_SCAN_OPTIONS,
+        minDurationMs: getIgnoreShortFiles() ? SHORT_FILE_MS : DEFAULT_SCAN_OPTIONS.minDurationMs,
+        artworkDirectory: artworkDirectory(),
+        pathPrefix,
+      };
 
-    const enumerated = await enumerateLibrary(ports, options, setProgress, controller);
-    if (enumerated.phase !== 'done') return;
+      const enumerated = await enumerateLibrary(ports, options, setProgress, controller);
+      if (enumerated.phase !== 'done') return;
 
-    await enrichLibrary(ports, options, setProgress, controller);
-  }, [ports]);
+      await enrichLibrary(ports, options, setProgress, controller);
+    },
+    [ports],
+  );
 
   /**
    * Make sure the audio permission is actually granted, asking for it if it

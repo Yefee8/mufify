@@ -30,14 +30,46 @@
  * one thing.
  */
 export function normalizeName(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/\p{M}+/gu, '')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .trim()
-    .replace(/\s+/gu, ' ');
+  const known = NORMALIZED.get(name);
+  if (known !== undefined) return known;
+
+  /*
+   * Plain ASCII takes one pass and no Unicode tables: nothing to decompose, no
+   * marks to strip, and "not a letter or digit" is a character class. Most
+   * tags are this, and the general path below costs several times as much —
+   * it was most of what duplicate hiding spent.
+   */
+  const normalized = ASCII_ONLY.test(name)
+    ? name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim()
+    : name
+        .normalize('NFD')
+        .replace(/\p{M}+/gu, '')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .trim()
+        .replace(/\s+/gu, ' ');
+
+  // Bounded by forgetting everything: a library's names fit many times over,
+  // and a cache that is rebuilt once in a long while is simpler than one that
+  // tracks what it used last.
+  if (NORMALIZED.size >= NORMALIZED_LIMIT) NORMALIZED.clear();
+  NORMALIZED.set(name, normalized);
+  return normalized;
 }
+
+/**
+ * Names already normalised, by the name as written.
+ *
+ * The same few thousand titles and artists are normalised every time the
+ * library list changes — the list is re-clustered whole — and the answer for a
+ * given string never changes.
+ */
+const NORMALIZED = new Map<string, string>();
+const NORMALIZED_LIMIT = 50_000;
+const ASCII_ONLY = /^[\x00-\x7f]*$/;
 
 /**
  * How alike two names are, from 0 to 1.
@@ -70,8 +102,19 @@ export function similarity(left: string, right: string): number {
  * first keeps the quadratic part of any caller off the pairs that cannot match.
  */
 export function isSimilar(left: string, right: string, threshold: number): boolean {
-  const a = normalizeName(left);
-  const b = normalizeName(right);
+  return isSimilarNormalized(normalizeName(left), normalizeName(right), threshold);
+}
+
+/**
+ * `isSimilar` for two names that have already been through `normalizeName`.
+ *
+ * The clustering pass normalises every name once and then compares each to
+ * its neighbours — sixteen comparisons a name. Going through `isSimilar` there
+ * normalised both sides again on every one of them, which on a 3,400-track
+ * library was a hundred thousand normalisations per pass and almost all of its
+ * time: 1.7 s a pass on the emulator, run on every change to the list.
+ */
+export function isSimilarNormalized(a: string, b: string, threshold: number): boolean {
   if (a === b) return a.length > 0;
   if (a.length === 0 || b.length === 0) return false;
 
