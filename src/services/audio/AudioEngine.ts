@@ -50,7 +50,7 @@ import {
 const STATUS_INTERVAL_MS = 500;
 
 /**
- * What the patched player adds — see `patches/expo-audio+57.0.3.patch`.
+ * What the patched player adds — see `patches/expo-audio+58.0.12.patch`.
  *
  * `setNextSource` hands the player the item after the current one, or nothing;
  * `trackTransition` arrives on the status update in which the player has moved
@@ -66,24 +66,24 @@ interface TransitionStatus {
 }
 
 /**
- * Previous and next on the notification, in place of the seek buttons — and,
- * where Android still honours one, the app's own layout.
+ * Previous and next on the notification, in place of the seek buttons.
  *
- * Also from the patch. The seek buttons are session custom commands, and a
- * session that declares any custom button has its skip actions stripped from
- * the legacy playback state by media3 — which is what Bluetooth, the lock
- * screen and Android's own media controls read. So the seek buttons go, the
- * skip buttons come, and both arrive at `onMediaSkip` by the same broadcast.
+ * The options are expo-audio's own since SDK 58; what the patch adds is a
+ * player that answers them. expo-audio offers track buttons to a playable
+ * that has tracks, which for it means its playlist class — this player holds
+ * one item and the queue is here, so the patched player says yes to both and
+ * announces the press, and it arrives at `onMediaSkip` by the same broadcast
+ * a Bluetooth remote's keys take.
  *
- * `customNotification` is the cover-title-artist-buttons layout on Android 12
- * and below. Android 13 and later draw media notifications from the session
- * and ignore it, which is the fallback: the standard controls, unchanged.
+ * The notification is the platform's media style on every Android version,
+ * with the app's own icons. The custom layout that used to draw it below
+ * Android 13 is gone: MIUI cut it in half. See `docs/adr/037`.
  */
 const LOCK_SCREEN_CONTROLS = {
   showSeekForward: false,
   showSeekBackward: false,
-  showSkipControls: true,
-  customNotification: true,
+  showNextTrack: true,
+  showPreviousTrack: true,
 } as const;
 
 type Listener = (state: PlaybackState) => void;
@@ -216,10 +216,16 @@ class Engine {
   /**
    * Claim the audio session.
    *
-   * `doNotMix` is not a preference: the tech stack doc records that the
-   * lock-screen controls only bind correctly when exclusive focus is
-   * requested. It is also the right behaviour — a music player that keeps
-   * playing under a podcast is not what anyone wants.
+   * Exclusive focus is not a preference: the tech stack doc records that the
+   * lock-screen controls only bind correctly when it is requested. It is also
+   * the right behaviour — a music player that keeps playing under a podcast is
+   * not what anyone wants.
+   *
+   * `doNotMixPersistent`, not `doNotMix`. Plain `doNotMix` asks for focus
+   * transiently, which is for a clip: whoever was playing before pauses and
+   * resumes the moment it is released — so pausing this app brought the other
+   * player back, on its own. A music player that starts means the last one
+   * has stopped. This used to be a patch to expo-audio; SDK 58 has the mode.
    */
   private async configure(): Promise<void> {
     if (this.configured) return;
@@ -227,7 +233,7 @@ class Engine {
 
     await setAudioModeAsync({
       playsInSilentMode: true,
-      interruptionMode: 'doNotMix',
+      interruptionMode: 'doNotMixPersistent',
       shouldPlayInBackground: true,
     });
 

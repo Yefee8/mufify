@@ -1,6 +1,6 @@
 # 026 — Previous and next on the notification, and a session that declares no custom buttons
 
-**Status:** accepted · extends [ADR 017](017-patching-expo-audio-for-track-navigation.md) · custom layout added for 1.4.6
+**Status:** accepted · extends [ADR 017](017-patching-expo-audio-for-track-navigation.md) · custom layout added for 1.4.6, removed by [ADR 037](037-one-media-notification.md)
 **Date:** 2026-09-15
 
 ## Context

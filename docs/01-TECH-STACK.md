@@ -23,7 +23,7 @@ These are the four choices that shape everything else. Read §2 before locking t
 
 | Layer | Choice | Notes |
 |---|---|---|
-| Framework | **Expo SDK 57** (RN 0.86, React 19.2) | SDK 56 (RN 0.85) is the conservative pick. SDK 55+ is New-Architecture-only. |
+| Framework | **Expo SDK 58** (RN 0.88, React 19.3) | SDK 56 (RN 0.85) is the conservative pick. SDK 55+ is New-Architecture-only. |
 | Language | **TypeScript**, `strict: true` | No `any` in committed code. |
 | Routing | **expo-router** (file-based) | Tabs and detail routes; Now Playing is a root overlay. |
 | Audio | **`expo-audio`** | Background playback, media notification, lock-screen controls, playlists. Media3/ExoPlayer on Android → native FLAC, ALAC, Opus, Vorbis, WAV support. |

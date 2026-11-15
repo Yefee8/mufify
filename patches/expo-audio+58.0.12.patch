@@ -1,0 +1,642 @@
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
+index 6c81fce..4b7f68c 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
+@@ -573,6 +573,25 @@ class AudioModule : Module() {
+         }
+       }
+ 
++      /**
++       * The ExoPlayer's audio session, for attaching an `AudioEffect`.
++       *
++       * `android.media.audiofx.Equalizer` is constructed against a session id
++       * and there is no other way to reach this one — the player is created
++       * inside this module and never handed out. Session 0, the global output
++       * mix, is not an answer: it has been restricted since Android 9 and an
++       * effect attached to it is silently ignored on most devices.
++       *
++       * Read on the main thread, because ExoPlayer is built with the main
++       * looper and throws on access from any other — and read on demand rather
++       * than captured at construction, because the id is `AUDIO_SESSION_ID_UNSET`
++       * until the audio renderer is initialised. Ask before anything has
++       * played and the answer is a useless zero.
++       */
++      Property("audioSessionId") { player: AudioPlayer ->
++        runOnMain { player.ref.audioSessionId }
++      }
++
+       Property("id") { player ->
+         player.id
+       }
+@@ -685,6 +704,24 @@ class AudioModule : Module() {
+         }
+       }
+ 
++      /**
++       * Hand the player the track after this one, or nothing.
++       *
++       * The queue lives in JavaScript, and this is how it tells the player
++       * what is coming without giving up ownership: one item ahead, replaced
++       * whenever the queue changes, cleared when nothing follows.
++       */
++      Function("setNextSource") { player: AudioPlayer, source: AudioSource? ->
++        runOnMain {
++          val mediaSource = createMediaItem(source)
++          if (mediaSource == null) {
++            player.clearNextMediaSource()
++          } else {
++            player.setNextMediaSource(mediaSource)
++          }
++        }
++      }
++
+       Function("replace") { player: AudioPlayer, source: AudioSource? ->
+         runOnMain {
+           if (player.ref.availableCommands.contains(Player.COMMAND_CHANGE_MEDIA_ITEMS)) {
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+index fb2d0b5..6b0c840 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+@@ -2,12 +2,14 @@ package expo.modules.audio
+ 
+ import android.Manifest
+ import android.content.Context
++import android.content.Intent
+ import android.content.pm.PackageManager
+ import android.media.audiofx.Visualizer
+ import android.util.Log
+ import androidx.core.content.ContextCompat
+ import androidx.media3.common.AudioAttributes
+ import androidx.media3.common.C
++import androidx.media3.common.MediaItem
+ import androidx.media3.common.PlaybackException
+ import androidx.media3.common.PlaybackParameters
+ import androidx.media3.common.Player
+@@ -16,6 +18,7 @@ import androidx.media3.exoplayer.DefaultLoadControl
+ import androidx.media3.exoplayer.ExoPlayer
+ import androidx.media3.exoplayer.source.MediaSource
+ import androidx.media3.session.MediaSession
++import expo.modules.audio.service.AudioMediaSessionCallback
+ import expo.modules.audio.service.AudioPlaybackServiceConnection
+ import expo.modules.kotlin.AppContext
+ import expo.modules.kotlin.exception.Exceptions
+@@ -109,6 +112,83 @@ class AudioPlayer(
+     ref.clearMediaItems()
+   }
+ 
++  /**
++   * Queue the item that follows this one, so ExoPlayer decodes it now and
++   * joins it to the current one when the current one ends.
++   *
++   * This is what closes the gap between tracks. `setMediaSource` tears the
++   * timeline down and rebuilds it, and the silence a listener hears is the
++   * new source being opened and its first buffer filled — work that, with a
++   * second item already in the timeline, ExoPlayer does ahead of time and
++   * joins sample-accurately for the formats that carry gapless metadata.
++   *
++   * The timeline is kept to exactly `[current, next]`: anything before the
++   * current item is a track that has finished, and anything after the next
++   * is a guess about a queue that JavaScript owns and may have changed.
++   */
++  fun setNextMediaSource(source: MediaSource) {
++    trimToCurrent()
++    ref.addMediaSource(source)
++  }
++
++  /** Nothing follows — the end of the queue, or repeat-one, or a reshuffle. */
++  fun clearNextMediaSource() {
++    trimToCurrent()
++  }
++
++  private fun trimToCurrent() {
++    val current = ref.currentMediaItemIndex
++    val count = ref.mediaItemCount
++    // After first, so the current index does not shift under the second call.
++    if (count > current + 1) ref.removeMediaItems(current + 1, count)
++    if (current > 0) ref.removeMediaItems(0, current)
++  }
++
++  /**
++   * ExoPlayer moved to the next item by itself: the previous one ended.
++   *
++   * Reported as its own field rather than as `didJustFinish`, because the two
++   * mean different things to the app. `didJustFinish` is the player having
++   * stopped — there is nothing after this — and JavaScript answers it by
++   * loading whatever comes next. A transition is the player having *already*
++   * started what comes next, and the answer is bookkeeping, not a load.
++   */
++  override fun onMediaItemChanged(mediaItem: MediaItem?, reason: Int) {
++    if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
++      sendStatusUpdate(mapOf("trackTransition" to true))
++    } else {
++      super.onMediaItemChanged(mediaItem, reason)
++    }
++  }
++
++  /*
++   * Previous and next, answered by the app.
++   *
++   * expo-audio offers track buttons to a playable that has tracks, which in
++   * its own world is `AudioPlaylist`. This player holds one item and the queue
++   * is in JavaScript, so it says yes to both and announces the request: the
++   * app's own module hears the broadcast and hands it to the queue. One road
++   * for the notification's buttons, the lock screen and a Bluetooth remote.
++   */
++  override val supportsNextTrack: Boolean
++    get() = true
++
++  override val supportsPreviousTrack: Boolean
++    get() = true
++
++  override fun nextTrack() = sendSkip("next")
++
++  override fun previousTrack() = sendSkip("previous")
++
++  private fun sendSkip(direction: String) {
++    val reactContext = appContext?.reactContext ?: return
++    reactContext.sendBroadcast(
++      Intent(AudioMediaSessionCallback.ACTION_MEDIA_SKIP)
++        .setPackage(reactContext.packageName)
++        .putExtra(AudioMediaSessionCallback.EXTRA_DIRECTION, direction)
++    )
++  }
++
+   override fun onPlaybackStateUpdated(playbackState: Int, justFinished: Boolean) {
+     val updateMap = mutableMapOf<String, Any?>(
+       "playbackState" to playbackStateToString(playbackState)
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
+index 53c36f7..0b8278a 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
+@@ -27,6 +27,7 @@ import expo.modules.audio.AudioLockScreenOptions
+ import expo.modules.audio.LockScreenPlayable
+ import expo.modules.audio.Metadata
+ import expo.modules.audio.PlayRequestingPlayer
++import expo.modules.audio.R
+ import expo.modules.audio.getPlaybackServiceErrorMessage
+ import expo.modules.kotlin.AppContext
+ import kotlinx.coroutines.CoroutineScope
+@@ -123,7 +124,7 @@ class AudioControlsService : MediaSessionService() {
+ 
+   private fun buildPlaceholderNotification(): Notification =
+     NotificationCompat.Builder(this, CHANNEL_ID)
+-      .setSmallIcon(androidx.media3.session.R.drawable.media3_icon_circular_play)
++      .setSmallIcon(R.drawable.mufify_ic_stat)
+       .setContentTitle("‎")
+       .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+       .setSilent(true)
+@@ -143,15 +144,17 @@ class AudioControlsService : MediaSessionService() {
+   private fun createNotificationChannelIfNeeded() {
+     val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+-      if (notificationManager.getNotificationChannel(CHANNEL_ID) == null) {
+-        notificationManager.createNotificationChannel(
+-          NotificationChannel(
+-            CHANNEL_ID,
+-            CHANNEL_ID,
+-            NotificationManager.IMPORTANCE_LOW
+-          )
+-        )
+-      }
++      // Created every time, not only when missing: creating a channel that
++      // exists changes nothing but its name, and the name is what the user
++      // reads in system settings — it used to be the raw id, and it follows
++      // the phone's language.
++      notificationManager.createNotificationChannel(
++        NotificationChannel(
++          CHANNEL_ID,
++          getString(R.string.mufify_notification_channel),
++          NotificationManager.IMPORTANCE_LOW
++        ).apply { setShowBadge(false) }
++      )
+     }
+   }
+ 
+@@ -165,21 +168,49 @@ class AudioControlsService : MediaSessionService() {
+     )
+   }
+ 
++  /**
++   * A notification button, as a foreground-service start.
++   *
++   * `getService` is enough on stock Android, where a button on a notification
++   * earns the app a moment of background allowance. Some vendors do not grant
++   * it — MIUI among them — and a plain `startService` from a backgrounded app
++   * is then refused outright: the button does nothing and nothing says why. A
++   * foreground start is always allowed to reach a service that promotes itself
++   * at once, which `onStartCommand` does before anything else.
++   */
+   private fun buildActionPendingIntent(action: String): PendingIntent {
+     val intent = Intent(this, AudioControlsService::class.java).setAction(action)
+-    return PendingIntent.getService(
+-      this,
+-      action.hashCode(),
+-      intent,
+-      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+-    )
++    val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
++    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
++      PendingIntent.getForegroundService(this, action.hashCode(), intent, flags)
++    } else {
++      PendingIntent.getService(this, action.hashCode(), intent, flags)
++    }
+   }
+ 
++  /**
++   * One media notification, the same on every phone.
++   *
++   * The platform's media style and nothing layered on it: cover as the large
++   * icon, title, artist, album, and previous / play-pause / next. It used to
++   * be the app's own `RemoteViews` layout below Android 13, which stock
++   * Android framed as designed and MIUI cut in half — its media template
++   * gives a custom view one side and keeps the other for the cover wash. The
++   * system template is the one every vendor skin has been taught to draw,
++   * which is why other players look the same everywhere: they use it.
++   *
++   * What is the app's own are the icons — the mark in the status bar and the
++   * three transport glyphs, drawn to match the ones on Now Playing — and the
++   * words a screen reader speaks for them, which follow the phone's language.
++   *
++   * From Android 13 the system draws the controls from the session and ignores
++   * the actions here; the title, cover and status-bar mark are still these.
++   */
+   private fun buildNotification(): Notification? {
+     val session = mediaSession ?: return null
+ 
+     val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+-      .setSmallIcon(androidx.media3.session.R.drawable.media3_icon_circular_play)
++      .setSmallIcon(R.drawable.mufify_ic_stat)
+       // If the title is null or empty string android sets the notification to "<AppName> is running..." we want to keep the notification empty so we \u200E to keep the text empty.
+       .setContentTitle(currentMetadata?.title ?: "\u200E")
+       .setContentText(currentMetadata?.artist)
+@@ -187,6 +218,9 @@ class AudioControlsService : MediaSessionService() {
+       .setLargeIcon(currentArtwork)
+       .setContentIntent(buildContentIntent())
+       .setAutoCancel(false)
++      .setShowWhen(false)
++      .setOnlyAlertOnce(true)
++      .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+       .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+ 
+     val style = MediaStyleNotificationHelper.MediaStyle(session)
+@@ -195,12 +229,13 @@ class AudioControlsService : MediaSessionService() {
+     if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
+       val compactViewIndices = mutableListOf<Int>()
+       var currentIndex = 0
++      val playing = session.player.isPlaying
+ 
+       if (currentOptions?.showPreviousTrack == true && currentPlayable?.supportsPreviousTrack == true) {
+         builder.addAction(
+           NotificationCompat.Action(
+-            androidx.media3.session.R.drawable.media3_icon_previous,
+-            "Previous Track",
++            R.drawable.mufify_ic_previous,
++            getString(R.string.mufify_notification_previous),
+             buildActionPendingIntent(ACTION_PREVIOUS_TRACK)
+           )
+         )
+@@ -220,23 +255,9 @@ class AudioControlsService : MediaSessionService() {
+ 
+       builder.addAction(
+         NotificationCompat.Action(
+-          if (session.player.isPlaying) {
+-            androidx.media3.session.R.drawable.media3_icon_pause
+-          } else {
+-            androidx.media3.session.R.drawable.media3_icon_play
+-          },
+-          if (session.player.isPlaying) {
+-            "Pause"
+-          } else {
+-            "Play"
+-          },
+-          buildActionPendingIntent(
+-            if (session.player.isPlaying) {
+-              ACTION_PAUSE
+-            } else {
+-              ACTION_PLAY
+-            }
+-          )
++          if (playing) R.drawable.mufify_ic_pause else R.drawable.mufify_ic_play,
++          getString(if (playing) R.string.mufify_notification_pause else R.string.mufify_notification_play),
++          buildActionPendingIntent(if (playing) ACTION_PAUSE else ACTION_PLAY)
+         )
+       )
+       compactViewIndices.add(currentIndex)
+@@ -245,8 +266,8 @@ class AudioControlsService : MediaSessionService() {
+       if (currentOptions?.showNextTrack == true && currentPlayable?.supportsNextTrack == true) {
+         builder.addAction(
+           NotificationCompat.Action(
+-            androidx.media3.session.R.drawable.media3_icon_next,
+-            "Next Track",
++            R.drawable.mufify_ic_next,
++            getString(R.string.mufify_notification_next),
+             buildActionPendingIntent(ACTION_NEXT_TRACK)
+           )
+         )
+@@ -291,6 +312,27 @@ class AudioControlsService : MediaSessionService() {
+ 
+     val playable = currentPlayable
+ 
++    /*
++     * No custom buttons at all when the app shows previous and next.
++     *
++     * media3 strips `ACTION_SKIP_TO_NEXT` and `ACTION_SKIP_TO_PREVIOUS` from
++     * the legacy playback state once the session declares media button
++     * preferences, and expo-audio's own track buttons are session commands —
++     * custom actions a Bluetooth remote's skip keys do not map to. Declaring
++     * nothing leaves the skip actions exactly as the player's commands
++     * advertise them (see `MetadataInjectingPlayer`), and Android 13+ draws
++     * previous, play/pause and next from those on its own. The reasoning is in
++     * the app's `docs/adr/026`; do not trade it for a custom icon.
++     */
++    val showsTrackButtons =
++      (currentOptions?.showPreviousTrack == true && playable?.supportsPreviousTrack == true) ||
++        (currentOptions?.showNextTrack == true && playable?.supportsNextTrack == true)
++    if (showsTrackButtons) {
++      session.setCustomLayout(mediaButtons)
++      session.setMediaButtonPreferences(mediaButtons)
++      return
++    }
++
+     if (currentOptions?.showPreviousTrack == true && playable?.supportsPreviousTrack == true) {
+       mediaButtons.add(
+         CommandButton.Builder(CommandButton.ICON_PREVIOUS)
+@@ -643,6 +685,24 @@ class AudioControlsService : MediaSessionService() {
+     notificationManager.cancel(notificationId)
+   }
+ 
++  /**
++   * The app was swiped out of the recents list.
++   *
++   * A media service is allowed to outlive its task, and this one does: the
++   * notification carries on playing with no activity behind it, the process
++   * stays up, and the next launch comes back to a JavaScript runtime that has
++   * lost its host — a blank screen that only "force stop" clears.
++   *
++   * Backgrounding is not this. An app behind another app, or with the screen
++   * off, has its task intact and never gets here; only removing the task does.
++   * So the app is told, and it decides what to do about it — there are
++   * statistics to write before anything shuts down.
++   */
++  override fun onTaskRemoved(rootIntent: Intent?) {
++    sendBroadcast(Intent(ACTION_TASK_REMOVED).setPackage(packageName))
++    super.onTaskRemoved(rootIntent)
++  }
++
+   override fun onDestroy() {
+     super.onDestroy()
+ 
+@@ -684,6 +744,8 @@ class AudioControlsService : MediaSessionService() {
+   }
+ 
+   companion object {
++    /** Must match `AppLifecycleModule` in the app. See `onTaskRemoved`. */
++    const val ACTION_TASK_REMOVED = "expo.modules.audio.TASK_REMOVED"
+     private const val CHANNEL_ID = "expo_audio_channel"
+     private const val ACTION_PLAY = "expo.modules.audio.action.PLAY"
+     private const val ACTION_PAUSE = "expo.modules.audio.action.PAUSE"
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
+index ee83be1..d8613b2 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
+@@ -57,6 +57,33 @@ class AudioMediaSessionCallback(
+     }
+   }
+ 
++  /**
++   * Turn a skip into a request to the app instead of a seek.
++   *
++   * The session's player holds the current item and, when one is armed for a
++   * gapless join, the next — so a seek-to-next it carried out itself would
++   * jump the audio without the queue in JavaScript ever hearing of it. The
++   * request is handed to the playable, which announces it, and refused here.
++   */
++  override fun onPlayerCommandRequest(
++    session: MediaSession,
++    controller: MediaSession.ControllerInfo,
++    playerCommand: Int
++  ): Int {
++    when (playerCommand) {
++      Player.COMMAND_SEEK_TO_NEXT, Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM -> service.nextTrack()
++      Player.COMMAND_SEEK_TO_PREVIOUS, Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> service.previousTrack()
++      else -> return super.onPlayerCommandRequest(session, controller, playerCommand)
++    }
++    return SessionResult.RESULT_ERROR_NOT_SUPPORTED
++  }
++
++  companion object {
++    /** Must match `AudioFocusModule` in the app. */
++    const val ACTION_MEDIA_SKIP = "expo.modules.audio.MEDIA_SKIP"
++    const val EXTRA_DIRECTION = "direction"
++  }
++
+   override fun onCustomCommand(
+     session: MediaSession,
+     controller: MediaSession.ControllerInfo,
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt
+index 18203a3..6aada68 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/MetadataInjectingPlayer.kt
+@@ -36,6 +36,45 @@ internal class MetadataInjectingPlayer(
+     super.removeListener(forwardingListener ?: listener)
+   }
+ 
++  /**
++   * Advertise track navigation even though this player holds one item.
++   *
++   * `MediaSession` intersects what the callback allows with what the player
++   * reports, and ExoPlayer reports no next item when there is none in its
++   * timeline — the queue is in JavaScript. Without this the session's legacy
++   * `PlaybackState` carries neither `ACTION_SKIP_TO_NEXT` nor
++   * `ACTION_SKIP_TO_PREVIOUS`, and a Bluetooth remote's skip buttons are
++   * dropped by the framework before anything here is consulted. The commands
++   * are never executed against this player: the callback answers and refuses
++   * them.
++   */
++  override fun getAvailableCommands(): Player.Commands =
++    super.getAvailableCommands()
++      .buildUpon()
++      .add(Player.COMMAND_SEEK_TO_NEXT)
++      .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
++      .add(Player.COMMAND_SEEK_TO_PREVIOUS)
++      .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
++      .build()
++
++  /** `ForwardingPlayer` answers this from the wrapped player, not from above. */
++  override fun isCommandAvailable(command: Int): Boolean = when (command) {
++    Player.COMMAND_SEEK_TO_NEXT,
++    Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
++    Player.COMMAND_SEEK_TO_PREVIOUS,
++    Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> true
++    else -> super.isCommandAvailable(command)
++  }
++
++  /*
++   * The legacy `PlaybackState` that Bluetooth reads sets its skip actions from
++   * the timeline, not only from the commands. One media item means no next and
++   * no previous, so both bits stayed clear whatever the commands said.
++   */
++  override fun hasNextMediaItem(): Boolean = true
++
++  override fun hasPreviousMediaItem(): Boolean = true
++
+   override fun getMediaMetadata(): MediaMetadata {
+     val metadata = injectedMetadata
+     return super.getMediaMetadata()
+diff --git a/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_next.xml b/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_next.xml
+new file mode 100644
+index 0000000..8805183
+--- /dev/null
++++ b/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_next.xml
+@@ -0,0 +1,21 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Next track, as Now Playing draws it: lucide's skip-forward, filled. -->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:pathData="M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z"
++        android:fillColor="#FFFFFFFF"
++        android:strokeColor="#FFFFFFFF"
++        android:strokeWidth="2"
++        android:strokeLineCap="round"
++        android:strokeLineJoin="round" />
++    <path
++        android:pathData="M21 4v16"
++        android:strokeColor="#FFFFFFFF"
++        android:strokeWidth="2"
++        android:strokeLineCap="round"
++        android:strokeLineJoin="round" />
++</vector>
+diff --git a/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_pause.xml b/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_pause.xml
+new file mode 100644
+index 0000000..aae9a51
+--- /dev/null
++++ b/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_pause.xml
+@@ -0,0 +1,22 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Pause, as Now Playing draws it: lucide's glyph, filled. -->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:pathData="M6 3h3a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"
++        android:fillColor="#FFFFFFFF"
++        android:strokeColor="#FFFFFFFF"
++        android:strokeWidth="2"
++        android:strokeLineCap="round"
++        android:strokeLineJoin="round" />
++    <path
++        android:pathData="M15 3h3a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"
++        android:fillColor="#FFFFFFFF"
++        android:strokeColor="#FFFFFFFF"
++        android:strokeWidth="2"
++        android:strokeLineCap="round"
++        android:strokeLineJoin="round" />
++</vector>
+diff --git a/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_play.xml b/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_play.xml
+new file mode 100644
+index 0000000..33e08d2
+--- /dev/null
++++ b/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_play.xml
+@@ -0,0 +1,15 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Play, as Now Playing draws it: lucide's glyph, filled. -->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:pathData="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"
++        android:fillColor="#FFFFFFFF"
++        android:strokeColor="#FFFFFFFF"
++        android:strokeWidth="2"
++        android:strokeLineCap="round"
++        android:strokeLineJoin="round" />
++</vector>
+diff --git a/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_previous.xml b/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_previous.xml
+new file mode 100644
+index 0000000..4b6e3e8
+--- /dev/null
++++ b/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_previous.xml
+@@ -0,0 +1,21 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Previous track, as Now Playing draws it: lucide's skip-back, filled. -->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:pathData="M17.971 4.285A2 2 0 0 1 21 6v12a2 2 0 0 1-3.029 1.715l-9.997-5.998a2 2 0 0 1-.003-3.432z"
++        android:fillColor="#FFFFFFFF"
++        android:strokeColor="#FFFFFFFF"
++        android:strokeWidth="2"
++        android:strokeLineCap="round"
++        android:strokeLineJoin="round" />
++    <path
++        android:pathData="M3 20V4"
++        android:strokeColor="#FFFFFFFF"
++        android:strokeWidth="2"
++        android:strokeLineCap="round"
++        android:strokeLineJoin="round" />
++</vector>
+diff --git a/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_stat.xml b/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_stat.xml
+new file mode 100644
+index 0000000..eeb6c10
+--- /dev/null
++++ b/node_modules/expo-audio/android/src/main/res/drawable/mufify_ic_stat.xml
+@@ -0,0 +1,14 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Mufify's mark, as the status bar draws it: the launcher icon's curve, white on nothing. -->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:pathData="M4.5 18C6 10 7.6 6 9 6C10.7 6 10.2 13 12 13C13.8 13 13.3 6 15 6C16.4 6 18 10 19.5 18"
++        android:strokeColor="#FFFFFFFF"
++        android:strokeWidth="2"
++        android:strokeLineCap="round"
++        android:strokeLineJoin="round" />
++</vector>
+diff --git a/node_modules/expo-audio/android/src/main/res/values-tr/mufify_notification_strings.xml b/node_modules/expo-audio/android/src/main/res/values-tr/mufify_notification_strings.xml
+new file mode 100644
+index 0000000..c6f129b
+--- /dev/null
++++ b/node_modules/expo-audio/android/src/main/res/values-tr/mufify_notification_strings.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- What a screen reader says for the media notification's buttons, and the
++     name its channel has in system settings. Android picks the file by the
++     phone's language, which is the language the notification shade is in. -->
++<resources>
++    <string name="mufify_notification_channel">Oynatma</string>
++    <string name="mufify_notification_previous">Önceki parça</string>
++    <string name="mufify_notification_play">Çal</string>
++    <string name="mufify_notification_pause">Duraklat</string>
++    <string name="mufify_notification_next">Sonraki parça</string>
++</resources>
+diff --git a/node_modules/expo-audio/android/src/main/res/values/mufify_notification_strings.xml b/node_modules/expo-audio/android/src/main/res/values/mufify_notification_strings.xml
+new file mode 100644
+index 0000000..ffc5654
+--- /dev/null
++++ b/node_modules/expo-audio/android/src/main/res/values/mufify_notification_strings.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- What a screen reader says for the media notification's buttons, and the
++     name its channel has in system settings. Android picks the file by the
++     phone's language, which is the language the notification shade is in. -->
++<resources>
++    <string name="mufify_notification_channel">Playback</string>
++    <string name="mufify_notification_previous">Previous track</string>
++    <string name="mufify_notification_play">Play</string>
++    <string name="mufify_notification_pause">Pause</string>
++    <string name="mufify_notification_next">Next track</string>
++</resources>

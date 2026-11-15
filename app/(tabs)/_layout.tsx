@@ -1,9 +1,8 @@
 import { Tabs } from 'expo-router';
-// expo-router vendors react-navigation rather than depending on it, so the tab
-// bar is only reachable through its build path. Needed because the mini player
-// has to sit *above* the bar, which only the `tabBar` slot can express.
-import { BottomTabBar } from 'expo-router/build/react-navigation/bottom-tabs';
-import type { BottomTabBarProps } from 'expo-router/build/react-navigation/bottom-tabs';
+// The stock bar, wrapped: the mini player has to sit *above* it, which only
+// the `tabBar` slot can express. A public entry point since SDK 58 — before
+// that it was only reachable through expo-router's build path.
+import { BottomTabBar, type BottomTabBarProps } from 'expo-router/js-tabs';
 import { BarChart3, Disc3, ListMusic, SlidersHorizontal } from 'lucide-react-native';
 import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -28,7 +27,11 @@ function TabBarWithPlayer(props: BottomTabBarProps) {
   // The bar is the one component inside the tab navigator that lives as long
   // as it does, so it is where the other tabs get built ahead of their first
   // press — see `usePreloadTabs`.
-  usePreloadTabs(props);
+  const focusedKey = props.state.routes[props.state.index]?.key;
+  const navigation =
+    focusedKey === undefined ? undefined : props.descriptors[focusedKey]?.navigation;
+  const preload = useCallback((name: string) => navigation?.preload(name), [navigation]);
+  usePreloadTabs({ state: props.state, preload });
   const onLayout = useCallback((event: LayoutChangeEvent) => {
     setPlayerTabBarHeight(event.nativeEvent.layout.height);
   }, []);

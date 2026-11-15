@@ -57,10 +57,12 @@ the audio session to a foreground media service; without it Android stops
 background playback after roughly three minutes. It is easy to read as "draws
 the lock screen controls" and skip. It is not.
 
-**`interruptionMode: 'doNotMix'`.** Set once in `configure()`. The lock-screen
-controls do not bind correctly without exclusive audio focus. It is also the
-right behaviour: a music player that keeps playing under a podcast is not what
-anyone wants.
+**`interruptionMode: 'doNotMixPersistent'`.** Set once in `configure()`. The
+lock-screen controls do not bind correctly without exclusive audio focus. It is
+also the right behaviour: a music player that keeps playing under a podcast is
+not what anyone wants. Persistent, because transient focus is for a clip —
+whoever was playing before resumes the moment it is released, so pausing this
+app used to bring the other player back.
 
 `stop()` clears the lock screen controls. A notification with dead transport
 buttons is worse than no notification, and Android will happily keep showing
@@ -105,6 +107,9 @@ the queue said before the press. [ADR 025](adr/025-gapless-on-one-player.md).
 
 ### What the notification shows
 
+The platform's media style, the same on every phone, with the app's own
+status-bar mark and transport icons — [ADR 037](adr/037-one-media-notification.md).
+
 Title, artist, album, and artwork. A track with no cover gets the app's own
 music-note placeholder — `src/services/audio/notificationArtwork.ts` unpacks it
 from the bundle to a `file://` path, because the service loads artwork through
@@ -117,7 +122,7 @@ strings are handed to it at startup by `app/_layout` and re-handed on a language
 change; `AudioEngine.setMetadataFallbacks` is the whole mechanism.
 
 **There is no favourite button, and there cannot be one through this engine.**
-`AudioLockScreenOptions` has three fields and none of them is a custom action;
+`AudioLockScreenOptions` has no field that is a custom action;
 the MediaSession is a private field of expo-audio's own service. The options
 and the reasoning are in `docs/adr/015`.
 

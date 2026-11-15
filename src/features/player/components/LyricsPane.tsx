@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  type LayoutChangeEvent,
+  type ScrollViewInstance,
+} from 'react-native';
 
 import { activeLineIndex, type Lyrics } from '@/services/lyrics/parseLyrics';
 import { SPACING } from '@/theme/tokens';
@@ -73,7 +80,7 @@ function TimedLyrics({ lyrics, onSeek }: TimedLyricsProps) {
   const positionMs = useSmoothPosition(true);
   const active = activeLineIndex(lyrics.lines, positionMs);
 
-  const scroller = useRef<ScrollView>(null);
+  const scroller = useRef<ScrollViewInstance>(null);
   /** Where each line sits, filled in as they lay out. */
   const offsets = useRef<number[]>([]);
   const [paneHeight, setPaneHeight] = useState(0);

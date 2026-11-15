@@ -3,7 +3,8 @@ import { useEffect, useRef } from 'react';
 /** What this needs from the tab navigator: its routes, and a way to warm one. */
 export interface PreloadableTabs {
   state: { index: number; routes: readonly { name: string }[] };
-  navigation: { preload: (name: string) => void };
+  /** The router's own preload, from any tab's navigation object. */
+  preload: (name: string) => void;
 }
 
 /** Long enough after launch that the first tab has drawn and settled. */
@@ -23,7 +24,7 @@ const GAP_MS = 400;
  *
  * Once per launch: a tab that has been built stays built.
  */
-export function usePreloadTabs({ state, navigation }: PreloadableTabs): void {
+export function usePreloadTabs({ state, preload }: PreloadableTabs): void {
   // Read once. The order is fixed by the layout and does not change.
   const names = state.routes.map((route) => route.name);
   const focused = names[state.index];
@@ -32,10 +33,14 @@ export function usePreloadTabs({ state, navigation }: PreloadableTabs): void {
   // a tab the user has already opened is built and needs nothing.
   const current = useRef(focused);
   const visited = useRef(new Set<string>());
+  // Held in a ref: the bar hands over a new function every render, and the
+  // warm-up must neither restart for it nor call a stale one.
+  const preloadRef = useRef(preload);
   useEffect(() => {
     current.current = focused;
+    preloadRef.current = preload;
     if (focused !== undefined) visited.current.add(focused);
-  }, [focused]);
+  }, [focused, preload]);
 
   useEffect(() => {
     const pending = names.filter((name) => name !== focused);
@@ -53,7 +58,7 @@ export function usePreloadTabs({ state, navigation }: PreloadableTabs): void {
             if (cancelled) return;
             const name = pending[index];
             if (name !== undefined && name !== current.current && !visited.current.has(name)) {
-              navigation.preload(name);
+              preloadRef.current(name);
             }
             warm(index + 1, GAP_MS);
           },
@@ -72,5 +77,5 @@ export function usePreloadTabs({ state, navigation }: PreloadableTabs): void {
     // Launch-only: `names` and `focused` are read when the bar first mounts,
     // and pressing a tab must not restart the warm-up from the beginning.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, navigation]);
+  }, [key]);
 }

@@ -1,6 +1,6 @@
 # Mufify
 
-An offline-only music player for Android. React Native, Expo SDK 57, TypeScript.
+An offline-only music player for Android. React Native, Expo SDK 58, TypeScript.
 
 It plays the files a streaming service will not: FLAC, ALAC, and anything else
 already on the phone. It surfaces the technical truth of a file rather than

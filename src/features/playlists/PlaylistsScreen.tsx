@@ -154,7 +154,7 @@ export function PlaylistsScreen() {
                   onAction={openNaming}
                 />
               )
-            ) : null
+            ) : undefined
           }
         />
       </ShortWindowSplit>
