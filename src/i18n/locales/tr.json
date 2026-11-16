@@ -198,6 +198,21 @@
       "across_other": "{{tracks}} parçada {{plays}} çalma",
       "mostPlayed": "En çok çalınan",
       "mostHeard": "En çok dinlenen"
+    },
+    "share": {
+      "open": "İstatistiklerini paylaş",
+      "title": "Paylaş",
+      "action": "Paylaş",
+      "nothing": "Bu dönemde henüz paylaşacak bir şey yok",
+      "listened": "Dinleme süresi",
+      "footer": "Mufify'da dinlendi — internetsiz, telefonumda.",
+      "dialogTitle": "Dinlediklerini paylaş",
+      "failed": "Görsel oluşturulamadı. Tekrar dene.",
+      "period": {
+        "week": "Haftalık",
+        "month": "Aylık",
+        "year": "Yıllık"
+      }
     }
   },
   "settings": {

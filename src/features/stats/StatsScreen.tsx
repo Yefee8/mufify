@@ -1,7 +1,7 @@
-import { BarChart3, Disc3, ListMusic, Music, User } from 'lucide-react-native';
+import { BarChart3, Disc3, ListMusic, Music, Share2, User } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
@@ -20,7 +20,9 @@ import { getWeekStart } from '@/services/settings';
 import { periodKeys } from '@/services/stats/periodKeys';
 import { PERIOD_TYPES, type PeriodType } from '@/services/stats/rollups';
 import { SPACING } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/useTheme';
 
+import { ShareStatsSheet } from './components/ShareStatsSheet';
 import { StatTotals } from './components/StatTotals';
 import { TopList } from './components/TopList';
 import { Wrapped } from './components/Wrapped';
@@ -42,6 +44,8 @@ export function StatsScreen() {
   const messages = useMessages('stats.empty');
   const bottomInset = useMiniPlayerInset();
   const [period, setPeriod] = useState<PeriodType>('week');
+  const [sharing, setSharing] = useState(false);
+  const colors = useThemeColors();
 
   // The key for "now" in the selected period. Recomputed per render rather
   // than stored: the app can be left open across midnight on a Sunday.
@@ -61,7 +65,19 @@ export function StatsScreen() {
   const hasData = totals.playCount > 0 || totals.msPlayed > 0;
 
   return (
-    <Screen title={t('stats.title')}>
+    <Screen
+      title={t('stats.title')}
+      action={
+        <Pressable
+          onPress={() => setSharing(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t('stats.share.open')}
+          className="min-h-11 min-w-11 items-center justify-center"
+        >
+          <Share2 color={colors.label} size={22} strokeWidth={2} />
+        </Pressable>
+      }
+    >
       <View className="px-6 pb-4">
         <SegmentedControl
           options={periodOptions}
@@ -112,6 +128,8 @@ export function StatsScreen() {
         */
         <EmptyState icon={BarChart3} messages={messages} />
       )}
+
+      <ShareStatsSheet visible={sharing} initialPeriod={period} onClose={() => setSharing(false)} />
     </Screen>
   );
 }

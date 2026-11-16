@@ -8,6 +8,8 @@ const SHORT_HEIGHT = 520;
 export interface ScreenProps {
   /** Already translated. Screens do not call `t()` on behalf of their parent. */
   title: string;
+  /** One icon button at the far end of the title row — the screen's own verb. */
+  action?: ReactNode;
   children?: ReactNode;
 }
 
@@ -26,19 +28,26 @@ export interface ScreenProps {
  * three times the body size with room to breathe is a tenth of that spent on a
  * word the user just tapped to get here.
  */
-export function Screen({ title, children }: ScreenProps) {
+export function Screen({ title, action, children }: ScreenProps) {
   const { height } = useWindowDimensions();
   const short = height < SHORT_HEIGHT;
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-surface">
-      <View className={short ? 'px-6 pb-2 pt-3' : 'px-6 pb-4 pt-6'}>
+      <View
+        className={
+          short
+            ? 'flex-row items-center justify-between px-6 pb-2 pt-3'
+            : 'flex-row items-center justify-between px-6 pb-4 pt-6'
+        }
+      >
         <Text
           className={`font-display text-primary ${short ? 'text-2xl' : 'text-3xl'}`}
           accessibilityRole="header"
         >
           {title}
         </Text>
+        {action}
       </View>
       {children}
     </SafeAreaView>

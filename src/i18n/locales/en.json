@@ -198,6 +198,21 @@
       "across_other": "{{plays}} plays across {{tracks}} tracks",
       "mostPlayed": "Most played",
       "mostHeard": "Most heard"
+    },
+    "share": {
+      "open": "Share your stats",
+      "title": "Share",
+      "action": "Share",
+      "nothing": "Nothing to share in this period yet",
+      "listened": "Listening time",
+      "footer": "Played on Mufify — offline, on my phone.",
+      "dialogTitle": "Share your listening",
+      "failed": "The picture could not be made. Try again.",
+      "period": {
+        "week": "Week",
+        "month": "Month",
+        "year": "Year"
+      }
     }
   },
   "settings": {

@@ -118,6 +118,7 @@ it is repeated here because that is the thing a reader needs before touching it.
 | `StatsScreen` | Reads `stats_rollups` only. Aggregating `play_events` here would be a scan over the whole history on every tab switch, growing forever. |
 | `Wrapped` | The period in one card, leading with the listening time. Deliberately not a gradient, a collage, or a share sheet — a screenshot is already the share mechanism. |
 | `StatTotals` | The three headline tiles. |
+| `ShareCard` / `ShareStatsSheet` | A week, month or year as a 9:16 picture worth posting, and the sheet that picks the period, previews the card at full size scaled down, and hands the PNG to Android's share sheet — `docs/adr/041`. |
 | `TopList` | A ranked list. Every row carries both the count and the duration, because they disagree constantly. Renders nothing when empty. |
 
 ---

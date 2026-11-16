@@ -27,10 +27,9 @@ export interface WrappedProps {
  * granular lives in the ranked lists below it, which is the right place for
  * detail — this is the headline.
  *
- * Deliberately not a gradient, a collage, or a share sheet. The design direction
- * rules out the first two by name, and the third would need an outward-facing
- * intent in an app whose whole promise is that nothing leaves the device. A
- * screenshot is already the share mechanism, and it needs no permission.
+ * Deliberately not a gradient or a collage — the design direction rules both
+ * out by name. Sharing is the share button in the title, which draws a card
+ * made for it (`ShareCard`) rather than offering this one.
  */
 export function Wrapped({ period, totals, topTrack, topArtist, unknownArtist }: WrappedProps) {
   const { t, i18n } = useTranslation();
