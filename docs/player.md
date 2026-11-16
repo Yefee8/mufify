@@ -126,6 +126,15 @@ change; `AudioEngine.setMetadataFallbacks` is the whole mechanism.
 the MediaSession is a private field of expo-audio's own service. The options
 and the reasoning are in `docs/adr/015`.
 
+## The session survives a restart
+
+The queue, its unshuffled order, the current track, the position, shuffle,
+repeat and source are saved to `playback_session` and restored on launch,
+paused — the strip comes back after MIUI reclaims the app or a swipe out of
+recents. Nothing is opened until play is pressed; the first play opens the
+file, seeks, then starts. Only clearing the queue forgets it.
+[ADR 040](adr/040-the-session-survives-a-restart.md).
+
 ## States
 
 `PlaybackState.phase` is `idle | loading | playing | paused | error`.

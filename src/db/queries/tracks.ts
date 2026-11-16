@@ -61,6 +61,33 @@ const listSelection = {
   isFavorite: sql`coalesce(${trackStats.isFavorite}, 0)`.mapWith(Boolean),
 };
 
+/**
+ * The present tracks among `ids`, keyed by id.
+ *
+ * For putting a saved queue back together after a restart: the order is the
+ * caller's, so this only answers which of them still exist. Chunked under
+ * SQLite's bound-parameter cap — a queue can be a whole library.
+ */
+export async function getTracksByIds(ids: readonly number[]): Promise<Map<number, TrackListItem>> {
+  const found = new Map<number, TrackListItem>();
+  const unique = [...new Set(ids)];
+  for (let start = 0; start < unique.length; start += ID_CHUNK) {
+    const rows = await db
+      .select(listSelection)
+      .from(tracks)
+      .leftJoin(artists, eq(tracks.artistId, artists.id))
+      .leftJoin(albums, eq(tracks.albumId, albums.id))
+      .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
+      .where(
+        and(eq(tracks.isMissing, 0), inArray(tracks.id, unique.slice(start, start + ID_CHUNK))),
+      );
+    for (const row of rows) found.set(row.id, row);
+  }
+  return found;
+}
+
+const ID_CHUNK = 900;
+
 /** Present tracks, alphabetical, case-insensitive. */
 export function listTracks(limit = 100, offset = 0) {
   return db

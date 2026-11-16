@@ -57,6 +57,7 @@ describe('migrations', () => {
       'albums',
       'artists',
       'play_events',
+      'playback_session',
       'playlist_tracks',
       'playlists',
       'scan_folders',

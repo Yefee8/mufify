@@ -14,6 +14,7 @@ import { setLightNavigationBar } from 'system-bars';
 import { useDatabase } from '@/db/useDatabase';
 import { PlayerLayer } from '@/features/player/PlayerLayer';
 import { startListenRecording } from '@/features/player/listenRecorder';
+import { startSessionPersistence } from '@/features/player/sessionPersistence';
 import { installShutdownOnTaskRemoved } from '@/services/lifecycle/shutdown';
 import { relocateArtwork } from '@/services/library/artworkStore';
 import { initI18n } from '@/i18n';
@@ -76,6 +77,10 @@ export default function RootLayout() {
   // Listens are recorded for as long as the app is alive, not for as long as
   // a particular screen is mounted — playback outlives every screen.
   useEffect(() => startListenRecording(), []);
+
+  // What was playing when the app last ran comes back paused — after the
+  // migrations, because it is read from the database.
+  useEffect(() => (databaseReady ? startSessionPersistence() : undefined), [databaseReady]);
 
   /*
    * The words the media notification uses for a track with no artist or album.

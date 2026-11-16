@@ -43,6 +43,13 @@
       "when": 1787130052308,
       "tag": "0005_wide_morg",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794819261562,
+      "tag": "0006_playback_session",
+      "breakpoints": true
     }
   ]
 }

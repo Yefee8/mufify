@@ -209,6 +209,29 @@ export const scanFolders = sqliteTable(
   (table) => [uniqueIndex('scan_folders_uri_unique').on(table.uri)],
 );
 
+/**
+ * What was playing when the app last ran, so it is still there after a restart.
+ *
+ * One row (`id = 1`). The queues are track ids as JSON text — an ordered list,
+ * read and written whole, never queried into — and `sourceQueue` is the
+ * unshuffled order, so turning shuffle off after a restart still restores the
+ * album's running order. A track deleted since is dropped on restore.
+ */
+export const playbackSession = sqliteTable('playback_session', {
+  id: integer('id').primaryKey(),
+  queue: text('queue').notNull(),
+  sourceQueue: text('source_queue').notNull(),
+  /** Position of the current track in `queue`. */
+  queueIndex: integer('queue_index').notNull(),
+  positionMs: integer('position_ms').notNull().default(0),
+  shuffled: integer('shuffled').notNull().default(0),
+  shuffleAlgorithm: text('shuffle_algorithm'),
+  repeat: text('repeat').notNull().default('off'),
+  sourceType: text('source_type').notNull().default('library'),
+  sourceId: integer('source_id'),
+  updatedAt: integer('updated_at').notNull(),
+});
+
 export const artistsRelations = relations(artists, ({ many }) => ({
   albums: many(albums),
   tracks: many(tracks),

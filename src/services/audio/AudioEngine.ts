@@ -22,6 +22,7 @@ import {
   shouldRestartCurrentTrack,
   shiftForInsert,
 } from './queue';
+import type { RestoredSession } from './session';
 import {
   IDLE_PLAYBACK,
   LIBRARY_SOURCE,
@@ -200,7 +201,6 @@ class Engine {
    */
   private armedUri: string | null = null;
 
-
   /**
    * What to show where a track has no artist or album.
    *
@@ -212,6 +212,21 @@ class Engine {
    * the week-start preference are.
    */
   private metadataFallbacks: { unknownArtist?: string; unknownAlbum?: string } = {};
+
+  /**
+   * A restored session's track has not been opened yet.
+   *
+   * After a restart the queue and position come back from the database but
+   * the player does not: opening a file means claiming audio focus and the
+   * media session, and an app that does that on launch interrupts whatever the
+   * user was listening to elsewhere. So the first play opens the file then,
+   * and seeks to where it was before starting.
+   */
+  private needsLoad = false;
+
+  /** Where to seek once the file is open, then whether to start. */
+  private pendingSeekMs: number | null = null;
+  private playAfterSeek = false;
 
   /**
    * Claim the audio session.
@@ -378,6 +393,53 @@ class Engine {
       return;
     }
     await this.loadIndex(startIndex, true);
+  }
+
+  /**
+   * Put back what was playing before the app last stopped — paused, at the
+   * position it was left at, with nothing opened until play is pressed.
+   *
+   * Ignored once anything has started in this run: a session restored late
+   * must not replace a queue the user has already chosen.
+   */
+  restore(session: RestoredSession<PlayableTrack>): void {
+    if (this.queue.length > 0 || this.state.phase !== 'idle') return;
+    const track = session.queue[session.index];
+    if (track === undefined) return;
+
+    this.queue = session.queue;
+    this.sourceQueue = session.sourceQueue;
+    this.index = session.index;
+    this.repeat = session.repeat;
+    this.shuffled = session.shuffled;
+    this.shuffleAlgorithm = session.shuffleAlgorithm;
+    this.source = session.source;
+    this.needsLoad = true;
+    this.lastPositionMs = session.positionMs;
+
+    this.emitQueue();
+    this.emit({
+      phase: 'paused',
+      track,
+      positionMs: session.positionMs,
+      durationMs: track.durationMs,
+      error: undefined,
+    });
+  }
+
+  /** What `persistSession` needs that is not in the snapshots. */
+  getSessionShape(): {
+    sourceQueue: PlayableTrack[];
+    shuffled: boolean;
+    shuffleAlgorithm: ShuffleAlgorithm | null;
+    source: QueueSource;
+  } {
+    return {
+      sourceQueue: this.sourceQueue,
+      shuffled: this.shuffled,
+      shuffleAlgorithm: this.shuffleAlgorithm,
+      source: this.source,
+    };
   }
 
   isShuffled(): boolean {
@@ -548,9 +610,17 @@ class Engine {
    * short tracks that read as roughly a third of a second of silence between
    * every one of them.
    */
-  private async loadIndex(index: number, autoPlay: boolean): Promise<void> {
+  private async loadIndex(index: number, autoPlay: boolean, startAtMs = 0): Promise<void> {
     const track = this.queue[index];
     if (!track) return;
+
+    // Whatever was waiting to be opened is being opened now, or replaced.
+    this.needsLoad = false;
+    this.pendingSeekMs = startAtMs > 0 ? startAtMs : null;
+    this.playAfterSeek = autoPlay;
+    // Starting from a position means seeking before playing, or the first
+    // half-second of the track would sound before the jump.
+    autoPlay = autoPlay && this.pendingSeekMs === null;
 
     // Closes before `emit` below replaces the track it is attributed to.
     this.flushListen(false);
@@ -597,7 +667,7 @@ class Engine {
     }
 
     this.emitQueue();
-    this.emit({ phase: 'loading', track, positionMs: 0, durationMs: track.durationMs });
+    this.emit({ phase: 'loading', track, positionMs: startAtMs, durationMs: track.durationMs });
   }
 
   /**
@@ -712,6 +782,18 @@ class Engine {
   }
 
   private onStatus = (status: AudioStatus): void => {
+    // A restored track opens at its saved position: seek first, then start.
+    if (this.pendingSeekMs !== null) {
+      if (!status.isLoaded || this.player === null) return;
+      const at = this.pendingSeekMs;
+      this.pendingSeekMs = null;
+      void this.player.seekTo(at / 1000).then(() => {
+        this.playWhenReady = this.playAfterSeek;
+        this.requestPlay();
+      });
+      return;
+    }
+
     // The pending start from `loadIndex`, in case the eager ask was too early.
     this.requestPlay();
 
@@ -730,7 +812,6 @@ class Engine {
 
     // Clock the interval that just elapsed before anything else changes.
     this.listenCycle.tick(status.playing);
-
 
     /*
      * The player moved on by itself: the track ended and the one that had been
@@ -787,6 +868,10 @@ class Engine {
   };
 
   play(): void {
+    if (this.needsLoad) {
+      void this.loadIndex(this.index, true, this.state.positionMs);
+      return;
+    }
     // Pressing play on a track that is still opening has to be remembered,
     // not dropped — otherwise the button does nothing and the user presses it
     // again, which is how a double-start happens.
@@ -798,6 +883,7 @@ class Engine {
     // Also cancels a start that has not happened yet, so pausing during load
     // is not overridden a moment later when the file opens.
     this.playWhenReady = false;
+    this.playAfterSeek = false;
     this.player?.pause();
   }
 
@@ -807,8 +893,15 @@ class Engine {
   }
 
   async seekTo(positionMs: number): Promise<void> {
-    await this.player?.seekTo(Math.max(0, positionMs) / 1000);
-    this.emit({ positionMs: Math.max(0, positionMs) });
+    const at = Math.max(0, positionMs);
+    // Not opened yet (a restored session): remember it for when it is.
+    if (this.needsLoad) {
+      this.lastPositionMs = at;
+      this.emit({ positionMs: at });
+      return;
+    }
+    await this.player?.seekTo(at / 1000);
+    this.emit({ positionMs: at });
   }
 
   /**
@@ -965,6 +1058,8 @@ class Engine {
    * showing one for a player that has gone away.
    */
   async stop(): Promise<void> {
+    this.needsLoad = false;
+    this.pendingSeekMs = null;
     this.flushListen(false);
     this.player?.pause();
     this.player?.clearLockScreenControls();
