@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import { useCallback } from 'react';
 import { View } from 'react-native';
 
+import { FIRST_PASS } from '@/components/ui/listFirstPass';
 import { useCardColumns } from '@/components/ui/useCardColumns';
 import type { CollectionCard as Card } from '@/db/queries/tracks';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
@@ -70,6 +71,7 @@ export function CollectionGrid({
     // screen.
     <View className="flex-1" onLayout={onLayout}>
       <FlashList
+        overrideProps={FIRST_PASS}
         data={cards}
         renderItem={renderItem}
         keyExtractor={keyExtractor}

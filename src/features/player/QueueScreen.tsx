@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FIRST_PASS } from '@/components/ui/listFirstPass';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AudioEngine, type QueueSnapshot } from '@/services/audio/AudioEngine';
 import type { PlayableTrack } from '@/services/audio/types';
@@ -177,6 +178,7 @@ export function QueueScreen({ onClose }: QueueScreenProps) {
           <EmptyState icon={Music} messages={[t('queue.empty')]} />
         ) : (
           <FlashList
+            overrideProps={FIRST_PASS}
             data={items}
             renderItem={renderItem}
             keyExtractor={keyExtractor}

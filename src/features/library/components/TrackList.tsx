@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { FIRST_PASS } from '@/components/ui/listFirstPass';
 import type { TrackListItem } from '@/db/queries/tracks';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 
@@ -119,7 +120,16 @@ export function TrackList({
         />
       );
     },
-    [locale, onPress, onLongPress, onSwipeToQueue, currentTrackId, isSelecting, selected, swipeLabel],
+    [
+      locale,
+      onPress,
+      onLongPress,
+      onSwipeToQueue,
+      currentTrackId,
+      isSelecting,
+      selected,
+      swipeLabel,
+    ],
   );
 
   return (
@@ -128,6 +138,7 @@ export function TrackList({
       renderItem={renderItem}
       keyExtractor={keyExtractor}
       drawDistance={drawDistance}
+      overrideProps={FIRST_PASS}
       overrideItemLayout={setRowHeight}
       // So the last rows clear the transport strip instead of sitting under it.
       contentContainerStyle={{ paddingBottom: bottomInset }}

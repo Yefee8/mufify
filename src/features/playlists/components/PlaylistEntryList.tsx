@@ -3,6 +3,7 @@ import { useCallback, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 
+import { FIRST_PASS } from '@/components/ui/listFirstPass';
 import type { PlaylistEntry } from '@/db/queries/playlists';
 
 import { setListScroll } from '../reorderDrag';
@@ -105,6 +106,7 @@ export function PlaylistEntryList({
     <>
       <FlashList
         ref={listRef}
+        overrideProps={FIRST_PASS}
         data={rows}
         renderItem={renderItem}
         keyExtractor={keyExtractor}

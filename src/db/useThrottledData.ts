@@ -21,6 +21,19 @@ export function useThrottledData<T>(value: T, intervalMs = 500): T {
   const lastEmitted = useRef(0);
 
   useEffect(() => {
+    /*
+     * Nothing new to pass on — the mount, where `settled` starts as `value`.
+     *
+     * Without this the mount counted as an emission: a screen's live query
+     * starts empty, the empty array was "emitted" on mount, and the real first
+     * result, arriving a moment later, was then held back for the rest of the
+     * interval. Every list screen opened half a second after it could have —
+     * an album pushed with "0 tracks" in its header, rows arriving after the
+     * transition had finished. The first real value must pass at once, which
+     * is what this hook always said it did.
+     */
+    if (Object.is(value, settled)) return;
+
     const sinceLast = Date.now() - lastEmitted.current;
 
     if (sinceLast >= intervalMs) {
@@ -35,7 +48,7 @@ export function useThrottledData<T>(value: T, intervalMs = 500): T {
     }, intervalMs - sinceLast);
 
     return () => clearTimeout(timer);
-  }, [value, intervalMs]);
+  }, [value, intervalMs, settled]);
 
   return settled;
 }

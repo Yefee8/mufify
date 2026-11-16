@@ -564,3 +564,31 @@ idle behind every JS stall. With the next batch prefetched the wall clock sits
 on the native floor: 132 ≈ 123 s of reading plus the enumerate phase. The
 remaining JS cost during a scan is the live library list re-running and
 re-deduping per burst of writes; it no longer extends the scan.
+
+---
+
+## Pages that arrive whole, 2026-11-16 (2.0.0)
+
+Recorded on the Pixel_7 AVD (release build), opening an album three times
+and reading the frames. Before: through the whole push transition the header
+said "0 tracks" and the list was empty; the rows arrived 650–715 ms after the
+tap, a fifth of a second after the transition had finished.
+
+The rows were not slow to draw — the data was held back. `useThrottledData`
+counted the mount as an emission, so a list's real first result, landing a
+moment after an empty start, waited out the rest of its 500 ms interval. Every
+list screen paid it: albums, artists, the library, the view switch. Fixed so
+the first real value passes at once (and tested to fail on the old code).
+FlashList's first pass also draws twelve rows instead of two
+(`listFirstPass.ts`), so a page needs one layout round trip, not several.
+
+| | before | after |
+|---|---:|---:|
+| album pushed: header and rows final | 478 / 715 ms | 446 / 481 ms |
+| first frame of the incoming page | header, "0 tracks", no rows | header, 9 tracks, rows |
+| library view switch, content drawn | — | 50–100 ms |
+| sort sheet open (after the first) | — | 100–230 ms |
+
+The "after" times are the transition itself (API 35's default is 450 ms; the
+Mi 9T's Android 10 animation is 200 ms): the page is complete from its first
+frame and simply finishes sliding in.
