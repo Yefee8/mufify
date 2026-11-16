@@ -464,5 +464,18 @@
     "deleted_other": "{{count}} dosya silindi",
     "deleteFailed_one": "Bu dosya silinemedi.",
     "deleteFailed_other": "{{count}} dosya silinemedi."
+  },
+  "widgets": {
+    "nothingPlaying": "Çalan bir şey yok",
+    "openApp": "Bir şey seçmek için Mufify'ı aç",
+    "upNext": "Sıradakiler",
+    "queueEnd": "Bundan sonra bir şey yok",
+    "play": "Çal",
+    "pause": "Duraklat",
+    "next": "Sonraki şarkı",
+    "previous": "Önceki şarkı",
+    "shuffle": "Karıştır",
+    "pickTitle": "Hangisi?",
+    "missing": "Bu liste artık yok"
   }
 }

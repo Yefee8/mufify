@@ -20,6 +20,7 @@ config.resolver.extraNodeModules = {
   'audio-eq': path.resolve(__dirname, 'modules/audio-eq'),
   'app-lifecycle': path.resolve(__dirname, 'modules/app-lifecycle'),
   'system-bars': path.resolve(__dirname, 'modules/system-bars'),
+  'mufify-widgets': path.resolve(__dirname, 'modules/widgets'),
 };
 config.watchFolders = [...(config.watchFolders ?? []), path.resolve(__dirname, 'modules')];
 

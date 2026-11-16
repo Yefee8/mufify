@@ -1,3 +1,4 @@
+import type { PlaylistEntry } from '@/db/queries/playlists';
 import type { TrackListItem } from '@/db/queries/tracks';
 import type { PlayableTrack } from '@/services/audio/types';
 
@@ -21,5 +22,20 @@ export function toPlayable(track: TrackListItem): PlayableTrack {
     artworkPath: track.artworkPath,
     playCount: track.playCount,
     isFavorite: track.isFavorite,
+  };
+}
+
+/** A playlist entry as the engine wants it: the row is the entry, the track is `trackId`. */
+export function entryToPlayable(entry: PlaylistEntry): PlayableTrack {
+  return {
+    id: entry.trackId,
+    uri: entry.fileUri,
+    title: entry.title,
+    artistName: entry.artistName,
+    albumName: entry.albumName,
+    durationMs: entry.durationMs,
+    artworkPath: entry.artworkPath,
+    playCount: entry.playCount,
+    isFavorite: entry.isFavorite,
   };
 }

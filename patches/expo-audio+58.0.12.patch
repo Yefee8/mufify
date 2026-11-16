@@ -165,7 +165,7 @@ index fb2d0b5..6b0c840 100644
      val updateMap = mutableMapOf<String, Any?>(
        "playbackState" to playbackStateToString(playbackState)
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
-index 53c36f7..0b8278a 100644
+index 53c36f7..0c95906 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 @@ -27,6 +27,7 @@ import expo.modules.audio.AudioLockScreenOptions
@@ -361,7 +361,7 @@ index 53c36f7..0b8278a 100644
      if (currentOptions?.showPreviousTrack == true && playable?.supportsPreviousTrack == true) {
        mediaButtons.add(
          CommandButton.Builder(CommandButton.ICON_PREVIOUS)
-@@ -643,6 +685,24 @@ class AudioControlsService : MediaSessionService() {
+@@ -643,6 +685,34 @@ class AudioControlsService : MediaSessionService() {
      notificationManager.cancel(notificationId)
    }
  
@@ -377,21 +377,33 @@ index 53c36f7..0b8278a 100644
 +   * off, has its task intact and never gets here; only removing the task does.
 +   * So the app is told, and it decides what to do about it — there are
 +   * statistics to write before anything shuts down.
++   *
++   * Which task went is part of the message. Android calls this for every task
++   * of the app, and the app has small ones that close by design — the
++   * home-screen widgets' buttons pass through an activity in a task of its
++   * own — so the app needs the root activity to tell those from the one the
++   * user swiped away.
 +   */
 +  override fun onTaskRemoved(rootIntent: Intent?) {
-+    sendBroadcast(Intent(ACTION_TASK_REMOVED).setPackage(packageName))
++    sendBroadcast(
++      Intent(ACTION_TASK_REMOVED)
++        .setPackage(packageName)
++        .putExtra(EXTRA_ROOT_ACTIVITY, rootIntent?.component?.className),
++    )
 +    super.onTaskRemoved(rootIntent)
 +  }
 +
    override fun onDestroy() {
      super.onDestroy()
  
-@@ -684,6 +744,8 @@ class AudioControlsService : MediaSessionService() {
+@@ -684,6 +754,10 @@ class AudioControlsService : MediaSessionService() {
    }
  
    companion object {
 +    /** Must match `AppLifecycleModule` in the app. See `onTaskRemoved`. */
 +    const val ACTION_TASK_REMOVED = "expo.modules.audio.TASK_REMOVED"
++    /** The removed task's root activity class, or absent when Android did not say. */
++    const val EXTRA_ROOT_ACTIVITY = "expo.modules.audio.ROOT_ACTIVITY"
      private const val CHANNEL_ID = "expo_audio_channel"
      private const val ACTION_PLAY = "expo.modules.audio.action.PLAY"
      private const val ACTION_PAUSE = "expo.modules.audio.action.PAUSE"

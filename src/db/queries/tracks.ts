@@ -148,6 +148,25 @@ export async function getTrackCollections(
   return { artistId: row.artistId ?? 0, albumId: row.albumId ?? 0 };
 }
 
+/**
+ * The whole library in the order its tab lists it, awaited.
+ *
+ * For starting the library from outside that tab — a home-screen widget —
+ * where there is no mounted list to take the rows from. Same predicate and
+ * order as `useTracks` with no search; duplicates are the caller's to drop,
+ * as they are there.
+ */
+export async function listLibraryTracks(sort: TrackSort): Promise<TrackListItem[]> {
+  return db
+    .select(listSelection)
+    .from(tracks)
+    .leftJoin(artists, eq(tracks.artistId, artists.id))
+    .leftJoin(albums, eq(tracks.albumId, albums.id))
+    .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
+    .where(eq(tracks.isMissing, 0))
+    .orderBy(...trackOrderBy(sort));
+}
+
 export async function countTracks(): Promise<number> {
   const [row] = await db.select({ value: count() }).from(tracks).where(eq(tracks.isMissing, 0));
   return row?.value ?? 0;

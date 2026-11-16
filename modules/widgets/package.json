@@ -1,0 +1,7 @@
+{
+  "name": "mufify-widgets",
+  "version": "0.1.0",
+  "description": "Home-screen widgets: what is playing and what comes next, and one collection to start.",
+  "main": "index.ts",
+  "private": true
+}

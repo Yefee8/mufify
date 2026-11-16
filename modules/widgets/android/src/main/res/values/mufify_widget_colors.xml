@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The light theme's tokens, for the widgets. RemoteViews cannot read the app's
+  CSS variables, so these are copies — of `COLORS.light` in src/theme/tokens.ts,
+  and src/theme/widgetColors.test.ts fails if the two drift.
+-->
+<resources>
+  <color name="mufify_widget_surface">#F6F4F1</color>
+  <color name="mufify_widget_elevated">#FFFFFF</color>
+  <color name="mufify_widget_label">#15171C</color>
+  <color name="mufify_widget_muted">#5C616E</color>
+  <color name="mufify_widget_accent">#4B45CE</color>
+  <color name="mufify_widget_on_accent">#FFFFFF</color>
+</resources>

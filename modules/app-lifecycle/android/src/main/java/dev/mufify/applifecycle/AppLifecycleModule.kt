@@ -80,6 +80,7 @@ class AppLifecycleModule : Module() {
     val created = object : BroadcastReceiver() {
       override fun onReceive(receiverContext: Context?, intent: Intent?) {
         if (intent?.action != ACTION_TASK_REMOVED) return
+        if (!isMainTask(intent.getStringExtra(EXTRA_ROOT_ACTIVITY))) return
         this@AppLifecycleModule.sendEvent(TASK_REMOVED)
         scheduleFallback()
       }
@@ -100,6 +101,30 @@ class AppLifecycleModule : Module() {
     val current = receiver ?: return
     receiver = null
     runCatching { context.unregisterReceiver(current) }
+  }
+
+  /**
+   * Whether the removed task was the app's own — the one the launcher icon
+   * opens — rather than one of its small tasks that close by design.
+   *
+   * Android tells a service about *every* task of the app that is removed, and
+   * the app has others now: the home-screen widgets' buttons go through an
+   * invisible activity in a task of its own, gone the moment it has handed the
+   * press over, and the collection widget asks which collection in another.
+   * Without this, pausing from a widget ended the process — the press arrived,
+   * its task closed, and the app read that as being swiped away.
+   *
+   * Decided by the removed task's root activity, which the service forwards.
+   * Asking which tasks still exist does not work: at this point the task the
+   * user just swiped away is still listed, so every removal looked harmless.
+   * When the activity is unknown — an older service, a task with no
+   * component — it counts as the app's, which is how this behaved before.
+   */
+  private fun isMainTask(rootActivity: String?): Boolean {
+    if (rootActivity == null) return true
+    val main = context.packageManager.getLaunchIntentForPackage(context.packageName)?.component
+      ?: return true
+    return rootActivity == main.className
   }
 
   /**
@@ -129,6 +154,7 @@ class AppLifecycleModule : Module() {
 
     /** Must match `AudioControlsService` in `patches/expo-audio`. */
     const val ACTION_TASK_REMOVED = "expo.modules.audio.TASK_REMOVED"
+    const val EXTRA_ROOT_ACTIVITY = "expo.modules.audio.ROOT_ACTIVITY"
 
     const val FALLBACK_MS = 2500L
   }

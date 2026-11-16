@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Only what the system shows before the app has said anything: the names in
+  the widget picker, and the widget's first frame. Everything else the widget
+  says comes from the app, in the app's language (src/i18n), which need not be
+  the phone's.
+-->
+<resources>
+  <string name="mufify_widget_now_playing">Now playing</string>
+  <string name="mufify_widget_now_playing_description">What is playing, its controls, and what comes next</string>
+  <string name="mufify_widget_collection">Library or playlist</string>
+  <string name="mufify_widget_collection_description">Your library, liked songs or a playlist, one tap from playing</string>
+  <string name="mufify_widget_nothing_playing">Nothing playing</string>
+  <string name="mufify_widget_open_app">Open Mufify to pick something</string>
+  <string name="mufify_widget_up_next">Up next</string>
+  <string name="mufify_widget_queue_end">Nothing after this one</string>
+  <string name="mufify_widget_play">Play</string>
+  <string name="mufify_widget_pause">Pause</string>
+  <string name="mufify_widget_next">Next track</string>
+  <string name="mufify_widget_previous">Previous track</string>
+  <string name="mufify_widget_shuffle">Shuffle</string>
+  <string name="mufify_widget_library">Library</string>
+  <string name="mufify_widget_pick_title">Which one?</string>
+  <string name="mufify_widget_missing">This list is no longer here</string>
+</resources>

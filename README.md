@@ -46,6 +46,10 @@ More, with what each one is showing, in [docs/screenshots.md](docs/screenshots.m
 - **Listening statistics** computed on the device from your own history: top
   tracks, artists, albums and playlists by week, month and year, with a Wrapped
   summary. Nothing is uploaded because there is nowhere to upload it to.
+- **Home-screen widgets**: what is playing with its controls and, on a taller
+  widget, what comes next; and the library, liked songs or a playlist, one tap
+  from playing. They follow the app's theme and language —
+  [ADR 042](docs/adr/042-home-screen-widgets.md).
 - **Technical metadata surfaced**: bitrate, sample rate, bit depth, codec, file
   size, on a monospaced spec strip.
 - **Dark and light themes, Turkish and English**, both switchable.

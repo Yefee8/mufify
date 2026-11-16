@@ -135,6 +135,21 @@ recents. Nothing is opened until play is pressed; the first play opens the
 file, seeks, then starts. Only clearing the queue forgets it.
 [ADR 040](adr/040-the-session-survives-a-restart.md).
 
+## Home-screen widgets
+
+Two, in `modules/widgets`: **Now playing** — the track, previous, play/pause,
+next, and on a taller widget up to four tracks of the queue, each a jump — and
+**Library or playlist**, set when placed to the library, liked songs or one
+playlist, with Play and Shuffle. `startWidgetSync` pushes the track and queue
+from the engine itself, not from React, because music changes tracks with no
+screen mounted; `WidgetCatalog` pushes the collections, theme and words.
+Presses come back through `performWidgetAction`, which does what the same
+button does in the app. A press that finds the app closed opens it and runs
+after the session is restored. Every widget task closing is a removed task to
+Android, which is why the task-removed broadcast carries the root activity
+(ADR 020 still ends the app only for its own task).
+[ADR 042](adr/042-home-screen-widgets.md).
+
 ## States
 
 `PlaybackState.phase` is `idle | loading | playing | paused | error`.

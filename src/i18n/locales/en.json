@@ -464,5 +464,18 @@
     "deleted_other": "{{count}} files deleted",
     "deleteFailed_one": "That file could not be deleted.",
     "deleteFailed_other": "{{count}} files could not be deleted."
+  },
+  "widgets": {
+    "nothingPlaying": "Nothing playing",
+    "openApp": "Open Mufify to pick something",
+    "upNext": "Up next",
+    "queueEnd": "Nothing after this one",
+    "play": "Play",
+    "pause": "Pause",
+    "next": "Next track",
+    "previous": "Previous track",
+    "shuffle": "Shuffle",
+    "pickTitle": "Which one?",
+    "missing": "This list is no longer here"
   }
 }

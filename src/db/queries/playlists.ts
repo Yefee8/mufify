@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, max, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, max, sql } from 'drizzle-orm';
 import { useMemo } from 'react';
 
 import { deleteCoverFile } from '@/services/playlists/cover';
@@ -170,7 +170,21 @@ const CHOICE_TABLES = [playlistTracks];
  * and reads `useFavoriteEntries` instead — see `useLiveQuery`.
  */
 export function usePlaylistEntries(playlistId: number, enabled = true): PlaylistEntry[] {
-  const query = db
+  const query = playlistEntriesQuery(playlistId);
+  const { data } = useLiveQuery(enabled ? query : null, [playlistId, enabled]);
+  return enabled ? data : NO_ENTRIES;
+}
+
+/**
+ * The same rows, awaited: for starting a playlist from outside its screen —
+ * a home-screen widget — where nothing is mounted to subscribe.
+ */
+export async function listPlaylistEntries(playlistId: number): Promise<PlaylistEntry[]> {
+  return playlistEntriesQuery(playlistId);
+}
+
+function playlistEntriesQuery(playlistId: number) {
+  return db
     .select({
       entryId: sql<number>`${playlistTracks}.rowid`,
       position: playlistTracks.position,
@@ -189,9 +203,6 @@ export function usePlaylistEntries(playlistId: number, enabled = true): Playlist
     .leftJoin(trackStats, eq(trackStats.trackId, tracks.id))
     .where(and(eq(playlistTracks.playlistId, playlistId), eq(tracks.isMissing, 0)))
     .orderBy(asc(playlistTracks.position));
-
-  const { data } = useLiveQuery(enabled ? query : null, [playlistId, enabled]);
-  return enabled ? data : NO_ENTRIES;
 }
 
 const NO_ENTRIES: PlaylistEntry[] = [];
@@ -248,7 +259,36 @@ export function usePlaylistHeading(playlistId: number, enabled = true): Playlist
  * description of what this list is.
  */
 export function useFavoriteEntries(enabled = true): PlaylistEntry[] {
-  const query = db
+  // Off on an ordinary playlist's screen, which used to run this anyway — and
+  // re-run it on every listen recorded, since listens write `track_stats`.
+  const { data } = useLiveQuery(enabled ? favoriteEntriesQuery() : null, [enabled]);
+  return enabled ? data : NO_ENTRIES;
+}
+
+/** Liked songs, awaited, in the same order: see `listPlaylistEntries`. */
+export async function listFavoriteEntries(): Promise<PlaylistEntry[]> {
+  return favoriteEntriesQuery();
+}
+
+/**
+ * How many songs are liked, live — for what shows a count and not the songs.
+ *
+ * From `track_stats`, which is what a heart writes. Counted in SQL so a list
+ * that needs only the number does not hold every liked row to get it.
+ */
+export function useLikedCount(): number {
+  const { data } = useLiveQuery(
+    db
+      .select({ value: count() })
+      .from(trackStats)
+      .innerJoin(tracks, eq(tracks.id, trackStats.trackId))
+      .where(and(eq(trackStats.isFavorite, 1), eq(tracks.isMissing, 0))),
+  );
+  return data[0]?.value ?? 0;
+}
+
+function favoriteEntriesQuery() {
+  return db
     .select({
       entryId: tracks.id,
       position: sql<number>`row_number() over (order by ${trackStats.favoriteAt} desc, ${tracks.id} desc) - 1`,
@@ -260,11 +300,6 @@ export function useFavoriteEntries(enabled = true): PlaylistEntry[] {
     .leftJoin(albums, eq(albums.id, tracks.albumId))
     .where(and(eq(trackStats.isFavorite, 1), eq(tracks.isMissing, 0)))
     .orderBy(desc(trackStats.favoriteAt), desc(tracks.id));
-
-  // Off on an ordinary playlist's screen, which used to run this anyway — and
-  // re-run it on every listen recorded, since listens write `track_stats`.
-  const { data } = useLiveQuery(enabled ? query : null, [enabled]);
-  return enabled ? data : NO_ENTRIES;
 }
 
 export async function createPlaylist(name: string): Promise<number | null> {

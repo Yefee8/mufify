@@ -15,6 +15,8 @@ import { useDatabase } from '@/db/useDatabase';
 import { PlayerLayer } from '@/features/player/PlayerLayer';
 import { startListenRecording } from '@/features/player/listenRecorder';
 import { startSessionPersistence } from '@/features/player/sessionPersistence';
+import { WidgetCatalog } from '@/features/widgets/WidgetCatalog';
+import { startWidgetSync } from '@/features/widgets/widgetSync';
 import { installShutdownOnTaskRemoved } from '@/services/lifecycle/shutdown';
 import { relocateArtwork } from '@/services/library/artworkStore';
 import { initI18n } from '@/i18n';
@@ -82,6 +84,10 @@ export default function RootLayout() {
   // migrations, because it is read from the database.
   useEffect(() => (databaseReady ? startSessionPersistence() : undefined), [databaseReady]);
 
+  // The home-screen widgets follow the engine from here, and a widget press
+  // that opened the app runs once the session above is back.
+  useEffect(() => (databaseReady ? startWidgetSync() : undefined), [databaseReady]);
+
   /*
    * The words the media notification uses for a track with no artist or album.
    *
@@ -135,6 +141,8 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
         </Stack>
       </PlayerLayer>
+      {/* Draws nothing: tells the widgets what they may show. */}
+      {databaseReady ? <WidgetCatalog /> : null}
     </GestureHandlerRootView>
   );
 }

@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Now playing: a header the height of one launcher row, and under it as much
+  of the queue as the widget has room for. Every row is in the layout and the
+  code hides what does not fit — a RemoteViews list would need a service of
+  its own to say four lines.
+
+  Colours are resources, so a widget on the system theme follows the
+  launcher's night mode by itself; the app sets them in code only when the
+  user picked a theme. See NowPlayingWidget.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToOutline="true">
+
+  <ImageView
+      android:id="@+id/mufify_np_bg"
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:importantForAccessibility="no"
+      android:scaleType="fitXY"
+      android:src="@drawable/mufify_widget_bg" />
+
+  <LinearLayout
+      android:id="@+id/mufify_np_content"
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:gravity="center_vertical"
+      android:orientation="vertical"
+      android:paddingStart="8dp"
+      android:paddingTop="8dp"
+      android:paddingEnd="8dp"
+      android:paddingBottom="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+      <LinearLayout
+          android:id="@+id/mufify_np_body"
+          android:layout_width="0dp"
+          android:layout_height="match_parent"
+          android:layout_weight="1"
+          android:gravity="center_vertical"
+          android:orientation="horizontal">
+
+        <FrameLayout
+            android:layout_width="48dp"
+            android:layout_height="48dp">
+
+          <ImageView
+              android:id="@+id/mufify_np_cover_bg"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:importantForAccessibility="no"
+              android:scaleType="fitXY"
+              android:src="@drawable/mufify_widget_cover_bg" />
+
+          <ImageView
+              android:id="@+id/mufify_np_cover_icon"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:importantForAccessibility="no"
+              android:padding="12dp"
+              android:scaleType="fitCenter"
+              android:src="@drawable/mufify_widget_ic_mark"
+              android:tint="@color/mufify_widget_muted" />
+
+          <ImageView
+              android:id="@+id/mufify_np_cover_art"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:importantForAccessibility="no"
+              android:scaleType="fitXY"
+              android:visibility="gone" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+          <TextView
+              android:id="@+id/mufify_np_title"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:ellipsize="end"
+              android:fontFamily="sans-serif-medium"
+              android:singleLine="true"
+              android:text="@string/mufify_widget_nothing_playing"
+              android:textColor="@color/mufify_widget_label"
+              android:textSize="15sp" />
+
+          <TextView
+              android:id="@+id/mufify_np_artist"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:ellipsize="end"
+              android:singleLine="true"
+              android:text="@string/mufify_widget_open_app"
+              android:textColor="@color/mufify_widget_muted"
+              android:textSize="13sp" />
+        </LinearLayout>
+      </LinearLayout>
+
+      <ImageView
+          android:id="@+id/mufify_np_previous"
+          android:layout_width="40dp"
+          android:layout_height="44dp"
+          android:contentDescription="@string/mufify_widget_previous"
+          android:padding="10dp"
+          android:src="@drawable/mufify_widget_ic_previous"
+          android:tint="@color/mufify_widget_label" />
+
+      <FrameLayout
+          android:id="@+id/mufify_np_toggle"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:contentDescription="@string/mufify_widget_play">
+
+        <ImageView
+            android:id="@+id/mufify_np_toggle_bg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:src="@drawable/mufify_widget_play_bg" />
+
+        <ImageView
+            android:id="@+id/mufify_np_toggle_icon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:padding="12dp"
+            android:src="@drawable/mufify_widget_ic_play"
+            android:tint="@color/mufify_widget_on_accent" />
+      </FrameLayout>
+
+      <ImageView
+          android:id="@+id/mufify_np_next"
+          android:layout_width="40dp"
+          android:layout_height="44dp"
+          android:contentDescription="@string/mufify_widget_next"
+          android:padding="10dp"
+          android:src="@drawable/mufify_widget_ic_next"
+          android:tint="@color/mufify_widget_label" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/mufify_np_queue"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp"
+        android:visibility="gone">
+
+      <TextView
+          android:id="@+id/mufify_np_queue_label"
+          android:layout_width="match_parent"
+          android:layout_height="18dp"
+          android:fontFamily="sans-serif-medium"
+          android:singleLine="true"
+          android:text="@string/mufify_widget_up_next"
+          android:textColor="@color/mufify_widget_muted"
+          android:textSize="12sp" />
+
+      <LinearLayout
+          android:id="@+id/mufify_np_row_0"
+          android:layout_width="match_parent"
+          android:layout_height="32dp"
+          android:gravity="center_vertical"
+          android:orientation="horizontal"
+          android:visibility="gone">
+
+        <TextView
+            android:id="@+id/mufify_np_row_0_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/mufify_widget_label"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/mufify_np_row_0_artist"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:ellipsize="end"
+            android:maxWidth="132dp"
+            android:singleLine="true"
+            android:textColor="@color/mufify_widget_muted"
+            android:textSize="13sp" />
+      </LinearLayout>
+
+      <LinearLayout
+          android:id="@+id/mufify_np_row_1"
+          android:layout_width="match_parent"
+          android:layout_height="32dp"
+          android:gravity="center_vertical"
+          android:orientation="horizontal"
+          android:visibility="gone">
+
+        <TextView
+            android:id="@+id/mufify_np_row_1_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/mufify_widget_label"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/mufify_np_row_1_artist"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:ellipsize="end"
+            android:maxWidth="132dp"
+            android:singleLine="true"
+            android:textColor="@color/mufify_widget_muted"
+            android:textSize="13sp" />
+      </LinearLayout>
+
+      <LinearLayout
+          android:id="@+id/mufify_np_row_2"
+          android:layout_width="match_parent"
+          android:layout_height="32dp"
+          android:gravity="center_vertical"
+          android:orientation="horizontal"
+          android:visibility="gone">
+
+        <TextView
+            android:id="@+id/mufify_np_row_2_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/mufify_widget_label"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/mufify_np_row_2_artist"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:ellipsize="end"
+            android:maxWidth="132dp"
+            android:singleLine="true"
+            android:textColor="@color/mufify_widget_muted"
+            android:textSize="13sp" />
+      </LinearLayout>
+
+      <LinearLayout
+          android:id="@+id/mufify_np_row_3"
+          android:layout_width="match_parent"
+          android:layout_height="32dp"
+          android:gravity="center_vertical"
+          android:orientation="horizontal"
+          android:visibility="gone">
+
+        <TextView
+            android:id="@+id/mufify_np_row_3_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/mufify_widget_label"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/mufify_np_row_3_artist"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:ellipsize="end"
+            android:maxWidth="132dp"
+            android:singleLine="true"
+            android:textColor="@color/mufify_widget_muted"
+            android:textSize="13sp" />
+      </LinearLayout>
+    </LinearLayout>
+  </LinearLayout>
+</FrameLayout>

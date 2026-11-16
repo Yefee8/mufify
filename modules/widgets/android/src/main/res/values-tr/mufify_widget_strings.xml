@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="mufify_widget_now_playing">Şimdi çalıyor</string>
+  <string name="mufify_widget_now_playing_description">Çalan şarkı, kontrolleri ve sıradakiler</string>
+  <string name="mufify_widget_collection">Kitaplık veya çalma listesi</string>
+  <string name="mufify_widget_collection_description">Kitaplığın, beğendiklerin ya da bir çalma listesi, tek dokunuşla çalsın</string>
+  <string name="mufify_widget_nothing_playing">Çalan bir şey yok</string>
+  <string name="mufify_widget_open_app">Bir şey seçmek için Mufify\'ı aç</string>
+  <string name="mufify_widget_up_next">Sıradakiler</string>
+  <string name="mufify_widget_queue_end">Bundan sonra bir şey yok</string>
+  <string name="mufify_widget_play">Çal</string>
+  <string name="mufify_widget_pause">Duraklat</string>
+  <string name="mufify_widget_next">Sonraki şarkı</string>
+  <string name="mufify_widget_previous">Önceki şarkı</string>
+  <string name="mufify_widget_shuffle">Karıştır</string>
+  <string name="mufify_widget_library">Kitaplık</string>
+  <string name="mufify_widget_pick_title">Hangisi?</string>
+  <string name="mufify_widget_missing">Bu liste artık yok</string>
+</resources>

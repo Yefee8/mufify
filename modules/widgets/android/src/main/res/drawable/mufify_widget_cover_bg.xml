@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Behind a cover, and what shows when there is none. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <solid android:color="@color/mufify_widget_elevated" />
+  <corners android:radius="10dp" />
+</shape>

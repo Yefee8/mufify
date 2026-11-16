@@ -29,6 +29,7 @@ export {
   getThemePreference,
   getTrackSort,
   getWeekStart,
+  onThemePreferenceChanged,
   setActiveSavedPresetId,
   setAlbumSort,
   setArtistSort,

@@ -46,6 +46,20 @@ export function setThemePreference(preference: ThemePreference): void {
   settingsStorage.set(SETTINGS_KEYS.theme, preference);
 }
 
+/**
+ * Told whenever the stored theme preference changes, wherever it was changed.
+ *
+ * For what is not a screen and still follows the choice — the home-screen
+ * widgets. `useTheme` keeps the preference in component state, so a second
+ * instance of it would not hear the Settings screen change it.
+ */
+export function onThemePreferenceChanged(listener: () => void): () => void {
+  const subscription = settingsStorage.addOnValueChangedListener((key) => {
+    if (key === SETTINGS_KEYS.theme) listener();
+  });
+  return () => subscription.remove();
+}
+
 export function getLanguagePreference(): LanguagePreference {
   return readStoredValue(SETTINGS_KEYS.language, LANGUAGE_PREFERENCES, 'system');
 }

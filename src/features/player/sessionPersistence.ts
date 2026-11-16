@@ -18,6 +18,21 @@ const QUEUE_SAVE_DELAY_MS = 1_000;
 /** While playing, the position is written this often; pausing writes it at once. */
 const POSITION_SAVE_EVERY_MS = 10_000;
 
+let markRestored: () => void = () => undefined;
+const restored = new Promise<void>((resolve) => {
+  markRestored = resolve;
+});
+
+/**
+ * Resolves once the saved session has been handed back to the engine — or
+ * found missing. For what acts on the queue at launch, a widget's press that
+ * opened the app: acting before this would play into a queue about to be
+ * replaced.
+ */
+export function whenSessionRestored(): Promise<void> {
+  return restored;
+}
+
 /**
  * Keep what is playing across restarts.
  *
@@ -88,6 +103,7 @@ export function startSessionPersistence(): () => void {
 
   const unsubscribers: (() => void)[] = [];
   void restore().finally(() => {
+    markRestored();
     if (disposed) return;
     unsubscribers.push(AudioEngine.subscribeQueue(onQueue), AudioEngine.subscribe(onState));
   });

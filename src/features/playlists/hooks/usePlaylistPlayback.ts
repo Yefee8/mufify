@@ -1,8 +1,9 @@
 import { useCallback, useMemo } from 'react';
 
 import type { PlaylistEntry } from '@/db/queries/playlists';
+import { entryToPlayable } from '@/features/player/toPlayable';
 import { AudioEngine } from '@/services/audio/AudioEngine';
-import { LIBRARY_SOURCE, type PlayableTrack, type QueueSource } from '@/services/audio/types';
+import { LIBRARY_SOURCE, type QueueSource } from '@/services/audio/types';
 import { getShuffleAlgorithm } from '@/services/settings';
 
 export interface PlaylistPlayback {
@@ -36,7 +37,7 @@ export function usePlaylistPlayback(
   );
 
   const playAll = useCallback(() => {
-    if (entries.length > 0) void AudioEngine.setQueue(entries.map(toPlayable), 0, source);
+    if (entries.length > 0) void AudioEngine.setQueue(entries.map(entryToPlayable), 0, source);
   }, [entries, source]);
 
   /*
@@ -48,32 +49,17 @@ export function usePlaylistPlayback(
    */
   const shuffleAll = useCallback(async () => {
     if (entries.length === 0) return;
-    await AudioEngine.setQueue(entries.map(toPlayable), 0, source);
+    await AudioEngine.setQueue(entries.map(entryToPlayable), 0, source);
     await AudioEngine.setShuffled(true, getShuffleAlgorithm());
   }, [entries, source]);
 
   const playAt = useCallback(
     (entryId: number) => {
       const index = entries.findIndex((entry) => entry.entryId === entryId);
-      if (index !== -1) void AudioEngine.setQueue(entries.map(toPlayable), index, source);
+      if (index !== -1) void AudioEngine.setQueue(entries.map(entryToPlayable), index, source);
     },
     [entries, source],
   );
 
   return { playAll, shuffleAll, playAt };
-}
-
-/** A playlist entry as the engine wants it. */
-function toPlayable(entry: PlaylistEntry): PlayableTrack {
-  return {
-    id: entry.trackId,
-    uri: entry.fileUri,
-    title: entry.title,
-    artistName: entry.artistName,
-    albumName: entry.albumName,
-    durationMs: entry.durationMs,
-    artworkPath: entry.artworkPath,
-    playCount: entry.playCount,
-    isFavorite: entry.isFavorite,
-  };
 }

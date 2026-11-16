@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The dark theme's tokens: `COLORS.dark` in src/theme/tokens.ts. -->
+<resources>
+  <color name="mufify_widget_surface">#0A0C11</color>
+  <color name="mufify_widget_elevated">#151922</color>
+  <color name="mufify_widget_label">#ECEEF3</color>
+  <color name="mufify_widget_muted">#98A0B3</color>
+  <color name="mufify_widget_accent">#7C8CFF</color>
+  <color name="mufify_widget_on_accent">#0A0C11</color>
+</resources>

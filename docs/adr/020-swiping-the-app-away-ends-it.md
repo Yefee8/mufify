@@ -1,6 +1,6 @@
 # 020 — Swiping the app away ends the process
 
-**Status:** accepted
+**Status:** accepted — narrowed by ADR 042: only the task the launcher icon opens counts
 **Date:** 2026-08-11
 
 ## Context

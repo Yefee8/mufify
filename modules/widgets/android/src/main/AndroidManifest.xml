@@ -1,0 +1,62 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!-- What is playing, and what comes next when the widget is tall enough. -->
+    <receiver
+        android:name="dev.mufify.widgets.NowPlayingWidget"
+        android:exported="false"
+        android:label="@string/mufify_widget_now_playing">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+          android:name="android.appwidget.provider"
+          android:resource="@xml/mufify_widget_now_playing_info" />
+    </receiver>
+
+    <!-- One collection — the library, liked songs or a playlist — to start. -->
+    <receiver
+        android:name="dev.mufify.widgets.CollectionWidget"
+        android:exported="false"
+        android:label="@string/mufify_widget_collection">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+          android:name="android.appwidget.provider"
+          android:resource="@xml/mufify_widget_collection_info" />
+    </receiver>
+
+    <!--
+      Asks which collection, when the collection widget is added. A task of its
+      own, so the question comes up over the home screen rather than bringing
+      a running app forward behind it.
+    -->
+    <activity
+        android:name="dev.mufify.widgets.CollectionWidgetConfigure"
+        android:exported="true"
+        android:excludeFromRecents="true"
+        android:taskAffinity=""
+        android:theme="@android:style/Theme.Translucent.NoTitleBar">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+      </intent-filter>
+    </activity>
+
+    <!--
+      Every widget button lands here. No window, gone before it would draw:
+      it hands the press to the running app, or opens the app when there is
+      none to hand it to. An activity rather than a broadcast receiver because
+      a press on a widget is a foreground start, and only that may in turn
+      start the app — a broadcast to a stopped app is exactly what MIUI's
+      autostart blocking and Android's background-start rules refuse.
+    -->
+    <activity
+        android:name="dev.mufify.widgets.WidgetActionActivity"
+        android:exported="false"
+        android:excludeFromRecents="true"
+        android:noHistory="true"
+        android:taskAffinity=""
+        android:launchMode="singleInstance"
+        android:theme="@android:style/Theme.NoDisplay" />
+  </application>
+</manifest>

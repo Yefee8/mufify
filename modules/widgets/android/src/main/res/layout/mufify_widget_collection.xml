@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One collection: its cover, its name and size, Shuffle, Play. Pressing the
+  cover or the name opens it in the app; the two buttons start it without.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToOutline="true">
+
+  <ImageView
+      android:id="@+id/mufify_col_bg"
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:importantForAccessibility="no"
+      android:scaleType="fitXY"
+      android:src="@drawable/mufify_widget_bg" />
+
+  <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:gravity="center_vertical"
+      android:orientation="horizontal"
+      android:padding="8dp">
+
+    <LinearLayout
+        android:id="@+id/mufify_col_body"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+      <FrameLayout
+          android:layout_width="48dp"
+          android:layout_height="48dp">
+
+        <ImageView
+            android:id="@+id/mufify_col_cover_bg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:scaleType="fitXY"
+            android:src="@drawable/mufify_widget_cover_bg" />
+
+        <ImageView
+            android:id="@+id/mufify_col_cover_icon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/mufify_widget_ic_mark"
+            android:tint="@color/mufify_widget_muted" />
+
+        <ImageView
+            android:id="@+id/mufify_col_cover_art"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:scaleType="fitXY"
+            android:visibility="gone" />
+      </FrameLayout>
+
+      <LinearLayout
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="12dp"
+          android:layout_weight="1"
+          android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/mufify_col_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:singleLine="true"
+            android:text="@string/mufify_widget_library"
+            android:textColor="@color/mufify_widget_label"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/mufify_col_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="monospace"
+            android:singleLine="true"
+            android:textColor="@color/mufify_widget_muted"
+            android:textSize="12sp" />
+      </LinearLayout>
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/mufify_col_shuffle"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:contentDescription="@string/mufify_widget_shuffle"
+        android:padding="11dp"
+        android:src="@drawable/mufify_widget_ic_shuffle"
+        android:tint="@color/mufify_widget_label" />
+
+    <FrameLayout
+        android:id="@+id/mufify_col_play"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_marginStart="4dp"
+        android:contentDescription="@string/mufify_widget_play">
+
+      <ImageView
+          android:id="@+id/mufify_col_play_bg"
+          android:layout_width="match_parent"
+          android:layout_height="match_parent"
+          android:importantForAccessibility="no"
+          android:src="@drawable/mufify_widget_play_bg" />
+
+      <ImageView
+          android:id="@+id/mufify_col_play_icon"
+          android:layout_width="match_parent"
+          android:layout_height="match_parent"
+          android:importantForAccessibility="no"
+          android:padding="12dp"
+          android:src="@drawable/mufify_widget_ic_play"
+          android:tint="@color/mufify_widget_on_accent" />
+    </FrameLayout>
+  </LinearLayout>
+</FrameLayout>
