@@ -118,13 +118,10 @@ export function LibraryScreen() {
   }, [tracks]);
 
   const shuffleAll = useCallback(() => {
-    if (tracks.length === 0) return;
-    // Queue first, shuffle second: the engine keeps the unshuffled order, so
-    // turning shuffle off later restores the list's real order.
-    void (async () => {
-      await AudioEngine.setQueue(tracks.map(toPlayable), 0);
-      await AudioEngine.setShuffled(true, getShuffleAlgorithm());
-    })();
+    // The engine keeps the list's real order underneath, so turning shuffle
+    // off later restores it.
+    if (tracks.length > 0)
+      void AudioEngine.playShuffled(tracks.map(toPlayable), getShuffleAlgorithm());
   }, [tracks]);
 
   const hasFailed = !isScanning && progress.phase === 'failed';

@@ -396,6 +396,36 @@ class Engine {
   }
 
   /**
+   * Start `tracks` shuffled, from whatever the shuffle puts first.
+   *
+   * Every Shuffle button used to queue at the top and then turn shuffle on,
+   * and turning shuffle on keeps the current track where it is — right for
+   * shuffling mid-album, wrong for a button that starts something: it began
+   * with the list's own first track every time, so an album opened on track
+   * one and the library on whatever sorts first. Here the order is drawn once
+   * and played from its start. The unshuffled order is kept underneath, as
+   * `setShuffled` keeps it, so turning shuffle off restores it.
+   */
+  async playShuffled(
+    tracks: PlayableTrack[],
+    algorithm: ShuffleAlgorithm,
+    source: QueueSource = LIBRARY_SOURCE,
+  ): Promise<void> {
+    const order = shuffleTracks(tracks, algorithm);
+    this.sourceQueue = tracks;
+    this.queue = order;
+    this.shuffled = true;
+    this.shuffleAlgorithm = algorithm;
+    this.source = source;
+
+    if (!isPlayable(0, order.length)) {
+      await this.stop();
+      return;
+    }
+    await this.loadIndex(0, true);
+  }
+
+  /**
    * Put back what was playing before the app last stopped — paused, at the
    * position it was left at, with nothing opened until play is pressed.
    *

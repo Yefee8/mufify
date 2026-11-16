@@ -42,15 +42,13 @@ export function usePlaylistPlayback(
 
   /*
    * Shuffle uses whichever algorithm Settings has selected, read at press time.
-   * The queue is set first and shuffled second rather than shuffling the array
-   * and setting it: the engine keeps the unshuffled order as `sourceQueue`, so
-   * turning shuffle off later restores the playlist's real running order instead
-   * of freezing whatever random arrangement started.
+   * The engine keeps the unshuffled order as `sourceQueue`, so turning shuffle
+   * off later restores the playlist's real running order instead of freezing
+   * whatever random arrangement started.
    */
   const shuffleAll = useCallback(async () => {
     if (entries.length === 0) return;
-    await AudioEngine.setQueue(entries.map(entryToPlayable), 0, source);
-    await AudioEngine.setShuffled(true, getShuffleAlgorithm());
+    await AudioEngine.playShuffled(entries.map(entryToPlayable), getShuffleAlgorithm(), source);
   }, [entries, source]);
 
   const playAt = useCallback(

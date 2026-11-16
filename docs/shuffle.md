@@ -148,6 +148,13 @@ replaced and no audio stops. Pressing shuffle is a statement about what comes
 *next* — reshuffling underneath a playing track and jumping to a different one
 is the behaviour every player gets wrong once.
 
+**A Shuffle button is not the toggle.** It starts something, so it starts
+wherever the shuffle puts first: `AudioEngine.playShuffled` draws the order
+once and plays from its head, keeping the list's order underneath for when
+shuffle is turned off. Until 2.0.0 the buttons queued at the top and then
+toggled — and since the toggle keeps the current track in place, every
+shuffled album opened on track one and the library on whatever sorted first.
+
 `playCount`, `isFavorite` and `albumName` all ride along on `PlayableTrack` from
 the list query, joined from `track_stats`. The weighted algorithms need them at
 shuffle time, and re-querying then would put a database round trip between the

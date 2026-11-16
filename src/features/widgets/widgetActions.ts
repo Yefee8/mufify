@@ -38,11 +38,10 @@ export async function performWidgetAction(action: WidgetAction): Promise<void> {
     case 'shuffleCollection': {
       const { tracks, source } = await loadCollection(action.collection);
       if (tracks.length === 0) return;
-      // Queue first, shuffle second, as on every screen: the engine keeps the
-      // real order underneath, so turning shuffle off later restores it.
-      await AudioEngine.setQueue(tracks, 0, source);
       if (action.type === 'shuffleCollection') {
-        await AudioEngine.setShuffled(true, getShuffleAlgorithm());
+        await AudioEngine.playShuffled(tracks, getShuffleAlgorithm(), source);
+      } else {
+        await AudioEngine.setQueue(tracks, 0, source);
       }
       return;
     }

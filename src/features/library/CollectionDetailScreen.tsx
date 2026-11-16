@@ -73,10 +73,9 @@ export function CollectionDetailScreen({ kind, id }: CollectionDetailScreenProps
 
   const shuffle = useCallback(async () => {
     if (tracks.length === 0) return;
-    // Queue first, shuffle second: the engine keeps the unshuffled order, so
-    // turning shuffle off later restores the album's real running order.
-    await AudioEngine.setQueue(tracks.map(toPlayable), 0, source);
-    await AudioEngine.setShuffled(true, getShuffleAlgorithm());
+    // The engine keeps the unshuffled order, so turning shuffle off later
+    // restores the album's real running order.
+    await AudioEngine.playShuffled(tracks.map(toPlayable), getShuffleAlgorithm(), source);
   }, [tracks, source]);
 
   const bottomInset = useMiniPlayerInset();
