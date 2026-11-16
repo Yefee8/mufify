@@ -61,7 +61,7 @@ template's value in place.
   portrait, which is exactly why they were easy to miss.
 
 **A short window puts the header beside the list instead of above it.**
-`ShortWindowSplit` wraps the four screens that stack a header on a list; under
+`ShortWindowSplit` (now `WindowSplit`, which also splits a tablet — ADR 039) wraps the four screens that stack a header on a list; under
 520 points of height, and only when there is 600 points of width to spend, the
 header becomes a scrollable column two fifths wide and the list takes the full
 height. Above that threshold it renders its children exactly as before, so the

@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { NameDialog } from '@/components/ui/NameDialog';
 import { LikedFilter } from '@/components/ui/LikedFilter';
 import { Screen } from '@/components/ui/Screen';
-import { ShortWindowSplit } from '@/components/ui/ShortWindowSplit';
+import { WindowSplit } from '@/components/ui/WindowSplit';
 import { SearchField } from '@/components/ui/SearchField';
 import {
   createPlaylist,
@@ -89,7 +89,7 @@ export function PlaylistsScreen() {
 
   return (
     <Screen title={t('playlists.title')}>
-      <ShortWindowSplit
+      <WindowSplit
         bottomInset={bottomInset}
         aside={
           <>
@@ -157,7 +157,7 @@ export function PlaylistsScreen() {
             ) : undefined
           }
         />
-      </ShortWindowSplit>
+      </WindowSplit>
 
       <NameDialog
         visible={naming}

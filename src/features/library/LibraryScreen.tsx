@@ -6,7 +6,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Screen } from '@/components/ui/Screen';
 import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
-import { ShortWindowSplit } from '@/components/ui/ShortWindowSplit';
+import { WindowSplit } from '@/components/ui/WindowSplit';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
 import { PlayShuffleBar } from '@/components/ui/PlayShuffleBar';
 import { WarningBanner } from '@/components/ui/WarningBanner';
@@ -159,7 +159,7 @@ export function LibraryScreen() {
 
   return (
     <Screen title={t('library.title')}>
-      <ShortWindowSplit
+      <WindowSplit
         bottomInset={bottomInset}
         aside={
           <>
@@ -262,7 +262,7 @@ export function LibraryScreen() {
             orderKey={encodeSort(view === 'artists' ? sort.artists : sort.albums)}
           />
         )}
-      </ShortWindowSplit>
+      </WindowSplit>
 
       {/*
         Scanning reads every audio file on the device, so it says so before it

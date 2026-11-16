@@ -1,28 +1,26 @@
-import { useRouter } from 'expo-router';
-import { ChevronLeft, Heart } from 'lucide-react-native';
+import { Image } from 'expo-image';
+import { Disc3, Heart, User } from 'lucide-react-native';
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { DetailChrome } from '@/components/ui/DetailChrome';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { ShortWindowSplit } from '@/components/ui/ShortWindowSplit';
-import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
+import { WindowSplit } from '@/components/ui/WindowSplit';
 import {
   setAlbumFavorite,
   useCollectionCard,
   useCollectionTracks,
   useFavoriteAlbumIds,
 } from '@/db/queries/tracks';
+import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { AudioEngine } from '@/services/audio/AudioEngine';
 import type { QueueSource } from '@/services/audio/types';
 import { getShuffleAlgorithm } from '@/services/settings';
 import { useThemeColors } from '@/theme/useTheme';
 
-import { PlayShuffleBar } from '@/components/ui/PlayShuffleBar';
-
 import { toPlayable } from '../player/toPlayable';
-import { CollectionHeader } from './components/CollectionHeader';
 import { LibraryTracks } from './LibraryTracks';
 
 export interface CollectionDetailScreenProps {
@@ -35,35 +33,27 @@ export interface CollectionDetailScreenProps {
  *
  * Reuses `LibraryTracks` wholesale, so a track here has exactly the same verbs
  * as a track in the library — swipe to queue, long-press for the sheet,
- * multi-select. A second, thinner track list for this screen would have drifted
- * from the first within a release.
- *
- * Playing from here attributes the listen to the artist or album rather than to
- * the library, which is what puts rows under those entity types in
+ * multi-select — and `DetailChrome` for everything above the list, so this
+ * screen, a playlist and the library read as one app. What is this screen's
+ * own: the album heart, and attributing a listen to the artist or album rather
+ * than to the library, which is what puts rows under those entity types in
  * `stats_rollups` — see `QueueSource`.
  */
 export function CollectionDetailScreen({ kind, id }: CollectionDetailScreenProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
-  const router = useRouter();
 
   const tracks = useCollectionTracks(kind, id);
 
   /*
    * The card is built from the same columns the grid uses, so the header shows
-   * exactly what the user tapped — but for this collection alone. It used to
-   * be found in both whole shelves, which is not "already in memory": every
-   * mounted live query runs its own SQL, and those two grouped the entire
-   * library on every tap into a record. See `useCollectionCard`.
+   * exactly what the user tapped — but for this collection alone; the grid's
+   * own queries group the whole library. See `useCollectionCard`.
    */
   const { card } = useCollectionCard(kind, id);
 
   /*
    * Liking, on the screen rather than only behind a long press on the grid.
-   * The grid's sheet is where you go to act on a record you are *not* looking
-   * at; once it is open, having to back out and press-and-hold the card again
-   * is the app asking the user to remember where the feature lives.
-   *
    * Id 0 is the reserved "no album" card, which is the absence of an album
    * rather than one — there is no row to write a flag to.
    */
@@ -89,33 +79,19 @@ export function CollectionDetailScreen({ kind, id }: CollectionDetailScreenProps
     await AudioEngine.setShuffled(true, getShuffleAlgorithm());
   }, [tracks, source]);
 
-  const goBack = useCallback(() => router.back(), [router]);
-  // For the aside when the window is short enough to put it beside the list;
-  // the list below asks for its own.
   const bottomInset = useMiniPlayerInset();
+
+  const unknownName = t(kind === 'artist' ? 'common.unknownArtist' : 'common.unknownAlbum');
+  const Icon = kind === 'artist' ? User : Disc3;
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-surface">
-      <ShortWindowSplit
+      <WindowSplit
         bottomInset={bottomInset}
         aside={
-          <>
-            {/* Back on the left, actions on the right — the arrangement the playlist
-              screen already uses, so an album and a playlist read as two of the
-              same kind of thing rather than two different screens. */}
-            <View className="flex-row items-center gap-1 px-4 pt-6">
-              <Pressable
-                onPress={goBack}
-                accessibilityRole="button"
-                accessibilityLabel={t('common.back')}
-                className="min-h-11 min-w-11 items-center justify-center"
-              >
-                <ChevronLeft color={colors.label} size={26} strokeWidth={2} />
-              </Pressable>
-
-              <View className="flex-1" />
-
-              {canFavorite ? (
+          <DetailChrome
+            actions={
+              canFavorite ? (
                 <Pressable
                   onPress={toggleFavorite}
                   accessibilityRole="switch"
@@ -132,38 +108,40 @@ export function CollectionDetailScreen({ kind, id }: CollectionDetailScreenProps
                     strokeWidth={2}
                   />
                 </Pressable>
-              ) : null}
-            </View>
-
-            {card ? (
-              <CollectionHeader
-                kind={kind}
-                name={card.name}
-                subtitle={card.subtitle}
-                isUnknown={card.isUnknown}
-                isUnknownSubtitle={card.isUnknownSubtitle}
-                trackCount={tracks.length}
-                artworkPath={card.artworkPath}
-              />
-            ) : (
-              // The card is live and lands a frame after the screen first draws.
-              <View className="flex-row items-end gap-4 px-6 pb-4">
-                <Skeleton className="aspect-square w-1/3 rounded-xs" />
-                <View className="flex-1 gap-2 pb-1">
-                  <Skeleton className="h-6 w-3/4 rounded-xs" />
-                  <Skeleton className="h-4 w-1/3 rounded-xs" />
+              ) : null
+            }
+            artwork={
+              card === null ? (
+                // The card is live and lands a frame after the screen draws.
+                <Skeleton className="h-full w-full rounded-xs" />
+              ) : card.artworkPath ? (
+                <Image
+                  source={{ uri: `file://${card.artworkPath}` }}
+                  recyclingKey={`${kind}-${card.name ?? 'unknown'}`}
+                  cachePolicy="memory-disk"
+                  contentFit="cover"
+                  transition={0}
+                  className="h-full w-full rounded-xs"
+                />
+              ) : (
+                <View className="h-full w-full items-center justify-center rounded-xs bg-surface-elevated">
+                  <Icon color={colors.legend} size={40} strokeWidth={1.5} />
                 </View>
-              </View>
-            )}
-
-            {/* The same pair the library and a playlist use, so starting an album
-              is the gesture people already learned two screens ago. */}
-            <PlayShuffleBar
-              onPlay={play}
-              onShuffle={() => void shuffle()}
-              disabled={tracks.length === 0}
-            />
-          </>
+              )
+            }
+            name={card === null ? null : card.isUnknown ? unknownName : (card.name ?? unknownName)}
+            subtitle={
+              card === null || card.isUnknown
+                ? null
+                : card.isUnknownSubtitle
+                  ? t('common.unknownArtist')
+                  : card.subtitle
+            }
+            meta={t('library.trackCount', { count: tracks.length })}
+            onPlay={play}
+            onShuffle={() => void shuffle()}
+            playDisabled={tracks.length === 0}
+          />
         }
       >
         <LibraryTracks
@@ -177,7 +155,7 @@ export function CollectionDetailScreen({ kind, id }: CollectionDetailScreenProps
           suppressEmpty
           onAddFolder={noop}
         />
-      </ShortWindowSplit>
+      </WindowSplit>
     </SafeAreaView>
   );
 }

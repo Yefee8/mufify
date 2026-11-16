@@ -1,15 +1,16 @@
 import type { FlashListRef } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
-import { ListMusic, SearchX } from 'lucide-react-native';
+import { ImagePlus, ListMusic, SearchX } from 'lucide-react-native';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LayoutAnimation, View } from 'react-native';
+import { LayoutAnimation, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { DetailChrome } from '@/components/ui/DetailChrome';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { NameDialog } from '@/components/ui/NameDialog';
 import { SearchField } from '@/components/ui/SearchField';
-import { ShortWindowSplit } from '@/components/ui/ShortWindowSplit';
+import { WindowSplit } from '@/components/ui/WindowSplit';
 import {
   deletePlaylist,
   LIKED_SONGS_ID,
@@ -26,6 +27,7 @@ import { useMiniPlayerInset } from '@/features/player/playerLayerLayout';
 import { useMessages } from '@/i18n';
 import { mosaicOf } from '@/services/playlists/order';
 import { matchesSearch } from '@/services/text/search';
+import { useThemeColors } from '@/theme/useTheme';
 
 import { AddTracksSheet } from './components/AddTracksSheet';
 import { CoverActionSheet } from './components/CoverActionSheet';
@@ -33,7 +35,8 @@ import { CoverCropSheet } from './components/CoverCropSheet';
 import { usePlaylistCover } from './hooks/usePlaylistCover';
 import { useReorderableEntries } from './hooks/useReorderableEntries';
 import { usePlaylistPlayback } from './hooks/usePlaylistPlayback';
-import { PlaylistDetailHeader } from './components/PlaylistDetailHeader';
+import { PlaylistDetailActions } from './components/PlaylistDetailActions';
+import { PlaylistMosaic } from './components/PlaylistMosaic';
 import { PlaylistEntryList } from './components/PlaylistEntryList';
 
 export interface PlaylistDetailScreenProps {
@@ -43,6 +46,7 @@ export interface PlaylistDetailScreenProps {
 /** One playlist: its tracks, in order, with the ways to play and edit them. */
 export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
   const router = useRouter();
   const isLiked = playlistId === LIKED_SONGS_ID;
   const bottomInset = useMiniPlayerInset();
@@ -152,36 +156,55 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-surface">
-      <ShortWindowSplit
+      <WindowSplit
         bottomInset={bottomInset}
         aside={
-          <>
-            <PlaylistDetailHeader
-              name={name}
-              trackCount={entries.length}
-              covers={covers}
-              onPlay={playAll}
-              onShuffle={() => void shuffleAll()}
-              cover={playlist?.coverPath ?? null}
-              onChangeCover={isLiked ? undefined : cover.open}
-              onAddTracks={isLiked ? undefined : () => setAdding(true)}
-              onRename={isLiked ? undefined : () => setRenaming(true)}
-              onDelete={isLiked ? undefined : onDelete}
-              isFavorite={playlist?.isFavorite ?? false}
-              onToggleFavorite={isLiked ? undefined : onToggleFavorite}
-            />
-
+          <DetailChrome
+            actions={
+              <PlaylistDetailActions
+                onToggleFavorite={isLiked ? undefined : onToggleFavorite}
+                isFavorite={playlist?.isFavorite ?? false}
+                onAddTracks={isLiked ? undefined : () => setAdding(true)}
+                onRename={isLiked ? undefined : () => setRenaming(true)}
+                onDelete={isLiked ? undefined : onDelete}
+              />
+            }
+            artwork={
+              isLiked ? (
+                <PlaylistMosaic covers={covers} cover={null} size="fill" />
+              ) : (
+                /*
+                  The artwork is the target, because that is where a hand goes
+                  to change a picture. The badge is what says so — an image this
+                  size with no mark on it reads as decoration, and the
+                  affordance would be a secret.
+                */
+                <Pressable
+                  onPress={cover.open}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('playlists.cover.change')}
+                  className="h-full w-full"
+                >
+                  <PlaylistMosaic covers={covers} cover={playlist?.coverPath ?? null} size="fill" />
+                  <View className="absolute bottom-1 right-1 rounded-full bg-accent p-2">
+                    <ImagePlus color={colors.onSignal} size={14} strokeWidth={2} />
+                  </View>
+                </Pressable>
+              )
+            }
+            name={name}
+            meta={t('playlists.trackCount', { count: entries.length })}
+            onPlay={playAll}
+            onShuffle={() => void shuffleAll()}
+            playDisabled={entries.length === 0}
+          >
             {/*
-            Always, not above some number of rows.
-
-            It used to appear only past twelve entries, on the reasoning that a
-            list which fits on one screen does not need searching. That reasoning
-            was about the *list* and the user's question is about the *box*: the
-            library has one, the Playlists tab has one, and a playlist that has
-            none reads as a screen where search is not a thing — so a fix to what
-            the box matches is invisible to anyone whose playlists are short.
-          */}
-            <View className="px-6 pb-4">
+              Always, not above some number of rows: the library has a search
+              box, and a playlist without one reads as a screen where search is
+              not a thing — so a fix to what the box matches is invisible to
+              anyone whose playlists are short.
+            */}
+            <View className="px-6">
               <SearchField
                 value={search}
                 onChange={setSearch}
@@ -189,7 +212,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
                 placeholder={t('playlists.searchIn')}
               />
             </View>
-          </>
+          </DetailChrome>
         }
       >
         {/* Bounded, so the list re-lays out when the rows above it change. */}
@@ -223,7 +246,7 @@ export function PlaylistDetailScreen({ playlistId }: PlaylistDetailScreenProps) 
             />
           )}
         </View>
-      </ShortWindowSplit>
+      </WindowSplit>
 
       {isLiked ? null : (
         <AddTracksSheet

@@ -37,7 +37,7 @@ export interface PlayerScreenProps {
   onPrepareQueue: () => void;
 }
 
-/** The same short window `ShortWindowSplit` and `Screen` mean. */
+/** The same short window `WindowSplit` and `Screen` mean. */
 const SHORT_HEIGHT = 520;
 
 export function PlayerScreen({ onExpandedChange, onOpenQueue, onPrepareQueue }: PlayerScreenProps) {

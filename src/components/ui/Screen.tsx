@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-/** Matches `ShortWindowSplit`: one idea of what counts as a short window. */
+/** Matches `WindowSplit`: one idea of what counts as a short window. */
 const SHORT_HEIGHT = 520;
 
 export interface ScreenProps {
@@ -21,7 +21,7 @@ export interface ScreenProps {
  * untappable at worst. Not `bottom`: the mini player and the tab bar own that
  * end, and a screen that also reserved it would leave a gap above them.
  *
- * The title shrinks in a short window for the same reason `ShortWindowSplit`
+ * The title shrinks in a short window for the same reason `WindowSplit`
  * exists: a landscape phone is about 400 points tall, and a display face at
  * three times the body size with room to breathe is a tenth of that spent on a
  * word the user just tapped to get here.

@@ -46,7 +46,8 @@ it is repeated here because that is the thing a reader needs before touching it.
 | `SwipeableRow` | Reveals one action when dragged left. **Transient by design**: it never stays open, because this lives in a recycling list and a row holding open state gets recycled with it. |
 | `Toaster` | Where transient confirmations appear. Reads a module-level store, so a toast re-renders this and nothing else. Sits above the mini player in the tab bar stack. |
 | `ProgressBar` | A determinate bar. Used by the scan banner. |
-| `ShortWindowSplit` | Header above the list, or beside it when the window is shorter than 520 points — a landscape phone, or split-screen. Upright it renders its children unchanged. |
+| `WindowSplit` | Header above the list on a phone held upright; beside it when the window is short (a landscape phone, split-screen: two fifths to three) or wide (a tablet: a phone-width column of controls, the list taking the rest). `useSplitMode` tells what sits in the side column which one it is in — see `docs/adr/039`. |
+| `DetailChrome` | The top of every detail screen — album, artist, playlist: back, the screen's own actions, the cover, name and count, Play and Shuffle. One component, so the three read as one app; in a tablet's side column the cover goes on top, column-wide. |
 | `useCardColumns` | Cards per row for the card grids, from the window width. Two on a portrait phone, up to five on a tablet. |
 | `panelInset` | The padding a bottom-anchored sheet needs to clear the system bars — bottom and sides together, because in landscape the navigation bar is a side. |
 
@@ -64,7 +65,6 @@ it is repeated here because that is the thing a reader needs before touching it.
 | `LibraryRow` | One row plus its swipe gesture. Memoized on primitives only, so a render elsewhere cannot reach it. |
 | `TrackRow` | Artwork, title, artist, duration. Compared by value, because a live query hands back fresh objects on every re-run. |
 | `CollectionCard` / `CollectionGrid` | An artist or album as a square card, and the two-column grid of them. |
-| `CollectionHeader` | Cover, name and size for a detail screen. |
 | `SearchField` | Debounced input. The field stays instant; only the query waits. |
 | `LibraryToolbar` | Search, the heart and the sort button, in one row under the view switch, in every view. The heart is per view: liked tracks, liked albums, or artists you have liked something by — `docs/adr/033`. |
 | `SortControl` | The sort button and its sheet. Choosing a key and reversing are both one tap and both close the sheet; the button turns accent while a non-default order is in force. Generic over the view's keys — see `docs/adr/030`. |
@@ -100,7 +100,7 @@ it is repeated here because that is the thing a reader needs before touching it.
 | Component | What it is for |
 |---|---|
 | `PlaylistsScreen` / `PlaylistRow` | The list, and one playlist in it. |
-| `PlaylistDetailScreen` / `PlaylistDetailHeader` | One playlist, laid out the way a streaming app does because that arrangement is already in everyone's hands. |
+| `PlaylistDetailScreen` / `PlaylistDetailActions` | One playlist, in the shared `DetailChrome`; the actions are its own — heart, add tracks, rename, delete — and the cover is pressable to change. |
 | `PlaylistMosaic` | A playlist's cover: the first four album covers in a 2×2 grid. Each count is a deliberate case, not a degradation — one cover fills the square rather than repeating four times. |
 | `PlaylistEntryList` | The rows and the drag's floating copy. Split from the screen at the 300-line limit; the screen owns the playlist, this owns the rows. |
 | `ReorderableEntry` | Drag by a handle, not by long-press: long-press is the action sheet everywhere else, and a list where holding sometimes does either is a list nobody trusts. The row never carries a transform — while held it is hidden and `DragOverlay` draws it. |

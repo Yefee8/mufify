@@ -32,7 +32,7 @@ const MAX_COLUMNS = 5;
  * a time.
  *
  * Measured rather than taken from the window, because the two are not the same
- * number: in a short window the grid sits in `ShortWindowSplit`'s right-hand
+ * number: in a short window the grid sits in `WindowSplit`'s right-hand
  * column with three fifths of the width, and a count derived from the window
  * would pack that column with cards sized for a screen it does not have.
  *
