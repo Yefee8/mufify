@@ -1,5 +1,5 @@
 import AudioTags from 'audio-tags';
-import { Directory, Paths } from 'expo-file-system';
+import { Directory } from 'expo-file-system';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -24,6 +24,7 @@ import {
   type ScanProgress,
   type ScannerPorts,
 } from '@/services/scanner/scanner';
+import { artworkDirectory } from '@/services/library/artworkStore';
 
 const IDLE: ScanProgress = { phase: 'idle', total: 0, processed: 0 };
 
@@ -35,13 +36,6 @@ const SHORT_FILE_MS = 30_000;
  * has ever been allowed to read the library.
  */
 type PermissionOutcome = 'already-granted' | 'granted-now' | 'denied';
-
-/** Where extracted artwork lives. Cache, not documents — it is rebuildable. */
-function artworkDirectory(): string {
-  const directory = new Directory(Paths.cache, 'artwork');
-  if (!directory.exists) directory.create({ intermediates: true });
-  return directory.uri.replace('file://', '');
-}
 
 export interface UseScanResult {
   progress: ScanProgress;

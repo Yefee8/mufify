@@ -89,9 +89,11 @@ export function prepareNotificationArtwork(): Promise<string | null> {
 
   preparing ??= Promise.resolve()
     .then(() => {
-      const file = new File(Paths.cache, PLACEHOLDER_FILE);
-      // The cache can be emptied by the system at any time, so the size is
-      // checked rather than mere existence: a truncated file is not a cover.
+      // The files directory, not the cache: the system empties the cache when
+      // space runs low, and the notification would then point at nothing for
+      // the rest of the session. The size is still checked rather than mere
+      // existence — a truncated file is not a cover.
+      const file = new File(Paths.document, PLACEHOLDER_FILE);
       const bytes = decodeBase64(PLACEHOLDER_PNG_BASE64);
       if (!file.exists || file.size !== bytes.length) file.write(bytes);
       placeholderUri = file.uri;

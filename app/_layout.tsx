@@ -15,6 +15,7 @@ import { useDatabase } from '@/db/useDatabase';
 import { PlayerLayer } from '@/features/player/PlayerLayer';
 import { startListenRecording } from '@/features/player/listenRecorder';
 import { installShutdownOnTaskRemoved } from '@/services/lifecycle/shutdown';
+import { relocateArtwork } from '@/services/library/artworkStore';
 import { initI18n } from '@/i18n';
 import { AudioEngine } from '@/services/audio/AudioEngine';
 import { APP_FONTS } from '@/theme/fonts';
@@ -39,6 +40,9 @@ registerComponentInterop();
 installShutdownOnTaskRemoved();
 
 void SplashScreen.preventAutoHideAsync();
+
+/** Long enough that the library has drawn; the move is not urgent. */
+const RELOCATE_DELAY_MS = 2_000;
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(APP_FONTS);
@@ -94,6 +98,17 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsSettled && databaseSettled) void SplashScreen.hideAsync();
   }, [fontsSettled, databaseSettled]);
+
+  // Covers written to the cache by earlier versions move to the files
+  // directory, once, after the first screen has drawn — see `artworkStore`.
+  useEffect(() => {
+    if (!databaseReady) return;
+    const timer = setTimeout(
+      () => void relocateArtwork().catch(() => undefined),
+      RELOCATE_DELAY_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [databaseReady]);
 
   // Hold the splash rather than render a frame in the fallback font, or let a
   // screen query a schema that has not been migrated yet.

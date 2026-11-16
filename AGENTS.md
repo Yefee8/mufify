@@ -221,7 +221,8 @@ The app must stay fluid with a 10,000-track library. Concretely:
 - `renderItem` renders a memoized component and receives **no inline arrow functions**. Pass the
   id and a stable callback from `useCallback`.
 - **Never decode embedded artwork at render time.** Artwork is extracted once during scanning,
-  resized, written to the cache directory, and referenced by path.
+  resized, written to the app's files directory, and referenced by path. **Not the cache
+  directory**: Android empties it when space runs low, and nothing would write the covers back.
 - Images go through `expo-image` with an explicit `recyclingKey` and `cachePolicy`.
 - **Statistics screens read `stats_rollups` only.** Never aggregate `play_events` in a screen
   query. Rollups are updated incrementally when a play event is recorded.

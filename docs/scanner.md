@@ -65,10 +65,18 @@ batches.
 ### Artwork never crosses the bridge
 
 `ArtworkExtractor` decodes with `inSampleSize` so a multi-megapixel cover is
-never fully expanded, writes a 512px and a 128px JPEG into the cache directory,
-and returns two paths. Files are content-addressed by a hash of the picture
-bytes, so an album's twelve tracks sharing one cover produce one pair of files
-and a rescan rewrites nothing.
+never fully expanded, writes a 512px and a 128px JPEG into the app's files
+directory (`artworkStore.artworkDirectory()`), and returns two paths. Files are
+content-addressed by a hash of the picture bytes, so an album's twelve tracks
+sharing one cover produce one pair of files and a rescan rewrites nothing.
+
+**Not the cache directory**, which is where they used to go. Android empties an
+app's cache when the phone runs low on space, and a rescan skips unchanged
+files — so a purged cover never came back. Reproduced on the emulator with
+`adb shell pm trim-caches`. Since 2.0.0 the files live where the system does
+not touch them, and on launch `relocateArtwork` moves anything an older version
+left in the cache; a cover that was already purged has its path cleared and
+its row sent back through stage two, so the next scan writes it again.
 
 This is what makes the `AGENTS.md` rule — never store artwork bytes, never
 decode at render time — free rather than a discipline.
@@ -221,7 +229,7 @@ hand on the device.
 | Automatic full-library sweep | from a cleared install with the permission pre-granted and **no folder picked**, 523 tracks appeared on their own |
 | Sweep after a first grant with the picker cancelled | 523 tracks anyway — see the fix in `useScan` |
 | `scanFile()` recursion into directories | resolved, twice, three levels deep — ADR 007 |
-| Artwork extraction | a real embedded cover produced the content-addressed `<hash>-512.jpg` / `-128.jpg` pair in the cache and rendered in the row |
+| Artwork extraction | a real embedded cover produced the content-addressed `<hash>-512.jpg` / `-128.jpg` pair and rendered in the row |
 | Populated tags | the tagged files on the emulator list with artist and album, so the tag path has now been seen returning values rather than nulls |
 | Track list over 523 rows | scrolls end to end without error |
 
